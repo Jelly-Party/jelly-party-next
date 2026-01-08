@@ -1,14 +1,9 @@
-import { defineConfig } from "vite";
-import webExtension from "vite-plugin-web-extension";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "vite";
+import webExtension from "vite-plugin-web-extension";
 
 export default defineConfig({
-	plugins: [
-		svelte(),
-		tailwindcss(),
-		webExtension({
-			// Uses manifest.json in same directory by default
-		}),
-	],
+	publicDir: "icons",
+	plugins: [svelte(), tailwindcss(), webExtension()],
 });

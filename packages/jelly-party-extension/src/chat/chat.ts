@@ -1,3 +1,9 @@
+import { mount } from "svelte";
+import Chat from "./Chat.svelte";
 import "./chat.css";
-// Chat component will be mounted here
-console.log("Jelly Party chat loaded");
+
+const app = mount(Chat, {
+	target: document.getElementById("chat")!,
+});
+
+export default app;

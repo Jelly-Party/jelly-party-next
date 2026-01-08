@@ -16,9 +16,13 @@ dev:
     pnpm --filter jelly-party-website dev &
     wait
 
-# Development: extension only (with watch mode)
+# Development: extension only (opens Chrome with extension)
 dev-extension:
     pnpm --filter jelly-party-extension dev
+
+# Development: extension in Firefox
+dev-extension-firefox:
+    cd packages/jelly-party-extension && pnpm exec vite --mode development -- --browser firefox
 
 # Development: server only
 dev-server:

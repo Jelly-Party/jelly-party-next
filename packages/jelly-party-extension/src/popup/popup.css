@@ -1,1 +1,216 @@
-@import "tailwindcss";
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+html, body {
+	width: 320px;
+	min-height: 400px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+	color: #fff;
+}
+
+#popup {
+	width: 100%;
+	min-height: 100vh;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Header */
+.header {
+	text-align: center;
+	margin-bottom: 24px;
+}
+
+.logo {
+	font-size: 48px;
+	margin-bottom: 8px;
+}
+
+.header h1 {
+	font-size: 24px;
+	font-weight: 700;
+	background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.header p {
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.6);
+	margin-top: 4px;
+}
+
+/* User card */
+.user-card {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.user-info {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.user-emoji {
+	font-size: 48px;
+	cursor: pointer;
+	transition: transform 0.2s;
+}
+
+.user-emoji:hover {
+	transform: scale(1.1);
+}
+
+.user-name {
+	flex: 1;
+}
+
+.user-name input {
+	width: 100%;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 8px;
+	padding: 10px 14px;
+	color: #fff;
+	font-size: 16px;
+	font-weight: 500;
+	outline: none;
+	transition: border-color 0.2s;
+}
+
+.user-name input:focus {
+	border-color: rgba(139, 92, 246, 0.5);
+}
+
+.user-name label {
+	display: block;
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.4);
+	margin-top: 6px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+/* Status */
+.status {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 8px;
+	font-size: 13px;
+}
+
+.status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #ef4444;
+}
+
+.status-dot.connected {
+	background: #22c55e;
+}
+
+.status-text {
+	color: rgba(255, 255, 255, 0.8);
+}
+
+/* Actions */
+.actions {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: auto;
+}
+
+.btn {
+	padding: 14px 20px;
+	border-radius: 12px;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.2s;
+	border: none;
+	text-align: center;
+}
+
+.btn-primary {
+	background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+	color: #fff;
+}
+
+.btn-primary:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.btn-secondary {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-secondary:hover {
+	background: rgba(255, 255, 255, 0.15);
+}
+
+/* Join input */
+.join-section {
+	margin-bottom: 20px;
+}
+
+.join-section label {
+	display: block;
+	font-size: 13px;
+	color: rgba(255, 255, 255, 0.7);
+	margin-bottom: 8px;
+}
+
+.join-section input {
+	width: 100%;
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 10px;
+	padding: 12px 16px;
+	color: #fff;
+	font-size: 14px;
+	outline: none;
+	transition: border-color 0.2s;
+}
+
+.join-section input:focus {
+	border-color: rgba(139, 92, 246, 0.5);
+}
+
+.join-section input::placeholder {
+	color: rgba(255, 255, 255, 0.4);
+}
+
+/* Footer */
+.footer {
+	margin-top: 20px;
+	text-align: center;
+}
+
+.footer a {
+	color: rgba(255, 255, 255, 0.5);
+	font-size: 12px;
+	text-decoration: none;
+}
+
+.footer a:hover {
+	color: rgba(255, 255, 255, 0.8);
+}

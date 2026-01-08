@@ -1,5 +1,4 @@
 {
-  "firefox": "/opt/homebrew/bin/firefox",
-  "chromiumBinary": "/Applications/Chromium.app/Contents/MacOS/Chromium",
-  "startUrl": ["about:debugging#/runtime/this-firefox"]
+	"chromiumBinary": "/Applications/Chromium.app/Contents/MacOS/Chromium",
+	"startUrl": ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
 }
