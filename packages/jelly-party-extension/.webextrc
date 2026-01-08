@@ -1,0 +1,5 @@
+{
+  "firefox": "/opt/homebrew/bin/firefox",
+  "chromiumBinary": "/Applications/Chromium.app/Contents/MacOS/Chromium",
+  "startUrl": ["about:debugging#/runtime/this-firefox"]
+}

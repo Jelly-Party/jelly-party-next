@@ -1,0 +1,25 @@
+{
+	"name": "jelly-party-extension",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"check": "svelte-check --tsconfig ./tsconfig.json"
+	},
+	"dependencies": {
+		"jelly-party-lib": "workspace:*",
+		"webextension-polyfill": "^0.12.0"
+	},
+	"devDependencies": {
+		"@sveltejs/vite-plugin-svelte": "^6.2.1",
+		"@tailwindcss/vite": "^4.1.17",
+		"svelte": "^5.45.6",
+		"svelte-check": "^4.3.4",
+		"tailwindcss": "^4.1.17",
+		"typescript": "^5.9.3",
+		"vite": "^7.2.6",
+		"vite-plugin-web-extension": "^4.4.3"
+	}
+}

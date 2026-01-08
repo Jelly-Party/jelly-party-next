@@ -8,6 +8,13 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
+dist/
+packages/*/dist/
+packages/*/.svelte-kit/
+packages/*/build/
+
+# Extension build
+packages/jelly-party-extension/dist/
 
 # OS
 .DS_Store

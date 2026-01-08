@@ -2,6 +2,8 @@
 trigger: always_on
 ---
 
+# Project Overview
+
 Jelly Party is a Webextension that synchronizes video playback across participants in a Jelly Party.
 
 This project is a rewrite of the original project (which you can find in the "legacy" folder), that ports it to modern, simple Svelte.
@@ -28,3 +30,11 @@ Crucially, we want to keep the same:
 - Design & UX
 - Synchronization & Chat Features
 - Video playback logic, in particular playback synchronization
+- API compatibility in between the old and new extensions, for a seamless upgrade path
+
+# Grounding Rule: Search First for Uncertain/Evolving Tech
+
+You must ALWAYS "Stop and Search" when encountering a library, framework, or API that is:
+1.  **Alpha/Beta or Rapidly Evolving** (e.g., Zero Sync, young open-source projects).
+2.  **Not Fully Known** or where you are less than 100% certain of the specific API signature.
+3.  **Potentially Hallucinated** due to your training data cutoff conflicting with recent versions.
