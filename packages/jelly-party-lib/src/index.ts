@@ -3,6 +3,10 @@
  * Common types, constants, and utilities shared across packages
  */
 
+// Config and logging
+export { config, type Config, type Environment } from "./config.js";
+export { log, createLogger, type Logger, type LogLevel } from "./logger.js";
+
 // WebSocket Message Types
 export interface ClientState {
 	clientName: string;

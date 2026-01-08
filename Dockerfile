@@ -8,17 +8,17 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
 # Copy workspace configuration
-COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 
 # ============================================
 # Dependencies Stage: Install all dependencies
 # ============================================
 FROM base AS deps
-COPY package.json ./
 COPY packages/jelly-party-lib/package.json ./packages/jelly-party-lib/
 COPY packages/jelly-party-server/package.json ./packages/jelly-party-server/
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+  pnpm install --frozen-lockfile
 
 # ============================================
 # Build Stage: Build server packages
@@ -26,7 +26,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM deps AS build
 COPY packages/jelly-party-lib ./packages/jelly-party-lib
 COPY packages/jelly-party-server ./packages/jelly-party-server
-RUN pnpm --filter jelly-party-lib --filter jelly-party-server build
+RUN pnpm --filter jelly-party-lib build && \
+  pnpm --filter jelly-party-server build
 
 # ============================================
 # Server Target (only deployable via Docker)
@@ -40,5 +41,5 @@ COPY --from=build /app/packages/jelly-party-lib ./packages/jelly-party-lib
 COPY --from=build /app/packages/jelly-party-server ./packages/jelly-party-server
 
 WORKDIR /app/packages/jelly-party-server
-EXPOSE 8080
+EXPOSE 8080 9090
 CMD ["node", "dist/main.js"]

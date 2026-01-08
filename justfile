@@ -1,7 +1,7 @@
 # Jelly Party Development Commands
 
 # Default: list available commands
-default:
+list:
     @just --list
 
 # Install all dependencies
@@ -42,7 +42,15 @@ check:
 
 # Lint all packages
 lint:
-    pnpm --filter '*' lint
+    pnpm lint
+
+# Fix lint issues
+lint-fix:
+    pnpm lint:fix
+
+# Format all code
+format:
+    pnpm format
 
 # Docker build server (static sites deploy via Vercel)
 docker-build:

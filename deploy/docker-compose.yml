@@ -1,0 +1,36 @@
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    expose:
+      - "9090"
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+      - METRICS_PORT=9090
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  alloy:
+    image: grafana/alloy:v1.12.1
+    restart: unless-stopped
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    environment:
+      - GRAFANA_OTLP_ENDPOINT=${GRAFANA_OTLP_ENDPOINT}
+      - GRAFANA_INSTANCE_ID=${GRAFANA_INSTANCE_ID}
+      - GRAFANA_API_TOKEN=${GRAFANA_API_TOKEN}
+    depends_on:
+      - server

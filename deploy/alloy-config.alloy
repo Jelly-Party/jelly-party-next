@@ -1,0 +1,63 @@
+// Grafana Alloy configuration for Jelly Party
+// Forwards metrics and logs to Grafana Cloud via single OTLP endpoint
+
+// ============================================
+// Prometheus Metrics Scraping
+// ============================================
+
+prometheus.scrape "server_metrics" {
+	targets = [
+		{"__address__" = "server:9090"},
+	]
+	forward_to      = [otelcol.receiver.prometheus.default.receiver]
+	scrape_interval = "15s"
+}
+
+// Convert Prometheus metrics to OTLP
+otelcol.receiver.prometheus "default" {
+	output {
+		metrics = [otelcol.exporter.otlphttp.grafana_cloud.input]
+	}
+}
+
+// ============================================
+// Docker Log Collection
+// ============================================
+
+discovery.docker "containers" {
+	host = "unix:///var/run/docker.sock"
+
+	filter {
+		name   = "name"
+		values = ["server"]
+	}
+}
+
+loki.source.docker "server_logs" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.docker.containers.targets
+	forward_to = [otelcol.receiver.loki.default.receiver]
+}
+
+// Convert Loki logs to OTLP
+otelcol.receiver.loki "default" {
+	output {
+		logs = [otelcol.exporter.otlphttp.grafana_cloud.input]
+	}
+}
+
+// ============================================
+// OTLP Export to Grafana Cloud
+// ============================================
+
+otelcol.exporter.otlphttp "grafana_cloud" {
+	client {
+		endpoint = sys.env("GRAFANA_OTLP_ENDPOINT")
+		auth     = otelcol.auth.basic.grafana_cloud.handler
+	}
+}
+
+otelcol.auth.basic "grafana_cloud" {
+	username = sys.env("GRAFANA_INSTANCE_ID")
+	password = sys.env("GRAFANA_API_TOKEN")
+}

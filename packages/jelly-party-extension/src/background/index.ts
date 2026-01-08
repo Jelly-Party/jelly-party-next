@@ -11,5 +11,3 @@ browser.action.onClicked.addListener(async (tab) => {
 		console.log("Extension clicked on tab:", tab.id);
 	}
 });
-
-export {};
