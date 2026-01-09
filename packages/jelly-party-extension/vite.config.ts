@@ -9,7 +9,7 @@ export default defineConfig({
 		svelte(),
 		tailwindcss(),
 		webExtension({
-			additionalInputs: ["src/chat/chat.html"],
+			additionalInputs: ["src/chat/chat.html", "src/content/main.ts"],
 		}),
 	],
 });

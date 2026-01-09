@@ -174,7 +174,7 @@
     </style>
   </head>
   <body>
-    <div class="card">
+    <div class="card" style="opacity: 0; pointer-events: none;">
       <img 
         src="https://www.jelly-party.com/logo.png" 
         alt="Jelly Party Logo" 
@@ -195,5 +195,34 @@
         </p>
       </div>
     </div>
+    <script>
+      // Extension detection handler
+      (() => {
+        // Check if extension content script marked its presence
+        function extensionInstalled() {
+          return document.documentElement.hasAttribute('data-jellyparty-installed');
+        }
+        
+        // If extension is already detected, it will handle the redirect
+        if (extensionInstalled()) {
+          console.log('Jelly Party extension detected');
+          return;
+        }
+        
+        // Check again after a brief delay (content script runs at document_start,
+        // but this inline script might race with it)
+        setTimeout(() => {
+          if (!extensionInstalled()) {
+            // No extension found - show install prompt
+            const card = document.querySelector('.card');
+            if (card) {
+              card.style.opacity = '1';
+              card.style.pointerEvents = 'auto';
+            }
+          }
+        }, 300);
+      })();
+    </script>
   </body>
 </html>
+

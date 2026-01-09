@@ -91,7 +91,8 @@ function closeOverlay() {
 
 function getMagicLink(): string {
 	const partyId = $partyStore.partyId;
-	return `https://join.jelly-party.com/?jellyPartyId=${partyId}`;
+	const redirectURL = encodeURIComponent(window.location.href);
+	return `https://join.jelly-party.com/?jellyPartyId=${partyId}&redirectURL=${redirectURL}`;
 }
 
 async function copyLink() {

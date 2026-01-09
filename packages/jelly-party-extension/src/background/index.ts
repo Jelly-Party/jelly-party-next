@@ -8,6 +8,11 @@ interface UserOptions {
 	emoji: string;
 }
 
+interface RedirectPayload {
+	redirectURL: string;
+	partyId: string;
+}
+
 // Generate random name from adjective + animal
 const adjectives = [
 	"Happy",
@@ -57,9 +62,66 @@ browser.runtime.onInstalled.addListener(async () => {
 	}
 });
 
+/**
+ * Redirect to a party URL and inject the content script.
+ * This handles magic link redirects from join.jelly-party.com.
+ */
+async function redirectToParty(
+	tabId: number,
+	redirectURL: string,
+	partyId: string,
+): Promise<void> {
+	// Build the target URL with partyId
+	const targetUrl = new URL(redirectURL);
+	targetUrl.searchParams.set("jellyPartyId", partyId);
+	const finalUrl = targetUrl.toString();
+
+	console.log("Jelly Party: Redirecting to party", { finalUrl, partyId });
+
+	// First, check if we have permission for this origin
+	const origin = `${targetUrl.origin}/*`;
+	const hasPermission = await browser.permissions.contains({
+		origins: [origin],
+	});
+
+	if (!hasPermission) {
+		console.warn("Jelly Party: Missing permission for", origin);
+		// We cannot request permission here in background context without user gesture.
+		// join.ts should have handled this. We'll try to proceed anyway,
+		// relying on activeTab if applicable, but mostly likely executeScript will fail
+		// if host permission wasn't granted.
+	}
+
+	// Update the tab to the target URL
+	await browser.tabs.update(tabId, { url: finalUrl });
+
+	// Inject content script with retries (page may take time to load)
+	const delays = [1000, 3000, 5000];
+	for (const delay of delays) {
+		await new Promise((resolve) => setTimeout(resolve, delay));
+		try {
+			await browser.scripting.executeScript({
+				target: { tabId },
+				files: ["src/content/main.js"],
+			});
+			console.log(
+				"Jelly Party: Content script injected successfully after",
+				delay,
+				"ms",
+			);
+			break;
+		} catch (e) {
+			console.log(
+				"Jelly Party: Script injection attempt failed, retrying...",
+				e,
+			);
+		}
+	}
+}
+
 // Message handlers
 browser.runtime.onMessage.addListener(
-	(message: { type: string; payload?: unknown }) => {
+	(message: { type: string; payload?: unknown }, sender) => {
 		switch (message.type) {
 			case "getOptions":
 				return browser.storage.local.get("options").then((r) => r.options);
@@ -79,6 +141,15 @@ browser.runtime.onMessage.addListener(
 					currentPartyId: message.payload,
 				});
 
+			case "redirectToParty": {
+				const payload = message.payload as RedirectPayload;
+				const tabId = sender.tab?.id;
+				if (tabId && payload.redirectURL && payload.partyId) {
+					redirectToParty(tabId, payload.redirectURL, payload.partyId);
+				}
+				return Promise.resolve({ success: true });
+			}
+
 			default:
 				console.log("Jelly Party: Unknown message type:", message.type);
 				return Promise.resolve(null);
@@ -86,33 +157,37 @@ browser.runtime.onMessage.addListener(
 	},
 );
 
-// Handle extension icon click - toggle overlay on current tab
+// Handle extension icon click - inject and show overlay on current tab
 browser.action.onClicked.addListener(async (tab) => {
 	if (!tab.id) return;
 
 	console.log("Jelly Party: Extension clicked on tab:", tab.id);
 
-	// Send message to content script to toggle the overlay
+	// First try to send message to existing content script
 	try {
 		await browser.tabs.sendMessage(tab.id, {
-			type: "jellyparty:toggleOverlay",
+			type: "jellyparty:showOverlay",
 		});
-	} catch (error) {
-		// Content script might not be loaded yet, inject it
-		console.log("Jelly Party: Content script not ready, injecting...");
-		await browser.scripting.executeScript({
-			target: { tabId: tab.id },
-			files: ["src/content/main.js"],
-		});
-		// Try again after injection
-		setTimeout(async () => {
-			try {
-				await browser.tabs.sendMessage(tab.id!, {
-					type: "jellyparty:toggleOverlay",
-				});
-			} catch (e) {
-				console.error("Jelly Party: Failed to toggle overlay", e);
-			}
-		}, 500);
+	} catch {
+		// Content script not loaded yet, inject it
+		console.log("Jelly Party: Injecting content script...");
+		try {
+			await browser.scripting.executeScript({
+				target: { tabId: tab.id },
+				files: ["src/content/main.js"],
+			});
+			// Wait a bit for script to initialize, then send message
+			setTimeout(async () => {
+				try {
+					await browser.tabs.sendMessage(tab.id!, {
+						type: "jellyparty:showOverlay",
+					});
+				} catch (e) {
+					console.error("Jelly Party: Failed to show overlay", e);
+				}
+			}, 300);
+		} catch (e) {
+			console.error("Jelly Party: Failed to inject content script", e);
+		}
 	}
 });
