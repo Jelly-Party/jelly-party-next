@@ -1,114 +1,110 @@
 <script lang="ts">
-  import { optionsStore } from "../stores/options";
-  import { getRandomEmoji } from "jelly-party-lib";
-  import browser from "webextension-polyfill";
+import { optionsStore } from "../stores/options";
 
-  let joinPartyId = $state("");
+let joinPartyId = $state("");
 
-  $effect(() => {
-    optionsStore.load();
-  });
+$effect(() => {
+	optionsStore.load();
+});
 
-  function refreshEmoji() {
-    optionsStore.updateField("emoji", getRandomEmoji());
-  }
+function extractPartyId(input: string): string {
+	try {
+		const url = new URL(input);
+		const partyId = url.searchParams.get("jellyPartyId");
+		if (partyId) return partyId;
+	} catch {
+		// Not a URL, treat as raw party ID
+	}
+	return input.trim();
+}
 
-  function saveName(e: Event) {
-    const input = e.target as HTMLInputElement;
-    optionsStore.updateField("clientName", input.value);
-  }
+function joinParty() {
+	const partyId = extractPartyId(joinPartyId);
+	if (!partyId) return;
 
-  async function openCurrentTab() {
-    const [tab] = await browser.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (tab?.id) {
-      try {
-        await browser.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ["src/content/main.ts"],
-        });
-        window.close();
-      } catch (e) {
-        console.error("Failed to inject content script:", e);
-      }
-    }
-  }
+	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+		const tab = tabs[0];
+		if (tab?.id) {
+			chrome.tabs.sendMessage(tab.id, {
+				type: "jellyparty:join",
+				partyId,
+			});
+			window.close();
+		}
+	});
+}
 
-  function extractPartyId(input: string): string {
-    try {
-      const url = new URL(input);
-      return url.searchParams.get("jellyPartyId") ?? input;
-    } catch {
-      return input;
-    }
-  }
+function createParty() {
+	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+		const tab = tabs[0];
+		if (tab?.id) {
+			chrome.tabs.sendMessage(tab.id, {
+				type: "jellyparty:create",
+			});
+			window.close();
+		}
+	});
+}
 
-  async function joinParty() {
-    const partyId = extractPartyId(joinPartyId);
-    if (!partyId) return;
+function openOptions() {
+	chrome.runtime.openOptionsPage();
+}
 
-    const [tab] = await browser.tabs.query({
-      active: true,
-      currentWindow: true,
-    });
-    if (tab?.id && tab.url) {
-      const url = new URL(tab.url);
-      url.searchParams.set("jellyPartyId", partyId);
-      await browser.tabs.update(tab.id, { url: url.toString() });
-      window.close();
-    }
-  }
+function handleKeyDown(e: KeyboardEvent) {
+	if (e.key === "Enter") {
+		e.preventDefault();
+		joinParty();
+	}
+}
 </script>
 
-<div class="header">
-  <div class="logo">🎉</div>
-  <h1>Jelly Party</h1>
-  <p>Watch videos together!</p>
-</div>
+<div class="popup-container">
+  <header class="popup-header">
+    <img src="/128x128.png" alt="Jelly Party" class="logo" />
+    <h1>Jelly Party</h1>
+  </header>
 
-<div class="user-card">
-  <div class="user-info">
-    <button
-      class="user-emoji"
-      onclick={refreshEmoji}
-      title="Click for new emoji"
-    >
-      {$optionsStore.emoji}
-    </button>
-    <div class="user-name">
-      <input
-        type="text"
-        value={$optionsStore.clientName}
-        onchange={saveName}
-        placeholder="Your name"
-      />
-      <label>Your display name</label>
+  <div class="popup-content">
+    <p class="tagline">Watch videos together with friends!</p>
+
+    <div class="user-info">
+      <span class="emoji">{$optionsStore.emoji}</span>
+      <span class="name">{$optionsStore.clientName}</span>
+      <button class="settings-btn" onclick={openOptions} title="Settings"
+        >⚙️</button
+      >
+    </div>
+
+    <div class="actions">
+      <button class="primary-btn" onclick={createParty}>
+        🎉 Start a Party
+      </button>
+
+      <div class="divider">
+        <span>or join existing</span>
+      </div>
+
+      <div class="join-form">
+        <input
+          type="text"
+          placeholder="Paste party link or ID..."
+          bind:value={joinPartyId}
+          onkeydown={handleKeyDown}
+        />
+        <button
+          class="join-btn"
+          onclick={joinParty}
+          disabled={!joinPartyId.trim()}
+        >
+          Join
+        </button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="join-section">
-  <label for="party-link">Join existing party</label>
-  <input
-    id="party-link"
-    type="text"
-    placeholder="Paste party link or ID..."
-    bind:value={joinPartyId}
-  />
-</div>
-
-<div class="actions">
-  {#if joinPartyId}
-    <button class="btn btn-primary" onclick={joinParty}>Join Party</button>
-  {:else}
-    <button class="btn btn-primary" onclick={openCurrentTab}
-      >Start on This Page</button
+  <footer class="popup-footer">
+    <a href="https://jelly-party.com" target="_blank" rel="noopener"
+      >Learn more</a
     >
-  {/if}
-</div>
-
-<div class="footer">
-  <a href="https://jelly-party.com" target="_blank">jelly-party.com</a>
+  </footer>
 </div>

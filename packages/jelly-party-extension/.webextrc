@@ -1,4 +1,4 @@
 {
 	"chromiumBinary": "/Applications/Chromium.app/Contents/MacOS/Chromium",
-	"startUrl": ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]
+	"startUrl": ["https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/video"]
 }

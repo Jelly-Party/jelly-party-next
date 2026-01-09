@@ -3,7 +3,7 @@ import Popup from "./Popup.svelte";
 import "./popup.css";
 
 const app = mount(Popup, {
-	target: document.getElementById("popup")!,
+	target: document.getElementById("popup") as HTMLElement,
 });
 
 export default app;

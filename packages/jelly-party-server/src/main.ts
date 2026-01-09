@@ -1,21 +1,21 @@
 import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { Hono } from "hono";
-import { v4 as uuid } from "uuid";
 import type { WSContext } from "hono/ws";
 import {
 	type ClientState,
-	type PartyState,
-	createLogger,
 	config,
+	createLogger,
+	type PartyState,
 } from "jelly-party-lib";
+import { v4 as uuid } from "uuid";
 import {
-	registry,
-	activeParties,
 	activeClients,
+	activeParties,
+	clientConnectionsTotal,
 	messagesTotal,
 	partiesCreatedTotal,
-	clientConnectionsTotal,
+	registry,
 } from "./metrics.js";
 
 const log = createLogger("server");
@@ -53,13 +53,16 @@ class Party {
 
 	notifyClients(excludeId: string | undefined, msg: object) {
 		const json = JSON.stringify(msg);
-		log.debug("Notifying clients", { excludeId, msgType: (msg as any).type });
+		log.debug("Notifying clients", {
+			excludeId,
+			msgType: (msg as { type: string }).type,
+		});
 
 		for (const conn of this.connections) {
 			if (conn.uuid !== excludeId) {
 				try {
 					conn.ws.send(json);
-				} catch (e) {
+				} catch (_e) {
 					log.error("Failed to send to client", { uuid: conn.uuid });
 				}
 			}
@@ -91,7 +94,7 @@ class Party {
 			partyId: this.partyId,
 			peers: this.connections.map((c) => ({
 				uuid: c.uuid,
-				clientState: c.clientState!,
+				clientState: c.clientState as ClientState,
 			})),
 		};
 
@@ -120,7 +123,7 @@ app.get(
 	"/",
 	upgradeWebSocket(() => {
 		const ctx: JellyPartyWSContext = {
-			ws: null as any,
+			ws: null as unknown as WSContext,
 			uuid: uuid(),
 			isAlive: true,
 		};
@@ -231,8 +234,8 @@ app.get(
 // Start Servers
 // ============================================
 
-const PORT = parseInt(process.env.PORT || "8080");
-const METRICS_PORT = parseInt(process.env.METRICS_PORT || "9090");
+const PORT = parseInt(process.env.PORT || "8080", 10);
+const METRICS_PORT = parseInt(process.env.METRICS_PORT || "9090", 10);
 
 log.info(`Starting server`, { env: config.env, version: config.version });
 
