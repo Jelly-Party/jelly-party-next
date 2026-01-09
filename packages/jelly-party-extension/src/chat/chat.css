@@ -28,6 +28,7 @@ body {
 }
 
 /* Main container with gradient */
+.overlay-container,
 .chat-container {
 	width: 100%;
 	height: 100%;
@@ -37,6 +38,167 @@ body {
 	flex-direction: column;
 	overflow: hidden;
 	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Tab Navigation */
+.tab-nav {
+	display: flex;
+	justify-content: center;
+	padding: 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+	background: rgba(0, 0, 0, 0.1);
+}
+
+.tab-btn {
+	flex: 1;
+	padding: 12px 16px;
+	background: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 14px;
+	font-weight: 500;
+	font-family: inherit;
+	cursor: pointer;
+	transition: all 0.2s;
+}
+
+.tab-btn:hover {
+	color: rgba(255, 255, 255, 0.9);
+}
+
+.tab-btn.active {
+	color: #fff;
+	border-bottom-color: #fff;
+}
+
+/* Tab Content */
+.tab-content {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px 0;
+}
+
+/* Overlay Header */
+.overlay-header {
+	padding: 12px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.overlay-header h1 {
+	font-size: 18px;
+	font-weight: 700;
+	color: #fff;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.overlay-header .logo {
+	width: 28px;
+	height: 28px;
+}
+
+.overlay-header .peer-count {
+	font-size: 12px;
+	color: rgba(255, 255, 255, 0.8);
+	font-weight: 400;
+	margin-left: 8px;
+}
+
+/* Inline Party Tab Styles */
+.party-tab {
+	padding: 0 16px;
+}
+
+.party-tab .section {
+	margin-bottom: 8px;
+}
+
+.party-tab .section-title {
+	font-size: 16px;
+	font-weight: 600;
+	text-align: center;
+	margin-bottom: 12px;
+	color: #fff;
+}
+
+.party-tab .section-text {
+	font-size: 14px;
+	color: rgba(255, 255, 255, 0.9);
+	line-height: 1.5;
+	text-align: justify;
+	margin-bottom: 12px;
+}
+
+.party-tab .section-text a {
+	color: #fff;
+	text-decoration: underline;
+}
+
+.party-tab .steps-list {
+	font-size: 14px;
+	color: rgba(255, 255, 255, 0.9);
+	margin: 0 0 12px 0;
+	padding-left: 24px;
+}
+
+.party-tab .steps-list li {
+	margin-bottom: 4px;
+}
+
+.party-tab .divider {
+	border: none;
+	border-top: 1px solid rgba(255, 255, 255, 0.2);
+	margin: 16px 0;
+}
+
+.party-tab .input-field {
+	width: 100%;
+	background: rgba(255, 255, 255, 0.2);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	border-radius: 50rem;
+	padding: 10px 16px;
+	color: #fff;
+	font-size: 14px;
+	font-family: inherit;
+	outline: none;
+	margin-bottom: 12px;
+}
+
+.party-tab .input-field:focus {
+	border-color: #fff;
+}
+
+.party-tab .input-field::placeholder {
+	color: rgba(255, 255, 255, 0.6);
+}
+
+.party-tab .btn-primary {
+	width: 100%;
+	height: 40px;
+	background-color: var(--jelly-purple);
+	color: #fff;
+	border: none;
+	border-radius: 50rem;
+	font-size: 14px;
+	font-weight: 500;
+	font-family: inherit;
+	cursor: pointer;
+	transition: background-color 0.2s, transform 0.2s;
+}
+
+.party-tab .btn-primary:hover:not(:disabled) {
+	background-color: #7a4de6;
+	transform: translateY(-1px);
+}
+
+.party-tab .btn-primary:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 /* Header */

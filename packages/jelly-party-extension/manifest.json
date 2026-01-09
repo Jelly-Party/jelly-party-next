@@ -33,7 +33,7 @@
 	},
 	"web_accessible_resources": [
 		{
-			"resources": ["src/chat/*"],
+			"resources": ["src/chat/chat.html", "src/chat/*"],
 			"matches": ["<all_urls>"]
 		}
 	]

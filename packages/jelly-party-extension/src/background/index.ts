@@ -86,9 +86,33 @@ browser.runtime.onMessage.addListener(
 	},
 );
 
-// Handle extension icon click - open popup
+// Handle extension icon click - toggle overlay on current tab
 browser.action.onClicked.addListener(async (tab) => {
-	if (tab.id) {
-		console.log("Jelly Party: Extension clicked on tab:", tab.id);
+	if (!tab.id) return;
+
+	console.log("Jelly Party: Extension clicked on tab:", tab.id);
+
+	// Send message to content script to toggle the overlay
+	try {
+		await browser.tabs.sendMessage(tab.id, {
+			type: "jellyparty:toggleOverlay",
+		});
+	} catch (error) {
+		// Content script might not be loaded yet, inject it
+		console.log("Jelly Party: Content script not ready, injecting...");
+		await browser.scripting.executeScript({
+			target: { tabId: tab.id },
+			files: ["src/content/main.js"],
+		});
+		// Try again after injection
+		setTimeout(async () => {
+			try {
+				await browser.tabs.sendMessage(tab.id!, {
+					type: "jellyparty:toggleOverlay",
+				});
+			} catch (e) {
+				console.error("Jelly Party: Failed to toggle overlay", e);
+			}
+		}, 500);
 	}
 });

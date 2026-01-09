@@ -5,5 +5,11 @@ import webExtension from "vite-plugin-web-extension";
 
 export default defineConfig({
 	publicDir: "icons",
-	plugins: [svelte(), tailwindcss(), webExtension()],
+	plugins: [
+		svelte(),
+		tailwindcss(),
+		webExtension({
+			additionalInputs: ["src/chat/chat.html"],
+		}),
+	],
 });
