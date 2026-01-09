@@ -179,13 +179,13 @@ export class PartyClient {
 	private getPeerName(uuid: string): string {
 		const state = partyStore.getState();
 		const peer = state.peers.find((p) => p.uuid === uuid);
-		return peer?.clientState.clientName ?? "Unknown";
+		return peer?.clientState?.clientName ?? "Unknown";
 	}
 
 	private getPeerEmoji(uuid: string): string {
 		const state = partyStore.getState();
 		const peer = state.peers.find((p) => p.uuid === uuid);
-		return peer?.clientState.emoji ?? "🎉";
+		return peer?.clientState?.emoji ?? "🎉";
 	}
 
 	private send(message: object): void {

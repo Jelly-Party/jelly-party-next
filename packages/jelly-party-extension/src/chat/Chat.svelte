@@ -1,10 +1,13 @@
 <script lang="ts">
+import { createLogger } from "jelly-party-lib";
 import CustomizeTab from "../components/CustomizeTab.svelte";
 import HelpTab from "../components/HelpTab.svelte";
 import PartyTab from "../components/PartyTab.svelte";
 import { partyClient } from "../lib/PartyClient";
 import { optionsStore } from "../stores/options";
 import { type ChatMessage, isInParty, partyStore } from "../stores/party";
+
+const log = createLogger("Chat");
 
 type Tab = "party" | "help" | "customize";
 let activeTab = $state<Tab>("party");
@@ -38,6 +41,7 @@ $effect(() => {
 
 function toggleMinimize() {
 	isMinimized = !isMinimized;
+	log.debug("Toggle minimize", { isMinimized });
 	window.parent.postMessage(
 		{ type: isMinimized ? "jellyparty:minimize" : "jellyparty:maximize" },
 		"*",
@@ -75,7 +79,14 @@ function extractPartyId(input: string): string {
 }
 
 function leaveParty() {
+	log.info("Leaving party");
 	partyClient.disconnect();
+	// Don't close overlay, just return to tabs
+}
+
+function closeOverlay() {
+	log.debug("Closing overlay");
+	window.parent.postMessage({ type: "jellyparty:close" }, "*");
 }
 
 function getMagicLink(): string {
@@ -83,16 +94,30 @@ function getMagicLink(): string {
 	return `https://join.jelly-party.com/?jellyPartyId=${partyId}`;
 }
 
-function copyLink() {
-	navigator.clipboard.writeText(getMagicLink());
-	copied = true;
-	setTimeout(() => {
-		copied = false;
-	}, 2000);
+async function copyLink() {
+	try {
+		await navigator.clipboard.writeText(getMagicLink());
+		copied = true;
+		log.info("Magic link copied to clipboard");
+		setTimeout(() => {
+			copied = false;
+		}, 2000);
+	} catch (e) {
+		log.error("Failed to copy magic link", { error: String(e) });
+		// Fallback: select the input text
+		const input = document.querySelector(
+			".party-info-link input",
+		) as HTMLInputElement;
+		if (input) {
+			input.select();
+			input.setSelectionRange(0, 99999);
+		}
+	}
 }
 
 function sendMessage() {
 	if (!messageInput.trim()) return;
+	log.debug("Sending chat message", { length: messageInput.trim().length });
 	partyClient.sendChatMessage(messageInput.trim());
 
 	const localMsg: ChatMessage = {
@@ -131,7 +156,7 @@ function formatTime(timestamp: number): string {
 
 {#if isMinimized}
 	<button class="fab" onclick={toggleMinimize}>
-		<span class="logo">🎉</span>
+		<img src="/logo-blue.png" alt="Jelly Party" class="fab-logo" />
 	</button>
 {:else}
 	<div class="overlay-container">
@@ -167,8 +192,16 @@ function formatTime(timestamp: number): string {
 			<div class="peer-list">
 				{#each $partyStore.peers as peer (peer.uuid)}
 					<div class="peer" class:self={peer.uuid === $partyStore.localUser?.uuid}>
-						<span class="emoji">{peer.clientState.emoji}</span>
-						<span>{peer.clientState.clientName}</span>
+						<span class="emoji">
+							{peer.uuid === $partyStore.localUser?.uuid
+								? $optionsStore.emoji
+								: (peer.clientState?.emoji ?? "👤")}
+						</span>
+						<span>
+							{peer.uuid === $partyStore.localUser?.uuid
+								? $optionsStore.clientName
+								: (peer.clientState?.clientName ?? "Unknown")}
+						</span>
 					</div>
 				{/each}
 			</div>
@@ -245,6 +278,12 @@ function formatTime(timestamp: number): string {
 						<section class="section">
 							<h3 class="section-title">Start a new party</h3>
 							<button class="btn-primary" onclick={createParty}>Start a new party</button>
+						</section>
+
+						<hr class="divider" />
+
+						<section class="section">
+							<button class="btn-secondary" onclick={closeOverlay}>Close Jelly Party</button>
 						</section>
 
 						<hr class="divider" />

@@ -25,7 +25,7 @@ function createOptionsStore() {
 		try {
 			const result = await browser.storage.local.get("options");
 			if (result.options) {
-				set(result.options);
+				set({ ...defaultOptions, ...result.options });
 			}
 		} catch (e) {
 			console.error("Jelly Party: Failed to load options", e);

@@ -6,6 +6,7 @@ import {
 	type ClientState,
 	config,
 	createLogger,
+	getRandomEmoji,
 	type PartyState,
 } from "jelly-party-lib";
 import { v4 as uuid } from "uuid";
@@ -158,7 +159,18 @@ app.get(
 						case "join": {
 							const partyId = data.partyId as string;
 							ctx.partyId = partyId;
-							ctx.clientState = data.clientState;
+							ctx.clientState = data.clientState || {
+								clientName: "Anonymous",
+								emoji: getRandomEmoji(),
+							};
+
+							// Ensure clientState is complete
+							if (!ctx.clientState.emoji) {
+								ctx.clientState.emoji = getRandomEmoji();
+							}
+							if (!ctx.clientState.clientName) {
+								ctx.clientState.clientName = "Anonymous";
+							}
 
 							// Send UUID to client
 							ctx.ws.send(
