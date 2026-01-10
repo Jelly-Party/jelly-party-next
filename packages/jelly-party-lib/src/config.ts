@@ -1,63 +1,39 @@
 /**
- * Environment-based configuration
- * Simple, type-safe config that works in both Node.js and browser
+ * Configuration with dev defaults
+ * Values are replaced at build time via Vite's `define` for production builds
  */
 
-export type Environment = "development" | "staging" | "production";
-
-// Detect environment from various sources
-function detectEnvironment(): Environment {
-	// Node.js
-	if (typeof process !== "undefined" && process.env) {
-		const mode = process.env.NODE_ENV || process.env.MODE;
-		if (mode === "production") return "production";
-		if (mode === "staging") return "staging";
-	}
-	// Browser - check URL
-	if (typeof window !== "undefined") {
-		const host = window.location?.hostname;
-		if (host?.includes("staging")) return "staging";
-		if (host && !host.includes("localhost")) return "production";
-	}
-	return "development";
-}
+// Vite build-time globals (replaced by vite.config.ts define)
+declare const __JELLY_WS_URL__: string | undefined;
+declare const __JELLY_JOIN_URL__: string | undefined;
+declare const __JELLY_WEBSITE_URL__: string | undefined;
 
 export interface Config {
-	env: Environment;
-	isDev: boolean;
-	isProd: boolean;
-
-	// WebSocket server
+	// URLs - dev defaults, replaced at build time for production
 	wsUrl: string;
-
-	// Logging
-	logLevel: "debug" | "info" | "warn" | "error";
+	joinUrl: string;
+	websiteUrl: string;
 
 	// Version
 	version: string;
 }
 
-const WS_URLS: Record<Environment, string> = {
-	production: "wss://ws.jelly-party.com:8080",
-	staging: "wss://staging.jelly-party.com:8080",
-	development: "ws://localhost:8080",
+/**
+ * Configuration with build-time overrides
+ * Uses Vite-defined globals if available, otherwise dev defaults
+ */
+export const config: Config = {
+	wsUrl:
+		typeof __JELLY_WS_URL__ !== "undefined"
+			? __JELLY_WS_URL__
+			: "ws://localhost:8080",
+	joinUrl:
+		typeof __JELLY_JOIN_URL__ !== "undefined"
+			? __JELLY_JOIN_URL__
+			: "http://localhost:5180",
+	websiteUrl:
+		typeof __JELLY_WEBSITE_URL__ !== "undefined"
+			? __JELLY_WEBSITE_URL__
+			: "https://www.jelly-party.com",
+	version: "2.0.0",
 };
-
-function createConfig(): Config {
-	const env = detectEnvironment();
-
-	return {
-		env,
-		isDev: env === "development",
-		isProd: env === "production",
-
-		wsUrl: WS_URLS[env],
-
-		logLevel: env === "production" ? "info" : "debug",
-
-		version: "2.0.0",
-	};
-}
-
-// Singleton config instance
-export const config = createConfig();

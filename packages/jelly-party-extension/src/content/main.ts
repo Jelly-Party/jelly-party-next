@@ -105,7 +105,11 @@ function getOrCreateIframe(): HTMLIFrameElement | null {
 	// Create new iframe
 	iframe = document.createElement("iframe");
 	iframe.id = "jellyPartyChat";
-	iframe.src = browser.runtime.getURL("src/chat/chat.html");
+	// Pass parent page URL as hash to the chat iframe
+	const parentUrl = encodeURIComponent(window.location.href);
+	iframe.src = browser.runtime.getURL(
+		`src/chat/chat.html#parentUrl=${parentUrl}`,
+	);
 	iframe.style.cssText = `
 		position: fixed;
 		bottom: 20px;

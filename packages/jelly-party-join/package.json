@@ -2,9 +2,13 @@
 	"name": "jelly-party-join",
 	"private": true,
 	"version": "0.0.1",
+	"type": "module",
 	"scripts": {
-		"dev": "npx -y serve public -l 3000",
-		"build": "echo 'Static site - no build needed'",
-		"preview": "npx -y serve public -l 3000"
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview"
+	},
+	"devDependencies": {
+		"vite": "^7.2.6"
 	}
 }

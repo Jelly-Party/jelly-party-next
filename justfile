@@ -11,9 +11,12 @@ install:
 # Development: run all services in dev mode
 dev:
     @echo "Starting development servers..."
-    pnpm --filter jelly-party-extension dev &
+    @echo "  - Extension: Chrome opens automatically"
+    @echo "  - Server: ws://localhost:8080"
+    @echo "  - Join page: http://localhost:5180"
     pnpm --filter jelly-party-server dev &
-    pnpm --filter jelly-party-website dev &
+    pnpm --filter jelly-party-join dev &
+    pnpm --filter jelly-party-extension dev &
     wait
 
 # Development: extension only (opens Chrome with extension)

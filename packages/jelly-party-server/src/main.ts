@@ -159,18 +159,11 @@ app.get(
 						case "join": {
 							const partyId = data.partyId as string;
 							ctx.partyId = partyId;
-							ctx.clientState = data.clientState || {
-								clientName: "Anonymous",
-								emoji: getRandomEmoji(),
+							const providedState = data.clientState || {};
+							ctx.clientState = {
+								clientName: providedState.clientName || "Anonymous",
+								emoji: providedState.emoji || getRandomEmoji(),
 							};
-
-							// Ensure clientState is complete
-							if (!ctx.clientState.emoji) {
-								ctx.clientState.emoji = getRandomEmoji();
-							}
-							if (!ctx.clientState.clientName) {
-								ctx.clientState.clientName = "Anonymous";
-							}
 
 							// Send UUID to client
 							ctx.ws.send(
@@ -249,7 +242,7 @@ app.get(
 const PORT = parseInt(process.env.PORT || "8080", 10);
 const METRICS_PORT = parseInt(process.env.METRICS_PORT || "9090", 10);
 
-log.info(`Starting server`, { env: config.env, version: config.version });
+log.info(`Starting server`, { version: config.version, port: PORT });
 
 const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
 	log.info(`WebSocket server listening`, { port: info.port });

@@ -1,5 +1,5 @@
 // Content script for join.jelly-party.com - runs at document_start
-// Handles magic link redirect and permission requests
+// Handles magic link redirect and permission requests via background script
 
 import browser from "webextension-polyfill";
 
@@ -11,42 +11,62 @@ const partyId = params.get("jellyPartyId");
 const redirectURL = params.get("redirectURL");
 
 async function init() {
-	if (!partyId || !redirectURL) return;
+	console.log("Jelly Party [join]: init", { partyId, redirectURL });
+
+	if (!partyId || !redirectURL) {
+		console.log(
+			"Jelly Party [join]: No partyId or redirectURL, showing fallback",
+		);
+		return;
+	}
 
 	try {
 		const decodedURL = decodeURIComponent(redirectURL);
+		console.log("Jelly Party [join]: Decoded redirectURL", { decodedURL });
+
 		// Validate URL
 		const urlObj = new URL(decodedURL);
 		const origin = `${urlObj.origin}/*`;
+		console.log("Jelly Party [join]: Parsed origin", { origin });
 
-		// Check if we already have permission for this origin
-		const hasPermission = await browser.permissions.contains({
-			origins: [origin],
+		// Ask background to check if we already have permission
+		const response = await browser.runtime.sendMessage({
+			type: "checkPermission",
+			payload: { origin },
 		});
+		console.log("Jelly Party [join]: Permission check response", response);
 
-		if (hasPermission) {
-			// Fast path: we have permission, redirect immediately
+		if (response?.hasPermission) {
+			// We have permission, proceed directly to redirect
+			console.log(
+				"Jelly Party [join]: Permission already granted, redirecting",
+			);
 			requestRedirect(decodedURL, partyId);
 		} else {
-			// Permission missing: Show UI to request it
+			// Show permission prompt
 			showPermissionPrompt(origin, decodedURL, partyId);
 		}
 	} catch (e) {
-		console.error("Jelly Party: Invalid magic link", e);
+		console.error("Jelly Party [join]: Error in init", e);
+		// Fallback: show permission prompt anyway
+		if (partyId && redirectURL) {
+			try {
+				const decodedURL = decodeURIComponent(redirectURL);
+				const urlObj = new URL(decodedURL);
+				const origin = `${urlObj.origin}/*`;
+				showPermissionPrompt(origin, decodedURL, partyId);
+			} catch {
+				console.error("Jelly Party [join]: Could not parse redirectURL");
+			}
+		}
 	}
 }
 
 function requestRedirect(url: string, partyId: string) {
-	console.log("Jelly Party: Requesting redirect to party", {
-		partyId,
-		redirectURL: url,
-	});
+	console.log("Jelly Party [join]: Requesting redirect", { partyId, url });
 	browser.runtime.sendMessage({
 		type: "redirectToParty",
-		payload: {
-			redirectURL: url,
-			partyId,
-		},
+		payload: { redirectURL: url, partyId },
 	});
 }
 
@@ -55,94 +75,110 @@ function showPermissionPrompt(
 	redirectURL: string,
 	partyId: string,
 ) {
-	// Remove existing fallback content if possible (optional, but cleaner)
-	document.documentElement.innerHTML = ""; // Clear the page to show our UI
-	document.body.style.margin = "0";
-	document.body.style.height = "100vh";
+	console.log("Jelly Party [join]: Showing permission prompt");
+
+	// Wait for DOM to be ready
+	if (!document.body) {
+		document.addEventListener("DOMContentLoaded", () =>
+			showPermissionPrompt(origin, redirectURL, partyId),
+		);
+		return;
+	}
+
+	// Clear page and show our UI
+	document.body.innerHTML = "";
+	document.body.style.cssText =
+		"margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(145,100,255,0.25) 0%,rgba(139,255,244,0.25) 100%);background-color:#1a1a2e;";
 
 	// Create Shadow DOM container
 	const host = document.createElement("div");
 	document.body.appendChild(host);
 	const shadow = host.attachShadow({ mode: "open" });
 
-	// Inject styles and UI
+	const hostname = new URL(redirectURL).host;
 	shadow.innerHTML = `
-    <style>
-      :host {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        width: 100vw;
-        background: linear-gradient(135deg, rgba(145, 100, 255, 0.25) 0%, rgba(139, 255, 244, 0.25) 100%);
-        background-color: #1a1a2e;
-        color: white;
-      }
-      .card {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 2.5rem;
-        border-radius: 1.5rem;
-        text-align: center;
-        max-width: 450px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        animation: fadeIn 0.5s ease-out;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      h1 { margin: 0 0 1rem; font-size: 1.5rem; }
-      p { color: rgba(255, 255, 255, 0.8); margin-bottom: 2rem; line-height: 1.5; }
-      .website { color: #a78bfa; font-weight: bold; }
-      button {
-        background: linear-gradient(135deg, #ff9494 0%, #9164ff 100%);
-        border: none;
-        padding: 1rem 2rem;
-        border-radius: 50px;
-        color: white;
-        font-weight: bold;
-        font-size: 1.1rem;
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        box-shadow: 0 4px 15px rgba(145, 100, 255, 0.4);
-      }
-      button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(145, 100, 255, 0.6);
-      }
-      button:active { transform: translateY(0); }
-    </style>
-    <div class="card">
-      <h1>Grant Permissions</h1>
-      <p>
-        Jelly-Party needs access to <span class="website">${new URL(redirectURL).host}</span> to sync videos.
-        <br><br>
-        Click below to grant permission and join the party!
-      </p>
-      <button id="grant-btn">Grant Permissions</button>
-    </div>
-  `;
+		<style>
+			:host { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: white; }
+			.card {
+				background: rgba(255,255,255,0.08);
+				backdrop-filter: blur(20px);
+				border: 1px solid rgba(255,255,255,0.1);
+				padding: 2.5rem;
+				border-radius: 1.5rem;
+				text-align: center;
+				max-width: 450px;
+				box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+				animation: fadeIn 0.5s ease-out;
+			}
+			@keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+			h1 { margin: 0 0 1rem; font-size: 1.5rem; }
+			p { color: rgba(255,255,255,0.8); margin-bottom: 2rem; line-height: 1.5; }
+			.website { color: #a78bfa; font-weight: bold; }
+			button {
+				background: linear-gradient(135deg, #ff9494 0%, #9164ff 100%);
+				border: none;
+				padding: 1rem 2rem;
+				border-radius: 50px;
+				color: white;
+				font-weight: bold;
+				font-size: 1.1rem;
+				cursor: pointer;
+				transition: transform 0.2s, box-shadow 0.2s;
+				box-shadow: 0 4px 15px rgba(145,100,255,0.4);
+			}
+			button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(145,100,255,0.6); }
+			button:active { transform: translateY(0); }
+			button:disabled { opacity: 0.7; cursor: wait; }
+			.status { margin-top: 1rem; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
+		</style>
+		<div class="card">
+			<h1>Join the Party</h1>
+			<p>
+				Jelly-Party needs access to <span class="website">${hostname}</span> to sync videos.
+				<br><br>
+				Click below to grant permission and join your friends!
+			</p>
+			<button id="grant-btn">Grant Permissions & Join</button>
+			<div id="status" class="status"></div>
+		</div>
+	`;
 
-	// Add click handler
-	const btn = shadow.getElementById("grant-btn");
+	const btn = shadow.getElementById("grant-btn") as HTMLButtonElement;
+	const status = shadow.getElementById("status") as HTMLDivElement;
+
 	if (btn) {
 		btn.addEventListener("click", async () => {
+			btn.disabled = true;
+			btn.textContent = "Requesting...";
+			status.textContent = "";
+
 			try {
-				const granted = await browser.permissions.request({
-					origins: [origin],
+				console.log(
+					"Jelly Party [join]: Requesting permission via background",
+					{ origin },
+				);
+				const response = await browser.runtime.sendMessage({
+					type: "requestPermission",
+					payload: { origin },
 				});
-				if (granted) {
-					console.log("Jelly Party: Permission granted!");
+				console.log(
+					"Jelly Party [join]: Permission request response",
+					response,
+				);
+
+				if (response?.granted) {
+					status.textContent = "Permission granted! Joining party...";
 					requestRedirect(redirectURL, partyId);
 				} else {
-					console.log("Jelly Party: Permission denied");
+					status.textContent = "Permission denied. Please try again.";
+					btn.disabled = false;
+					btn.textContent = "Grant Permissions & Join";
 				}
 			} catch (e) {
-				console.error("Jelly Party: Failed to request permission", e);
+				console.error("Jelly Party [join]: Error requesting permission", e);
+				status.textContent = "Error requesting permission. Try again.";
+				btn.disabled = false;
+				btn.textContent = "Grant Permissions & Join";
 			}
 		});
 	}

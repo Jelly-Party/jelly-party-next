@@ -71,50 +71,67 @@ async function redirectToParty(
 	redirectURL: string,
 	partyId: string,
 ): Promise<void> {
+	console.log("Jelly Party [BG]: redirectToParty called", {
+		tabId,
+		redirectURL,
+		partyId,
+	});
+
 	// Build the target URL with partyId
 	const targetUrl = new URL(redirectURL);
 	targetUrl.searchParams.set("jellyPartyId", partyId);
 	const finalUrl = targetUrl.toString();
 
-	console.log("Jelly Party: Redirecting to party", { finalUrl, partyId });
+	console.log("Jelly Party [BG]: Built final URL", { finalUrl });
 
 	// First, check if we have permission for this origin
 	const origin = `${targetUrl.origin}/*`;
 	const hasPermission = await browser.permissions.contains({
 		origins: [origin],
 	});
+	console.log("Jelly Party [BG]: Permission check", { origin, hasPermission });
 
 	if (!hasPermission) {
-		console.warn("Jelly Party: Missing permission for", origin);
-		// We cannot request permission here in background context without user gesture.
-		// join.ts should have handled this. We'll try to proceed anyway,
-		// relying on activeTab if applicable, but mostly likely executeScript will fail
-		// if host permission wasn't granted.
+		console.warn("Jelly Party [BG]: Missing permission for", origin);
 	}
 
 	// Update the tab to the target URL
+	console.log("Jelly Party [BG]: Updating tab to", finalUrl);
 	await browser.tabs.update(tabId, { url: finalUrl });
+	console.log(
+		"Jelly Party [BG]: Tab updated, starting script injection retries",
+	);
 
 	// Inject content script with retries (page may take time to load)
 	const delays = [1000, 3000, 5000];
 	for (const delay of delays) {
 		await new Promise((resolve) => setTimeout(resolve, delay));
+		console.log(
+			"Jelly Party [BG]: Attempting script injection after",
+			delay,
+			"ms",
+		);
 		try {
 			await browser.scripting.executeScript({
 				target: { tabId },
 				files: ["src/content/main.js"],
 			});
-			console.log(
-				"Jelly Party: Content script injected successfully after",
-				delay,
-				"ms",
-			);
+			console.log("Jelly Party [BG]: Content script injected successfully!");
+
+			// Send message to show overlay after short delay
+			setTimeout(async () => {
+				try {
+					await browser.tabs.sendMessage(tabId, {
+						type: "jellyparty:showOverlay",
+					});
+					console.log("Jelly Party [BG]: showOverlay message sent");
+				} catch (e) {
+					console.error("Jelly Party [BG]: Failed to send showOverlay", e);
+				}
+			}, 500);
 			break;
 		} catch (e) {
-			console.log(
-				"Jelly Party: Script injection attempt failed, retrying...",
-				e,
-			);
+			console.log("Jelly Party [BG]: Script injection failed", e);
 		}
 	}
 }
@@ -142,12 +159,54 @@ browser.runtime.onMessage.addListener(
 				});
 
 			case "redirectToParty": {
+				console.log(
+					"Jelly Party [BG]: Received redirectToParty message",
+					message.payload,
+				);
 				const payload = message.payload as RedirectPayload;
 				const tabId = sender.tab?.id;
+				console.log("Jelly Party [BG]: Sender tab ID", { tabId });
 				if (tabId && payload.redirectURL && payload.partyId) {
 					redirectToParty(tabId, payload.redirectURL, payload.partyId);
+				} else {
+					console.error("Jelly Party [BG]: Missing tabId or payload", {
+						tabId,
+						payload,
+					});
 				}
 				return Promise.resolve({ success: true });
+			}
+
+			case "checkPermission": {
+				const { origin } = message.payload as { origin: string };
+				console.log("Jelly Party [BG]: Checking permission for", origin);
+				return browser.permissions
+					.contains({ origins: [origin] })
+					.then((hasPermission) => {
+						console.log("Jelly Party [BG]: Permission check result", {
+							origin,
+							hasPermission,
+						});
+						return { hasPermission };
+					});
+			}
+
+			case "requestPermission": {
+				const { origin } = message.payload as { origin: string };
+				console.log("Jelly Party [BG]: Requesting permission for", origin);
+				return browser.permissions
+					.request({ origins: [origin] })
+					.then((granted) => {
+						console.log("Jelly Party [BG]: Permission request result", {
+							origin,
+							granted,
+						});
+						return { granted };
+					})
+					.catch((e) => {
+						console.error("Jelly Party [BG]: Permission request failed", e);
+						return { granted: false, error: String(e) };
+					});
 			}
 
 			default:

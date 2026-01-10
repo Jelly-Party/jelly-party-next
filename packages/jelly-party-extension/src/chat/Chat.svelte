@@ -1,5 +1,5 @@
 <script lang="ts">
-import { createLogger } from "jelly-party-lib";
+import { config, createLogger } from "jelly-party-lib";
 import CustomizeTab from "../components/CustomizeTab.svelte";
 import HelpTab from "../components/HelpTab.svelte";
 import PartyTab from "../components/PartyTab.svelte";
@@ -8,6 +8,16 @@ import { optionsStore } from "../stores/options";
 import { type ChatMessage, isInParty, partyStore } from "../stores/party";
 
 const log = createLogger("Chat");
+
+// Get parent page URL from hash (passed by content script)
+function getParentPageUrl(): string {
+	const hash = window.location.hash.slice(1); // remove #
+	const params = new URLSearchParams(hash);
+	const parentUrl = params.get("parentUrl");
+	return parentUrl ? decodeURIComponent(parentUrl) : window.location.href;
+}
+const parentPageUrl = getParentPageUrl();
+log.debug("Parent page URL", { parentPageUrl });
 
 type Tab = "party" | "help" | "customize";
 let activeTab = $state<Tab>("party");
@@ -91,8 +101,8 @@ function closeOverlay() {
 
 function getMagicLink(): string {
 	const partyId = $partyStore.partyId;
-	const redirectURL = encodeURIComponent(window.location.href);
-	return `https://join.jelly-party.com/?jellyPartyId=${partyId}&redirectURL=${redirectURL}`;
+	const redirectURL = encodeURIComponent(parentPageUrl);
+	return `${config.joinUrl}/?jellyPartyId=${partyId}&redirectURL=${redirectURL}`;
 }
 
 async function copyLink() {
