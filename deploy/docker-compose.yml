@@ -5,9 +5,10 @@ services:
       dockerfile: Dockerfile
       target: server
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080" # Exposed via Caddy
     expose:
+      - "8080"
       - "9090"
     environment:
       - NODE_ENV=production
@@ -18,6 +19,21 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - server
 
   alloy:
     image: grafana/alloy:v1.12.1
@@ -34,3 +50,7 @@ services:
       - GRAFANA_API_TOKEN=${GRAFANA_API_TOKEN}
     depends_on:
       - server
+
+volumes:
+  caddy_data:
+  caddy_config:
