@@ -8,16 +8,27 @@ list:
 install:
     pnpm install
 
-# Development: run all services in dev mode
+# Development: run all services (Ctrl+C stops all)
 dev:
-    @echo "Starting development servers..."
-    @echo "  - Extension: Chrome opens automatically"
+    @echo "Starting development servers (Ctrl+C to stop all)..."
     @echo "  - Server: ws://localhost:8080"
     @echo "  - Join page: http://localhost:5180"
-    pnpm --filter jelly-party-server dev &
-    pnpm --filter jelly-party-join dev &
-    pnpm --filter jelly-party-extension dev &
+    @echo "  - Extension: Chrome opens automatically"
+    pnpm --filter jelly-party-server dev & \
+    pnpm --filter jelly-party-join dev & \
+    pnpm --filter jelly-party-extension dev & \
     wait
+
+# Stop any leftover dev processes (if needed)
+stop:
+    -pkill -f "tsx watch" 2>/dev/null || true
+    -pkill -f "vite" 2>/dev/null || true
+    @echo "Stopped any running dev processes"
+
+# Clean everything
+destroy:
+    @just stop
+    @just clean
 
 # Development: extension only (opens Chrome with extension)
 dev-extension:
