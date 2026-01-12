@@ -38,15 +38,19 @@ $effect(() => {
 });
 
 $effect(() => {
-	const handler = (e: CustomEvent) => {
-		const { partyId } = e.detail;
-		if (partyId && $optionsStore.guid) {
-			joinParty(partyId);
+	// Listen for autoJoin message from parent content script via postMessage
+	const handler = (e: MessageEvent) => {
+		if (e.data?.type === "jellyparty:autoJoin" && e.data?.partyId) {
+			log.info("Received autoJoin message", { partyId: e.data.partyId });
+			if ($optionsStore.guid) {
+				joinParty(e.data.partyId);
+			} else {
+				log.warn("Cannot auto-join: options not loaded yet");
+			}
 		}
 	};
-	window.addEventListener("jellyparty:autoJoin", handler as EventListener);
-	return () =>
-		window.removeEventListener("jellyparty:autoJoin", handler as EventListener);
+	window.addEventListener("message", handler);
+	return () => window.removeEventListener("message", handler);
 });
 
 function toggleMinimize() {
@@ -106,20 +110,52 @@ function getMagicLink(): string {
 }
 
 async function copyLink() {
+	const magicLink = getMagicLink();
+
+	// Try modern clipboard API first
 	try {
-		await navigator.clipboard.writeText(getMagicLink());
+		await navigator.clipboard.writeText(magicLink);
 		copied = true;
-		log.info("Magic link copied to clipboard");
+		log.info("Magic link copied to clipboard (Clipboard API)");
 		setTimeout(() => {
 			copied = false;
 		}, 2000);
+		return;
+	} catch (e) {
+		log.debug("Clipboard API failed, trying fallback", { error: String(e) });
+	}
+
+	// Fallback: Create temporary textarea and use execCommand
+	try {
+		const textarea = document.createElement("textarea");
+		textarea.value = magicLink;
+		textarea.style.position = "fixed";
+		textarea.style.left = "-9999px";
+		textarea.style.opacity = "0";
+		document.body.appendChild(textarea);
+		textarea.focus();
+		textarea.select();
+		textarea.setSelectionRange(0, 99999);
+		const success = document.execCommand("copy");
+		document.body.removeChild(textarea);
+
+		if (success) {
+			copied = true;
+			log.info("Magic link copied to clipboard (execCommand fallback)");
+			setTimeout(() => {
+				copied = false;
+			}, 2000);
+		} else {
+			throw new Error("execCommand returned false");
+		}
 	} catch (e) {
 		log.error("Failed to copy magic link", { error: String(e) });
-		// Fallback: select the input text
+		// Last resort: select the input text for manual copy
 		const input = document.querySelector(
 			".party-info-link input",
 		) as HTMLInputElement;
 		if (input) {
+			input.focus();
 			input.select();
 			input.setSelectionRange(0, 99999);
 		}

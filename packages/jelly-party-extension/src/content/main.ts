@@ -31,12 +31,22 @@ function initJellyParty() {
 	if (partyId) {
 		log.info("Found party ID in URL", { partyId });
 		showOverlay();
-		// Notify chat window to auto-join after a delay
+		// Notify chat iframe to auto-join after a delay
+		// The iframe has its own window, so we need to postMessage to it
 		setTimeout(() => {
-			window.dispatchEvent(
-				new CustomEvent("jellyparty:autoJoin", { detail: { partyId } }),
-			);
-		}, 500);
+			const iframe = document.getElementById(
+				"jellyPartyChat",
+			) as HTMLIFrameElement;
+			if (iframe?.contentWindow) {
+				iframe.contentWindow.postMessage(
+					{ type: "jellyparty:autoJoin", partyId },
+					"*",
+				);
+				log.info("Posted autoJoin message to chat iframe", { partyId });
+			} else {
+				log.warn("Chat iframe not found or not ready for autoJoin");
+			}
+		}, 1000);
 	}
 
 	// Listen for messages from iframe
