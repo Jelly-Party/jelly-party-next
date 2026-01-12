@@ -9,15 +9,19 @@ import { type ChatMessage, isInParty, partyStore } from "../stores/party";
 
 const log = createLogger("Chat");
 
-// Get parent page URL from hash (passed by content script)
-function getParentPageUrl(): string {
+// Parse hash params (passed by content script)
+function getHashParams(): URLSearchParams {
 	const hash = window.location.hash.slice(1); // remove #
-	const params = new URLSearchParams(hash);
-	const parentUrl = params.get("parentUrl");
-	return parentUrl ? decodeURIComponent(parentUrl) : window.location.href;
+	return new URLSearchParams(hash);
 }
-const parentPageUrl = getParentPageUrl();
-log.debug("Parent page URL", { parentPageUrl });
+const hashParams = getHashParams();
+const parentUrlParam = hashParams.get("parentUrl");
+const parentPageUrl = parentUrlParam
+	? decodeURIComponent(parentUrlParam)
+	: window.location.href;
+const autoJoinPartyId = hashParams.get("autoJoinPartyId");
+
+log.debug("Chat initialized", { parentPageUrl, autoJoinPartyId });
 
 type Tab = "party" | "help" | "customize";
 let activeTab = $state<Tab>("party");
@@ -26,31 +30,26 @@ let messageInput = $state("");
 let messagesContainer = $state<HTMLElement | null>(null);
 let copied = $state(false);
 let joinPartyId = $state("");
+let isJoining = $state(!!autoJoinPartyId); // Show loading if auto-joining
 
 $effect(() => {
 	optionsStore.load();
+});
+
+// Auto-join party if partyId was passed via hash
+$effect(() => {
+	if (autoJoinPartyId && $optionsStore.guid && isJoining) {
+		log.info("Auto-joining party", { partyId: autoJoinPartyId });
+		joinParty(autoJoinPartyId).finally(() => {
+			isJoining = false;
+		});
+	}
 });
 
 $effect(() => {
 	if ($partyStore.messages.length > 0 && messagesContainer) {
 		messagesContainer.scrollTop = messagesContainer.scrollHeight;
 	}
-});
-
-$effect(() => {
-	// Listen for autoJoin message from parent content script via postMessage
-	const handler = (e: MessageEvent) => {
-		if (e.data?.type === "jellyparty:autoJoin" && e.data?.partyId) {
-			log.info("Received autoJoin message", { partyId: e.data.partyId });
-			if ($optionsStore.guid) {
-				joinParty(e.data.partyId);
-			} else {
-				log.warn("Cannot auto-join: options not loaded yet");
-			}
-		}
-	};
-	window.addEventListener("message", handler);
-	return () => window.removeEventListener("message", handler);
 });
 
 function toggleMinimize() {
@@ -224,7 +223,14 @@ function formatTime(timestamp: number): string {
 			</div>
 		</header>
 
-		{#if $isInParty}
+		{#if isJoining}
+			<!-- Loading state while joining party -->
+			<div class="not-connected">
+				<div class="emoji">🎉</div>
+				<h2>Joining party...</h2>
+				<p>Connecting to your friends</p>
+			</div>
+		{:else if $isInParty}
 			<!-- Party Mode: Show chat UI -->
 			<div class="party-info">
 				<div class="party-info-label">Magic Link</div>

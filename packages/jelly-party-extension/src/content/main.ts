@@ -9,6 +9,10 @@ import { videoController } from "../lib/VideoController";
 
 const log = createLogger("content");
 
+// State
+let isMinimized = true;
+let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+
 // Initialize on load
 initJellyParty();
 
@@ -24,35 +28,48 @@ function initJellyParty() {
 		return false;
 	});
 
-	// Check for party ID in URL (for join links) - auto-show overlay
+	// Check for party ID in URL (for join links) - pass to iframe via hash
 	const partyId = new URLSearchParams(window.location.search).get(
 		"jellyPartyId",
 	);
 	if (partyId) {
-		log.info("Found party ID in URL", { partyId });
-		showOverlay();
-		// Notify chat iframe to auto-join after a delay
-		// The iframe has its own window, so we need to postMessage to it
-		setTimeout(() => {
-			const iframe = document.getElementById(
-				"jellyPartyChat",
-			) as HTMLIFrameElement;
-			if (iframe?.contentWindow) {
-				iframe.contentWindow.postMessage(
-					{ type: "jellyparty:autoJoin", partyId },
-					"*",
-				);
-				log.info("Posted autoJoin message to chat iframe", { partyId });
-			} else {
-				log.warn("Chat iframe not found or not ready for autoJoin");
-			}
-		}, 1000);
+		log.info("Found party ID in URL, will auto-join", { partyId });
+		showOverlay(partyId);
 	}
 
 	// Listen for messages from iframe
 	window.addEventListener("message", handleIframeMessage);
 
+	// Mouse tracking for FAB fade (on parent page)
+	document.addEventListener("mousemove", handleMouseMove);
+
 	log.info("Jelly Party ready - click extension icon to open");
+}
+
+function handleMouseMove() {
+	const iframe = document.getElementById("jellyPartyChat") as HTMLIFrameElement;
+	if (!iframe || iframe.style.display === "none") return;
+
+	// Only manage fade when minimized (showing FAB)
+	if (!isMinimized) return;
+
+	// Show FAB immediately (fast fade-in: 0.3s)
+	iframe.style.transition = "opacity 0.3s ease";
+	iframe.style.opacity = "1";
+	iframe.style.pointerEvents = "auto";
+
+	// Reset fade timer
+	if (fadeTimer) clearTimeout(fadeTimer);
+
+	// Start new fade timer (fade out after 1s of no movement)
+	fadeTimer = setTimeout(() => {
+		if (isMinimized && iframe.style.display !== "none") {
+			// Slow fade-out: 1s
+			iframe.style.transition = "opacity 1s ease";
+			iframe.style.opacity = "0";
+			iframe.style.pointerEvents = "none";
+		}
+	}, 1000);
 }
 
 function handleIframeMessage(event: MessageEvent) {
@@ -61,13 +78,25 @@ function handleIframeMessage(event: MessageEvent) {
 
 	switch (event.data?.type) {
 		case "jellyparty:minimize":
-			iframe.style.height = "60px";
+			isMinimized = true;
 			iframe.style.width = "60px";
+			iframe.style.height = "60px";
 			iframe.style.borderRadius = "50%";
+			// Start fade timer for minimized state
+			handleMouseMove();
 			break;
 		case "jellyparty:maximize":
-			iframe.style.height = "600px";
+			isMinimized = false;
+			// Clear any pending fade
+			if (fadeTimer) {
+				clearTimeout(fadeTimer);
+				fadeTimer = null;
+			}
+			// Always visible when expanded
+			iframe.style.opacity = "1";
+			iframe.style.pointerEvents = "auto";
 			iframe.style.width = "380px";
+			iframe.style.height = "600px";
 			iframe.style.maxHeight = "80vh";
 			iframe.style.maxWidth = "90vw";
 			iframe.style.borderRadius = "16px";
@@ -79,27 +108,25 @@ function handleIframeMessage(event: MessageEvent) {
 	}
 }
 
-function showOverlay(): void {
-	const iframe = getOrCreateIframe();
+function showOverlay(autoJoinPartyId?: string): void {
+	const iframe = getOrCreateIframe(autoJoinPartyId);
 	if (!iframe) return;
 
-	// If already visible and expanded, do nothing
-	if (iframe.style.display === "block" && iframe.style.width === "360px") {
-		log.debug("Overlay already visible");
-		return;
-	}
-
-	// Show expanded
+	// Show in maximized state (chat window visible)
+	isMinimized = false;
 	iframe.style.display = "block";
+	iframe.style.opacity = "1";
+	iframe.style.pointerEvents = "auto";
 	iframe.style.width = "380px";
 	iframe.style.height = "600px";
 	iframe.style.maxHeight = "80vh";
 	iframe.style.maxWidth = "90vw";
 	iframe.style.borderRadius = "16px";
-	log.debug("Overlay shown");
+
+	log.debug("Overlay shown (maximized)", { autoJoinPartyId });
 }
 
-function getOrCreateIframe(): HTMLIFrameElement | null {
+function getOrCreateIframe(autoJoinPartyId?: string): HTMLIFrameElement | null {
 	// Check for existing iframe
 	let iframe = document.getElementById("jellyPartyChat") as HTMLIFrameElement;
 	if (iframe) {
@@ -112,14 +139,18 @@ function getOrCreateIframe(): HTMLIFrameElement | null {
 		videoController.attach();
 	}
 
-	// Create new iframe
+	// Create new iframe - starts minimized (FAB size)
 	iframe = document.createElement("iframe");
 	iframe.id = "jellyPartyChat";
-	// Pass parent page URL as hash to the chat iframe
+
+	// Build hash params for iframe URL
 	const parentUrl = encodeURIComponent(window.location.href);
-	iframe.src = browser.runtime.getURL(
-		`src/chat/chat.html#parentUrl=${parentUrl}`,
-	);
+	let hashParams = `parentUrl=${parentUrl}`;
+	if (autoJoinPartyId) {
+		hashParams += `&autoJoinPartyId=${encodeURIComponent(autoJoinPartyId)}`;
+	}
+
+	iframe.src = browser.runtime.getURL(`src/chat/chat.html#${hashParams}`);
 	iframe.style.cssText = `
 		position: fixed;
 		bottom: 20px;
@@ -128,14 +159,14 @@ function getOrCreateIframe(): HTMLIFrameElement | null {
 		height: 60px;
 		border: none;
 		border-radius: 50%;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 4px 20px rgba(0, 0, 0, 0.1);
 		z-index: 2147483647;
-		background: transparent;
-		transition: all 0.3s ease;
+		transition: opacity 0.3s ease;
+		opacity: 1;
 		display: none;
 	`;
 
 	document.body.appendChild(iframe);
-	log.debug("Overlay iframe created");
+	log.debug("Overlay iframe created", { autoJoinPartyId });
 	return iframe;
 }
