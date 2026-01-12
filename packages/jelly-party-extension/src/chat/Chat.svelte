@@ -1,5 +1,6 @@
 <script lang="ts">
 import { config, createLogger } from "jelly-party-lib";
+import ConfirmModal from "../components/ConfirmModal.svelte";
 import CustomizeTab from "../components/CustomizeTab.svelte";
 import HelpTab from "../components/HelpTab.svelte";
 import PartyTab from "../components/PartyTab.svelte";
@@ -31,6 +32,10 @@ let messagesContainer = $state<HTMLElement | null>(null);
 let copied = $state(false);
 let joinPartyId = $state("");
 let isJoining = $state(!!autoJoinPartyId); // Show loading if auto-joining
+let isScrolledToBottom = $state(true); // Track if user is at bottom of messages
+let hasUnreadMessages = $state(false); // For FAB badge when minimized
+let previousMessageCount = $state(0); // Track message count for new message detection
+let showLeaveConfirm = $state(false); // Leave party confirmation modal
 
 $effect(() => {
 	optionsStore.load();
@@ -46,11 +51,42 @@ $effect(() => {
 	}
 });
 
+// Auto-scroll only when stuck to bottom
 $effect(() => {
-	if ($partyStore.messages.length > 0 && messagesContainer) {
-		messagesContainer.scrollTop = messagesContainer.scrollHeight;
+	const messageCount = $partyStore.messages.length;
+	if (messageCount > previousMessageCount && messagesContainer) {
+		// New message arrived
+		if (isMinimized) {
+			// Show badge on FAB
+			hasUnreadMessages = true;
+		} else if (isScrolledToBottom) {
+			// Auto-scroll to bottom
+			messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		} else {
+			// User is scrolled up, show indicator
+			hasUnreadMessages = true;
+		}
 	}
+	previousMessageCount = messageCount;
 });
+
+function handleMessagesScroll() {
+	if (!messagesContainer) return;
+	const { scrollTop, scrollHeight, clientHeight } = messagesContainer;
+	// Consider "at bottom" if within 50px of the bottom
+	isScrolledToBottom = scrollHeight - scrollTop - clientHeight < 50;
+	if (isScrolledToBottom) {
+		hasUnreadMessages = false;
+	}
+}
+
+function scrollToBottom() {
+	if (messagesContainer) {
+		messagesContainer.scrollTop = messagesContainer.scrollHeight;
+		isScrolledToBottom = true;
+		hasUnreadMessages = false;
+	}
+}
 
 function toggleMinimize() {
 	isMinimized = !isMinimized;
@@ -91,10 +127,18 @@ function extractPartyId(input: string): string {
 	return input.trim();
 }
 
-function leaveParty() {
+function requestLeaveParty() {
+	showLeaveConfirm = true;
+}
+
+function confirmLeaveParty() {
 	log.info("Leaving party");
 	partyClient.disconnect();
-	// Don't close overlay, just return to tabs
+	showLeaveConfirm = false;
+}
+
+function cancelLeaveParty() {
+	showLeaveConfirm = false;
 }
 
 function closeOverlay() {
@@ -203,6 +247,9 @@ function formatTime(timestamp: number): string {
 {#if isMinimized}
 	<button class="fab" onclick={toggleMinimize}>
 		<img src="/logo-blue.png" alt="Jelly Party" class="fab-logo" />
+		{#if hasUnreadMessages}
+			<span class="fab-badge"></span>
+		{/if}
 	</button>
 {:else}
 	<div class="overlay-container">
@@ -217,7 +264,9 @@ function formatTime(timestamp: number): string {
 			</h1>
 			<div class="header-actions">
 				{#if $isInParty}
-					<button class="icon-btn" onclick={leaveParty} title="Leave party">✕</button>
+					<button class="icon-btn" onclick={requestLeaveParty} title="Leave party">✕</button>
+				{:else}
+					<button class="icon-btn" onclick={closeOverlay} title="Close">✕</button>
 				{/if}
 				<button class="icon-btn" onclick={toggleMinimize} title="Minimize">−</button>
 			</div>
@@ -259,18 +308,32 @@ function formatTime(timestamp: number): string {
 				{/each}
 			</div>
 
-			<div class="messages" bind:this={messagesContainer}>
-				{#each $partyStore.messages as msg (msg.id)}
-					<div class="message">
-						<span class="emoji">{msg.peerEmoji}</span>
-						<div class="message-bubble">
-							<p class="message-text">{msg.text}</p>
-							<div class="message-meta">
-								{msg.peerName} — {formatTime(msg.timestamp)}
+			<div class="messages-wrapper">
+				<div class="messages" bind:this={messagesContainer} onscroll={handleMessagesScroll}>
+					{#each $partyStore.messages as msg (msg.id)}
+						{#if msg.type === "event"}
+							<div class="system-message">
+								{msg.text}
 							</div>
-						</div>
-					</div>
-				{/each}
+						{:else}
+							<div class="message">
+								<span class="emoji">{msg.peerEmoji}</span>
+								<div class="message-bubble">
+									<div class="message-header">
+										<span class="message-name">{msg.peerName}</span>
+										<span class="message-time">{formatTime(msg.timestamp)}</span>
+									</div>
+									<p class="message-text">{msg.text}</p>
+								</div>
+							</div>
+						{/if}
+					{/each}
+				</div>
+				{#if hasUnreadMessages && !isScrolledToBottom}
+					<button class="new-messages-btn" onclick={scrollToBottom}>
+						New messages ↓
+					</button>
+				{/if}
 			</div>
 
 			<div class="chat-input">
@@ -294,17 +357,17 @@ function formatTime(timestamp: number): string {
 				</button>
 				<button
 					class="tab-btn"
-					class:active={activeTab === "help"}
-					onclick={() => (activeTab = "help")}
-				>
-					Help
-				</button>
-				<button
-					class="tab-btn"
 					class:active={activeTab === "customize"}
 					onclick={() => (activeTab = "customize")}
 				>
 					Customize
+				</button>
+				<button
+					class="tab-btn"
+					class:active={activeTab === "help"}
+					onclick={() => (activeTab = "help")}
+				>
+					Help
 				</button>
 			</nav>
 
@@ -313,30 +376,8 @@ function formatTime(timestamp: number): string {
 					<!-- Inline Party Tab for overlay (uses direct PartyClient) -->
 					<div class="party-tab">
 						<section class="section">
-							<h3 class="section-title">Getting started</h3>
-							<p class="section-text">
-								Make sure all your friends have
-								<a href="https://www.jelly-party.com/" target="_blank" rel="noopener">Jelly-Party</a>
-								installed. Then:
-							</p>
-							<ol class="steps-list">
-								<li>Customize your avatar in the Customize tab.</li>
-								<li>Press <strong>"Start a new party"</strong> below.</li>
-								<li>Share your magic link with friends.</li>
-							</ol>
-						</section>
-
-						<hr class="divider" />
-
-						<section class="section">
 							<h3 class="section-title">Start a new party</h3>
 							<button class="btn-primary" onclick={createParty}>Start a new party</button>
-						</section>
-
-						<hr class="divider" />
-
-						<section class="section">
-							<button class="btn-secondary" onclick={closeOverlay}>Close Jelly Party</button>
 						</section>
 
 						<hr class="divider" />
@@ -359,12 +400,24 @@ function formatTime(timestamp: number): string {
 							</button>
 						</section>
 					</div>
-				{:else if activeTab === "help"}
-					<HelpTab />
 				{:else if activeTab === "customize"}
 					<CustomizeTab />
+				{:else if activeTab === "help"}
+					<HelpTab />
 				{/if}
 			</div>
 		{/if}
 	</div>
+{/if}
+
+{#if showLeaveConfirm}
+	<ConfirmModal
+		title="Leave Party?"
+		message="Are you sure you want to leave the party? You can rejoin anytime using the magic link."
+		confirmText="Leave"
+		cancelText="Stay"
+		onConfirm={confirmLeaveParty}
+		onCancel={cancelLeaveParty}
+		confirmDanger
+	/>
 {/if}

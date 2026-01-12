@@ -5,6 +5,7 @@
 
 // Config and logging
 export { type Config, config } from "./config.js";
+export { type FAQItem, faqItems } from "./faq.js";
 export { createLogger, type Logger, type LogLevel, log } from "./logger.js";
 
 // WebSocket Message Types

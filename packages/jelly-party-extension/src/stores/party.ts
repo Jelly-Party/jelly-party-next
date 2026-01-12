@@ -28,6 +28,8 @@ export interface ChatMessage {
 	peerEmoji: string;
 	text: string;
 	timestamp: number;
+	type?: "message" | "event";
+	eventType?: "join" | "leave" | "play" | "pause" | "seek";
 }
 
 // Initial state

@@ -28,6 +28,11 @@ function initJellyParty() {
 		return false;
 	});
 
+	// Signal to background that content script is ready
+	browser.runtime.sendMessage({ type: "jellyparty:contentReady" }).catch(() => {
+		// Ignore errors - background might not be listening yet
+	});
+
 	// Check for party ID in URL (for join links) - pass to iframe via hash
 	const partyId = new URLSearchParams(window.location.search).get(
 		"jellyPartyId",

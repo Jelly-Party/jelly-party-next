@@ -1,7 +1,12 @@
 /**
  * WebSocket client for party communication
  */
-import { type ClientState, config, createLogger } from "jelly-party-lib";
+import {
+	type ClientState,
+	config,
+	createLogger,
+	type Peer,
+} from "jelly-party-lib";
 import { type ChatMessage, partyStore } from "../stores/party";
 
 const log = createLogger("PartyClient");
@@ -144,9 +149,51 @@ export class PartyClient {
 					}
 					break;
 
-				case "partyStateUpdate":
+				case "partyStateUpdate": {
+					// Detect joins/leaves
+					const previousPeers = partyStore.getState().peers;
+					const newPeers = msg.data.partyState.peers as Peer[];
+
+					// Only detect changes if we had peers before (avoids initial load spam)
+					if (previousPeers.length > 0) {
+						// Joins
+						const joined = newPeers.filter(
+							(np: Peer) => !previousPeers.find((pp) => pp.uuid === np.uuid),
+						);
+						for (const peer of joined) {
+							partyStore.addMessage({
+								id: `event-join-${peer.uuid}-${Date.now()}`,
+								peerUuid: peer.uuid,
+								peerName: peer.clientState.clientName,
+								peerEmoji: peer.clientState.emoji,
+								text: `${peer.clientState.clientName} joined the party`,
+								timestamp: Date.now(),
+								type: "event",
+								eventType: "join",
+							});
+						}
+
+						// Leaves
+						const left = previousPeers.filter(
+							(pp) => !newPeers.find((np: Peer) => np.uuid === pp.uuid),
+						);
+						for (const peer of left) {
+							partyStore.addMessage({
+								id: `event-leave-${peer.uuid}-${Date.now()}`,
+								peerUuid: peer.uuid,
+								peerName: peer.clientState.clientName,
+								peerEmoji: peer.clientState.emoji,
+								text: `${peer.clientState.clientName} left the party`,
+								timestamp: Date.now(),
+								type: "event",
+								eventType: "leave",
+							});
+						}
+					}
+
 					partyStore.updatePartyState(msg.data.partyState);
 					break;
+				}
 
 				case "chatMessage": {
 					const chatMsg: ChatMessage = {
@@ -161,12 +208,41 @@ export class PartyClient {
 					break;
 				}
 
-				case "videoUpdate":
+				case "videoUpdate": {
+					// Add chat event for video actions
+					if (msg.peer) {
+						let text = "";
+						let eventType: ChatMessage["eventType"];
+
+						if (msg.data.variant === "seek") {
+							text = `${this.getPeerName(msg.peer.uuid)} seeked the video`;
+							eventType = "seek";
+						} else if (msg.data.paused) {
+							text = `${this.getPeerName(msg.peer.uuid)} paused the video`;
+							eventType = "pause";
+						} else {
+							text = `${this.getPeerName(msg.peer.uuid)} played the video`;
+							eventType = "play";
+						}
+
+						partyStore.addMessage({
+							id: `event-video-${msg.peer.uuid}-${Date.now()}`,
+							peerUuid: msg.peer.uuid,
+							peerName: this.getPeerName(msg.peer.uuid),
+							peerEmoji: this.getPeerEmoji(msg.peer.uuid),
+							text,
+							timestamp: Date.now(),
+							type: "event",
+							eventType,
+						});
+					}
+
 					// Emit event for VideoController to handle
 					window.dispatchEvent(
 						new CustomEvent("jellyparty:videoUpdate", { detail: msg.data }),
 					);
 					break;
+				}
 
 				default:
 					log.warn("Unknown message type", { type: msg.type });

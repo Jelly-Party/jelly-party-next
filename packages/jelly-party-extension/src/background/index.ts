@@ -45,6 +45,9 @@ function generateUUID(): string {
 	return crypto.randomUUID();
 }
 
+// Track tabs that need showOverlay when content script is ready
+const pendingShowOverlay = new Map<number, boolean>();
+
 // Initialize on install
 browser.runtime.onInstalled.addListener(async () => {
 	console.log("Jelly Party: Extension installed!");
@@ -117,18 +120,7 @@ async function redirectToParty(
 				files: ["src/content/main.js"],
 			});
 			console.log("Jelly Party [BG]: Content script injected successfully!");
-
-			// Send message to show overlay after short delay
-			setTimeout(async () => {
-				try {
-					await browser.tabs.sendMessage(tabId, {
-						type: "jellyparty:showOverlay",
-					});
-					console.log("Jelly Party [BG]: showOverlay message sent");
-				} catch (e) {
-					console.error("Jelly Party [BG]: Failed to send showOverlay", e);
-				}
-			}, 500);
+			// Content script will auto-show overlay because jellyPartyId is in URL
 			break;
 		} catch (e) {
 			console.log("Jelly Party [BG]: Script injection failed", e);
@@ -138,14 +130,31 @@ async function redirectToParty(
 
 // Message handlers
 browser.runtime.onMessage.addListener(
-	(message: { type: string; payload?: unknown }, sender) => {
-		switch (message.type) {
+	(message: unknown, sender: browser.Runtime.MessageSender) => {
+		const msg = message as { type: string; payload?: unknown };
+
+		switch (msg.type) {
+			case "jellyparty:contentReady": {
+				// Content script is ready - check if we need to show overlay
+				const tabId = sender.tab?.id;
+				if (tabId && pendingShowOverlay.has(tabId)) {
+					pendingShowOverlay.delete(tabId);
+					console.log("Jelly Party [BG]: Content ready, showing overlay", {
+						tabId,
+					});
+					return browser.tabs.sendMessage(tabId, {
+						type: "jellyparty:showOverlay",
+					});
+				}
+				return Promise.resolve(null);
+			}
+
 			case "getOptions":
 				return browser.storage.local.get("options").then((r) => r.options);
 
 			case "setOptions":
 				return browser.storage.local.set({
-					options: message.payload,
+					options: msg.payload,
 				});
 
 			case "getPartyId":
@@ -155,15 +164,15 @@ browser.runtime.onMessage.addListener(
 
 			case "setPartyId":
 				return browser.storage.local.set({
-					currentPartyId: message.payload,
+					currentPartyId: msg.payload,
 				});
 
 			case "redirectToParty": {
 				console.log(
 					"Jelly Party [BG]: Received redirectToParty message",
-					message.payload,
+					msg.payload,
 				);
-				const payload = message.payload as RedirectPayload;
+				const payload = msg.payload as RedirectPayload;
 				const tabId = sender.tab?.id;
 				console.log("Jelly Party [BG]: Sender tab ID", { tabId });
 				if (tabId && payload.redirectURL && payload.partyId) {
@@ -178,7 +187,7 @@ browser.runtime.onMessage.addListener(
 			}
 
 			case "checkPermission": {
-				const { origin } = message.payload as { origin: string };
+				const { origin } = msg.payload as { origin: string };
 				console.log("Jelly Party [BG]: Checking permission for", origin);
 				return browser.permissions
 					.contains({ origins: [origin] })
@@ -192,7 +201,7 @@ browser.runtime.onMessage.addListener(
 			}
 
 			case "requestPermission": {
-				const { origin } = message.payload as { origin: string };
+				const { origin } = msg.payload as { origin: string };
 				console.log("Jelly Party [BG]: Requesting permission for", origin);
 				return browser.permissions
 					.request({ origins: [origin] })
@@ -210,7 +219,7 @@ browser.runtime.onMessage.addListener(
 			}
 
 			default:
-				console.log("Jelly Party: Unknown message type:", message.type);
+				console.log("Jelly Party: Unknown message type:", msg.type);
 				return Promise.resolve(null);
 		}
 	},
@@ -220,32 +229,28 @@ browser.runtime.onMessage.addListener(
 browser.action.onClicked.addListener(async (tab) => {
 	if (!tab.id) return;
 
-	console.log("Jelly Party: Extension clicked on tab:", tab.id);
+	const tabId = tab.id;
+	console.log("Jelly Party: Extension clicked on tab:", tabId);
 
 	// First try to send message to existing content script
 	try {
-		await browser.tabs.sendMessage(tab.id, {
+		await browser.tabs.sendMessage(tabId, {
 			type: "jellyparty:showOverlay",
 		});
 	} catch {
 		// Content script not loaded yet, inject it
 		console.log("Jelly Party: Injecting content script...");
 		try {
+			// Mark this tab as needing showOverlay when content script is ready
+			pendingShowOverlay.set(tabId, true);
+
 			await browser.scripting.executeScript({
-				target: { tabId: tab.id },
+				target: { tabId },
 				files: ["src/content/main.js"],
 			});
-			// Wait a bit for script to initialize, then send message
-			setTimeout(async () => {
-				try {
-					await browser.tabs.sendMessage(tab.id!, {
-						type: "jellyparty:showOverlay",
-					});
-				} catch (e) {
-					console.error("Jelly Party: Failed to show overlay", e);
-				}
-			}, 300);
+			// Content script will send "contentReady" message which triggers showOverlay
 		} catch (e) {
+			pendingShowOverlay.delete(tabId);
 			console.error("Jelly Party: Failed to inject content script", e);
 		}
 	}
