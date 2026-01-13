@@ -18,6 +18,7 @@ export class PartyClient {
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+	private syncInitialized = false;
 
 	/**
 	 * Connect to a party
@@ -35,6 +36,7 @@ export class PartyClient {
 	 * Disconnect from party
 	 */
 	disconnect(): void {
+		this.stopSync();
 		if (this.reconnectTimeout) {
 			clearTimeout(this.reconnectTimeout);
 			this.reconnectTimeout = null;
@@ -49,9 +51,16 @@ export class PartyClient {
 	}
 
 	/**
-	 * Send video event to party
+	 * Send video event to party (uses timeFromEnd for sync position)
 	 */
-	sendVideoEvent(event: "play" | "pause" | "seek", tick: number): void {
+	sendVideoEvent(event: "play" | "pause" | "seek", timeFromEnd: number): void {
+		// Skip if not connected to party
+		if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+			log.debug("Skipping video event, not connected to party", { event });
+			return;
+		}
+
+		log.debug("Sending video event", { event, timeFromEnd });
 		this.send({
 			type: "forward",
 			data: {
@@ -59,8 +68,9 @@ export class PartyClient {
 					type: "videoUpdate",
 					data: {
 						variant: event === "seek" ? "seek" : "playPause",
-						tick,
+						tick: timeFromEnd,
 						paused: event === "pause",
+						// timestamp removed - simpler sync
 					},
 				},
 			},
@@ -112,6 +122,9 @@ export class PartyClient {
 							clientState: this.clientState,
 						},
 					});
+
+					// Initialize video sync now that we're connected
+					this.initSync();
 					resolve();
 				};
 
@@ -209,15 +222,18 @@ export class PartyClient {
 				}
 
 				case "videoUpdate": {
+					const { variant, tick: timeFromEnd, paused } = msg.data;
+					log.debug("Received video update", { variant, timeFromEnd, paused });
+
 					// Add chat event for video actions
 					if (msg.peer) {
 						let text = "";
 						let eventType: ChatMessage["eventType"];
 
-						if (msg.data.variant === "seek") {
+						if (variant === "seek") {
 							text = `${this.getPeerName(msg.peer.uuid)} seeked the video`;
 							eventType = "seek";
-						} else if (msg.data.paused) {
+						} else if (paused) {
 							text = `${this.getPeerName(msg.peer.uuid)} paused the video`;
 							eventType = "pause";
 						} else {
@@ -237,9 +253,14 @@ export class PartyClient {
 						});
 					}
 
-					// Emit event for VideoController to handle
-					window.dispatchEvent(
-						new CustomEvent("jellyparty:videoUpdate", { detail: msg.data }),
+					// Forward remote video command to parent frame (SyncManager)
+					window.parent.postMessage(
+						{
+							type: "jellyparty:remoteVideoCommand",
+							command: variant === "seek" ? "seek" : paused ? "pause" : "play",
+							timeFromEnd,
+						},
+						"*",
 					);
 					break;
 				}
@@ -289,6 +310,34 @@ export class PartyClient {
 			}
 		}, delay);
 	}
+
+	private initSync(): void {
+		if (this.syncInitialized) return;
+		this.syncInitialized = true;
+
+		log.info("Initializing video sync (iframe mode)");
+
+		// Listen for local video events from parent frame
+		window.addEventListener("message", this.handleWindowMessage);
+	}
+
+	private stopSync(): void {
+		if (!this.syncInitialized) return;
+		this.syncInitialized = false;
+
+		log.info("Stopping video sync");
+		window.removeEventListener("message", this.handleWindowMessage);
+	}
+
+	private handleWindowMessage = (event: MessageEvent): void => {
+		const msg = event.data;
+		if (!msg || typeof msg !== "object") return;
+
+		if (msg.type === "jellyparty:localVideoEvent") {
+			const { event: videoEvent, timeFromEnd } = msg; // Rename locally to avoid conflict
+			this.sendVideoEvent(videoEvent, timeFromEnd);
+		}
+	};
 }
 
 // Singleton instance

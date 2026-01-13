@@ -106,25 +106,37 @@ async function redirectToParty(
 	);
 
 	// Inject content script with retries (page may take time to load)
-	const delays = [1000, 3000, 5000];
-	for (const delay of delays) {
-		await new Promise((resolve) => setTimeout(resolve, delay));
-		console.log(
-			"Jelly Party [BG]: Attempting script injection after",
-			delay,
-			"ms",
-		);
-		try {
-			await browser.scripting.executeScript({
-				target: { tabId },
-				files: ["src/content/main.js"],
-			});
-			console.log("Jelly Party [BG]: Content script injected successfully!");
-			// Content script will auto-show overlay because jellyPartyId is in URL
-			break;
-		} catch (e) {
-			console.log("Jelly Party [BG]: Script injection failed", e);
-		}
+	// Wait for tab to finish loading
+	console.log("Jelly Party [BG]: Waiting for tab to load...");
+	await new Promise<void>((resolve) => {
+		const listener = (
+			tid: number,
+			changeInfo: browser.Tabs.OnUpdatedChangeInfoType,
+		) => {
+			if (tid === tabId && changeInfo.status === "complete") {
+				browser.tabs.onUpdated.removeListener(listener);
+				resolve();
+			}
+		};
+		browser.tabs.onUpdated.addListener(listener);
+	});
+
+	console.log("Jelly Party [BG]: Tab loaded, injecting scripts...");
+
+	try {
+		// 1. Inject VideoAgent into all frames
+		await browser.scripting.executeScript({
+			target: { tabId, allFrames: true },
+			files: ["src/content/videoAgent.js"],
+		});
+		// 2. Inject SyncManager (main) into top frame only
+		await browser.scripting.executeScript({
+			target: { tabId, allFrames: false },
+			files: ["src/content/main.js"],
+		});
+		console.log("Jelly Party [BG]: Content script injected successfully!");
+	} catch (e) {
+		console.log("Jelly Party [BG]: Script injection failed", e);
 	}
 }
 
@@ -244,8 +256,14 @@ browser.action.onClicked.addListener(async (tab) => {
 			// Mark this tab as needing showOverlay when content script is ready
 			pendingShowOverlay.set(tabId, true);
 
+			// 1. Inject VideoAgent into all frames
 			await browser.scripting.executeScript({
-				target: { tabId },
+				target: { tabId, allFrames: true },
+				files: ["src/content/videoAgent.js"],
+			});
+			// 2. Inject SyncManager (main) into top frame only
+			await browser.scripting.executeScript({
+				target: { tabId, allFrames: false },
 				files: ["src/content/main.js"],
 			});
 			// Content script will send "contentReady" message which triggers showOverlay

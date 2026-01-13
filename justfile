@@ -66,6 +66,9 @@ lint:
 lint-fix:
     pnpm lint:fix
 
+# Fix all auto-fixable errors
+fix: format lint-fix
+
 # Format all code
 format:
     pnpm format
