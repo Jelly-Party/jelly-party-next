@@ -245,7 +245,7 @@ function formatTime(timestamp: number): string {
 </script>
 
 {#if isMinimized}
-	<button class="fab" onclick={toggleMinimize}>
+	<button class="fab" onclick={toggleMinimize} data-testid="fab-btn">
 		<img src="/logo-blue.png" alt="Jelly Party" class="fab-logo" />
 		{#if hasUnreadMessages}
 			<span class="fab-badge"></span>
@@ -264,7 +264,7 @@ function formatTime(timestamp: number): string {
 			</h1>
 			<div class="header-actions">
 				{#if $isInParty}
-					<button class="icon-btn" onclick={requestLeaveParty} title="Leave party">✕</button>
+					<button class="icon-btn" onclick={requestLeaveParty} title="Leave party" data-testid="leave-party-btn">✕</button>
 				{:else}
 					<button class="icon-btn" onclick={closeOverlay} title="Close">✕</button>
 				{/if}
@@ -284,14 +284,14 @@ function formatTime(timestamp: number): string {
 			<div class="party-info">
 				<div class="party-info-label">Magic Link</div>
 				<div class="party-info-link">
-					<input type="text" readonly value={getMagicLink()} />
-					<button class="copy-btn" onclick={copyLink}>
+					<input type="text" readonly value={getMagicLink()} data-testid="magic-link-input" />
+					<button class="copy-btn" onclick={copyLink} data-testid="copy-link-btn">
 						{copied ? "Copied!" : "Copy"}
 					</button>
 				</div>
 			</div>
 
-			<div class="peer-list">
+			<div class="peer-list" data-testid="peer-list">
 				{#each $partyStore.peers as peer (peer.uuid)}
 					<div class="peer" class:self={peer.uuid === $partyStore.localUser?.uuid}>
 						<span class="emoji">
@@ -309,7 +309,7 @@ function formatTime(timestamp: number): string {
 			</div>
 
 			<div class="messages-wrapper">
-				<div class="messages" bind:this={messagesContainer} onscroll={handleMessagesScroll}>
+				<div class="messages" bind:this={messagesContainer} onscroll={handleMessagesScroll} data-testid="messages-container">
 					{#each $partyStore.messages as msg (msg.id)}
 						{#if msg.type === "event"}
 							<div class="system-message">
@@ -342,8 +342,9 @@ function formatTime(timestamp: number): string {
 					placeholder="Type a message..."
 					bind:value={messageInput}
 					onkeydown={handleKeyDown}
+					data-testid="chat-input"
 				/>
-				<button class="send-btn" onclick={sendMessage}>Send</button>
+				<button class="send-btn" onclick={sendMessage} data-testid="send-btn">Send</button>
 			</div>
 		{:else}
 			<!-- Not in Party: Show tabbed interface -->
@@ -377,7 +378,7 @@ function formatTime(timestamp: number): string {
 					<div class="party-tab">
 						<section class="section">
 							<h3 class="section-title">Start a new party</h3>
-							<button class="btn-primary" onclick={createParty}>Start a new party</button>
+							<button class="btn-primary" onclick={createParty} data-testid="create-party-btn">Start a new party</button>
 						</section>
 
 						<hr class="divider" />
@@ -390,11 +391,13 @@ function formatTime(timestamp: number): string {
 								placeholder="Enter Party Id or paste link..."
 								bind:value={joinPartyId}
 								onkeydown={handleJoinKeyDown}
+								data-testid="join-party-input"
 							/>
 							<button
 								class="btn-primary"
 								onclick={handleJoinById}
 								disabled={!joinPartyId.trim()}
+								data-testid="join-party-btn"
 							>
 								Join Party by Id
 							</button>

@@ -14,10 +14,19 @@ dev:
     @echo "  - Server: ws://localhost:8080"
     @echo "  - Join page: http://localhost:5180"
     @echo "  - Extension: Chrome opens automatically"
-    pnpm --filter jelly-party-server dev & \
-    pnpm --filter jelly-party-join dev & \
-    pnpm --filter jelly-party-extension dev & \
-    wait
+    @bash -c "trap 'kill 0' EXIT; \
+        pnpm --filter jelly-party-server dev & \
+        pnpm --filter jelly-party-join dev & \
+        pnpm --filter jelly-party-extension dev & \
+        wait"
+
+# Development: run backend services only (for tests)
+dev-services:
+    @echo "Starting backend services..."
+    @bash -c "trap 'kill 0' EXIT; \
+        pnpm --filter jelly-party-server dev & \
+        pnpm --filter jelly-party-join dev & \
+        wait"
 
 # Stop any leftover dev processes (if needed)
 stop:
@@ -50,9 +59,20 @@ build:
 build-pkg pkg:
     pnpm --filter {{pkg}} build
 
-# Run all tests
+# Run E2E tests (builds test extension first with pre-granted permissions)
 test:
-    pnpm --filter '*' test
+    pnpm --filter jelly-party-extension build:test
+    pnpm exec playwright test
+
+# Run E2E tests with Playwright UI (interactive debugging)
+test-ui:
+    pnpm --filter jelly-party-extension build:test
+    pnpm exec playwright test --ui
+
+# Run E2E tests in headed mode (watch browser)
+test-headed:
+    pnpm --filter jelly-party-extension build:test
+    pnpm exec playwright test --headed
 
 # Type check all packages
 check:
@@ -80,5 +100,6 @@ docker-build:
 # Clean all build artifacts
 clean:
     rm -rf packages/*/dist
+    rm -rf packages/*/dist-test
     rm -rf packages/*/.svelte-kit
     rm -rf node_modules/.cache

@@ -5,7 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "vite build --mode production",
+		"build:test": "vite build --mode test",
 		"check": "svelte-check --tsconfig ./tsconfig.json"
 	},
 	"dependencies": {

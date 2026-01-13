@@ -98,17 +98,9 @@ async function redirectToParty(
 		console.warn("Jelly Party [BG]: Missing permission for", origin);
 	}
 
-	// Update the tab to the target URL
-	console.log("Jelly Party [BG]: Updating tab to", finalUrl);
-	await browser.tabs.update(tabId, { url: finalUrl });
-	console.log(
-		"Jelly Party [BG]: Tab updated, starting script injection retries",
-	);
-
-	// Inject content script with retries (page may take time to load)
-	// Wait for tab to finish loading
-	console.log("Jelly Party [BG]: Waiting for tab to load...");
-	await new Promise<void>((resolve) => {
+	// 1. Setup listener BEFORE navigation to avoid race condition
+	console.log("Jelly Party [BG]: Setting up navigation listener...");
+	const navigationComplete = new Promise<void>((resolve) => {
 		const listener = (
 			tid: number,
 			changeInfo: browser.Tabs.OnUpdatedChangeInfoType,
@@ -121,9 +113,21 @@ async function redirectToParty(
 		browser.tabs.onUpdated.addListener(listener);
 	});
 
+	// 2. Update the tab to the target URL
+	console.log("Jelly Party [BG]: Updating tab to", finalUrl);
+	await browser.tabs.update(tabId, { url: finalUrl });
+
+	// 3. Wait for navigation to complete
+	console.log("Jelly Party [BG]: Waiting for tab to load...");
+	await navigationComplete;
+
 	console.log("Jelly Party [BG]: Tab loaded, injecting scripts...");
 
 	try {
+		// Mark this tab as needing showOverlay when content script sends "contentReady"
+		// This ensures the overlay appears automatically after injection
+		pendingShowOverlay.set(tabId, true);
+
 		// 1. Inject VideoAgent into all frames
 		await browser.scripting.executeScript({
 			target: { tabId, allFrames: true },
@@ -137,6 +141,7 @@ async function redirectToParty(
 		console.log("Jelly Party [BG]: Content script injected successfully!");
 	} catch (e) {
 		console.log("Jelly Party [BG]: Script injection failed", e);
+		pendingShowOverlay.delete(tabId);
 	}
 }
 
