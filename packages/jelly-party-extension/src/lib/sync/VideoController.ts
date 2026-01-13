@@ -75,13 +75,13 @@ export class VideoController {
 	private pollInterval: ReturnType<typeof setInterval> | null = null;
 	private observer: MutationObserver | null = null;
 
-	// Echo prevention
+	// Echo prevention - use counters to handle nested operations
 	private deferredPlay = new DeferredPromise();
 	private deferredPause = new DeferredPromise();
 	private deferredSeek = new DeferredPromise();
-	private skipNextPlay = false;
-	private skipNextPause = false;
-	private skipNextSeek = false;
+	private skipPlayCount = 0;
+	private skipPauseCount = 0;
+	private skipSeekCount = 0;
 
 	// Callbacks
 	private onLocalPlayCallback: VideoEventCallback | null = null;
@@ -223,13 +223,13 @@ export class VideoController {
 		if (!this.video.paused) return true;
 
 		this.deferredPlay = new DeferredPromise();
-		this.skipNextPlay = true;
+		this.skipPlayCount++;
 
 		try {
 			await this.video.play();
 		} catch (e) {
 			log.error("Failed to play", { error: String(e) });
-			this.skipNextPlay = false;
+			this.skipPlayCount--; // Undo the increment
 			return false;
 		}
 
@@ -249,7 +249,7 @@ export class VideoController {
 		log.debug("Remote pause", { timeFromEnd });
 
 		this.deferredPause = new DeferredPromise();
-		this.skipNextPause = true;
+		this.skipPauseCount++;
 
 		// Seek first if needed
 		await this.seek(timeFromEnd);
@@ -258,7 +258,7 @@ export class VideoController {
 			this.video.pause();
 		} catch (e) {
 			log.error("Failed to pause", { error: String(e) });
-			this.skipNextPause = false;
+			this.skipPauseCount--; // Undo the increment
 			return false;
 		}
 
@@ -295,7 +295,7 @@ export class VideoController {
 		// Pause first for reliable seeking
 		if (wasPlaying) {
 			this.deferredPause = new DeferredPromise();
-			this.skipNextPause = true;
+			this.skipPauseCount++;
 			this.video.pause();
 			await DeferredPromise.withTimeout(
 				this.deferredPause,
@@ -304,7 +304,7 @@ export class VideoController {
 		}
 
 		this.deferredSeek = new DeferredPromise();
-		this.skipNextSeek = true;
+		this.skipSeekCount++;
 		this.video.currentTime = targetTime;
 
 		await DeferredPromise.withTimeout(
@@ -315,11 +315,12 @@ export class VideoController {
 		// Resume if was playing
 		if (wasPlaying && this.video.paused) {
 			this.deferredPlay = new DeferredPromise();
-			this.skipNextPlay = true;
+			this.skipPlayCount++;
 			try {
 				await this.video.play();
 			} catch (e) {
 				log.error("Failed to resume after seek", { error: String(e) });
+				this.skipPlayCount--; // Undo the increment
 			}
 			await DeferredPromise.withTimeout(
 				this.deferredPlay,
@@ -454,10 +455,10 @@ export class VideoController {
 
 	private handlePlay = (): void => {
 		const timeFromEnd = this.getTimeFromEnd();
-		log.debug("Play event", { timeFromEnd, skip: this.skipNextPlay });
+		log.debug("Play event", { timeFromEnd, skipCount: this.skipPlayCount });
 
-		if (this.skipNextPlay) {
-			this.skipNextPlay = false;
+		if (this.skipPlayCount > 0) {
+			this.skipPlayCount--;
 			this.deferredPlay.resolve();
 			return;
 		}
@@ -467,10 +468,10 @@ export class VideoController {
 
 	private handlePause = (): void => {
 		const timeFromEnd = this.getTimeFromEnd();
-		log.debug("Pause event", { timeFromEnd, skip: this.skipNextPause });
+		log.debug("Pause event", { timeFromEnd, skipCount: this.skipPauseCount });
 
-		if (this.skipNextPause) {
-			this.skipNextPause = false;
+		if (this.skipPauseCount > 0) {
+			this.skipPauseCount--;
 			this.deferredPause.resolve();
 			return;
 		}
@@ -480,10 +481,10 @@ export class VideoController {
 
 	private handleSeek = (): void => {
 		const timeFromEnd = this.getTimeFromEnd();
-		log.debug("Seek event", { timeFromEnd, skip: this.skipNextSeek });
+		log.debug("Seek event", { timeFromEnd, skipCount: this.skipSeekCount });
 
-		if (this.skipNextSeek) {
-			this.skipNextSeek = false;
+		if (this.skipSeekCount > 0) {
+			this.skipSeekCount--;
 			this.deferredSeek.resolve();
 			return;
 		}

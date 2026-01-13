@@ -31,8 +31,13 @@ just test        # Runs headless
 - **Party Creation**: Creating a party from the extension overlay.
 - **Magic Links**: Joining a party via the `join.jelly-party.com` (local) magic link flow.
 - **Auto-Join**: Automatic redirection and joining from the magic link.
-- **Chat**: Real-time messaging between peers.
-- **Synchronization**: (Coming soon) Video playback state sync.
+- **System Messages**: "Joined the party" and "left the party" event messages.
+- **Chat**: Real-time chat messaging between peers.
+- **Video Sync (Bidirectional)**: 
+  - A→B: Peer A's actions sync to Peer B
+  - B→A: Peer B's actions sync back to Peer A
+  - Seek, play, and pause all tested in both directions
+- **Leave Party**: Peer leaves, other peer sees the "left" message and peer count updates.
 
 ## What is NOT Tested
 

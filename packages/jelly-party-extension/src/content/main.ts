@@ -53,11 +53,9 @@ function initJellyParty() {
 	document.addEventListener("mousemove", handleMouseMove);
 
 	// Ping any existing video agents
-	window.frames.length > 0
-		? Array.from(window.frames).forEach((frame) =>
-				frame.postMessage({ type: "jellyparty:ping" }, "*"),
-			)
-		: null; // If no frames, we might just be in top frame
+	for (const frame of Array.from(window.frames)) {
+		frame.postMessage({ type: "jellyparty:ping" }, "*");
+	}
 	window.postMessage({ type: "jellyparty:ping" }, "*"); // Also ping self/top
 
 	log.info("Jelly Party ready - click extension icon to open");
@@ -162,9 +160,7 @@ function handleWindowMessage(event: MessageEvent) {
 		// Only accept events from the selected source
 		if (event.source === selectedVideoSource) {
 			// Forward to Chat Iframe
-			if (iframe && iframe.contentWindow) {
-				iframe.contentWindow.postMessage(data, "*");
-			}
+			iframe?.contentWindow?.postMessage(data, "*");
 		}
 	}
 }

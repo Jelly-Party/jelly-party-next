@@ -19,6 +19,7 @@ export const test = base.extend<{
 	context: BrowserContext;
 	extensionId: string;
 }>({
+	// biome-ignore lint/correctness/noEmptyPattern: Playwright fixture pattern requires object destructuring
 	context: async ({}, use) => {
 		// Create a temporary user data directory
 		const userDataDir = fs.mkdtempSync(
@@ -110,7 +111,7 @@ export async function triggerExtension(
 				// Try sending message first (fast path)
 				await sendMessage();
 				return { success: true, method: "message" };
-			} catch (e) {
+			} catch (_e) {
 				// Content script not ready, need to inject
 			}
 

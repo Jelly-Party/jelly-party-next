@@ -314,7 +314,7 @@ function formatTime(timestamp: number): string {
 				<div class="messages" bind:this={messagesContainer} onscroll={handleMessagesScroll} data-testid="messages-container">
 					{#each $partyStore.messages as msg (msg.id)}
 						{#if msg.type === "event"}
-							<div class="system-message">
+							<div class="system-message" data-testid="system-message">
 								{msg.text}
 							</div>
 						{:else}

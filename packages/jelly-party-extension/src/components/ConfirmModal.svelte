@@ -31,13 +31,14 @@ function handleBackdropClick(e: MouseEvent) {
 		<h2 class="modal-title">{title}</h2>
 		<p class="modal-message">{message}</p>
 		<div class="modal-actions">
-			<button class="btn-secondary" onclick={onCancel}>
+			<button class="btn-secondary" onclick={onCancel} data-testid="modal-cancel-btn">
 				{cancelText}
 			</button>
 			<button
 				class="btn-primary"
 				class:danger={confirmDanger}
 				onclick={onConfirm}
+				data-testid="modal-confirm-btn"
 			>
 				{confirmText}
 			</button>
