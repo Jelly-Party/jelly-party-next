@@ -28,6 +28,7 @@ export const test = base.extend<{
 		const context = await chromium.launchPersistentContext(userDataDir, {
 			channel: "chromium",
 			headless: false, // Extensions require headed mode
+			// colorScheme: "dark",
 			args: [
 				`--disable-extensions-except=${EXTENSION_PATH}`,
 				`--load-extension=${EXTENSION_PATH}`,

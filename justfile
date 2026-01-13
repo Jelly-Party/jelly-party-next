@@ -11,30 +11,22 @@ install:
 # Development: run all services (Ctrl+C stops all)
 dev:
     @echo "Starting development servers (Ctrl+C to stop all)..."
-    @echo "  - Server: ws://localhost:8080"
-    @echo "  - Join page: http://localhost:5180"
-    @echo "  - Extension: Chrome opens automatically"
-    @bash -c "trap 'kill 0' EXIT; \
-        pnpm --filter jelly-party-server dev & \
-        pnpm --filter jelly-party-join dev & \
-        pnpm --filter jelly-party-extension dev & \
-        wait"
+    pnpm run dev
+
+# Show development logs
+logs lines="":
+    tail -f -n {{ if lines == "" { "100" } else { lines } }} .dev/dev.log
 
 # Development: run backend services only (for tests)
 dev-services:
     @echo "Starting backend services..."
-    @bash -c "trap 'kill 0' EXIT; \
-        pnpm --filter jelly-party-server dev & \
-        pnpm --filter jelly-party-join dev & \
-        wait"
+    pnpm run dev:services
 
-# Stop any leftover dev processes (if needed)
+# Stop all dev processes (emergency fallback)
 stop:
-    -pkill -f "tsx watch" 2>/dev/null || true
-    -pkill -f "vite" 2>/dev/null || true
-    @echo "Stopped any running dev processes"
+    node .dev/stop.js
 
-# Clean everything
+# Clean everything (including runtime artifacts)
 destroy:
     @just stop
     @just clean
@@ -103,3 +95,4 @@ clean:
     rm -rf packages/*/dist-test
     rm -rf packages/*/.svelte-kit
     rm -rf node_modules/.cache
+    rm -f .dev/dev.pid .dev/dev.log

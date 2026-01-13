@@ -5,6 +5,9 @@
 
 import { createLogger } from "jelly-party-lib";
 import browser, { type Runtime } from "webextension-polyfill";
+import { initDevLogger } from "../lib/devLogger";
+
+initDevLogger();
 
 const log = createLogger("content");
 

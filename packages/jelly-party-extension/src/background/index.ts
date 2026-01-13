@@ -1,5 +1,8 @@
 import { getRandomEmoji } from "jelly-party-lib";
 import browser from "webextension-polyfill";
+import { initDevLogger } from "../lib/devLogger";
+
+initDevLogger();
 
 // Types
 interface UserOptions {
@@ -165,6 +168,10 @@ browser.runtime.onMessage.addListener(
 				}
 				return Promise.resolve(null);
 			}
+
+			case "getTabId":
+				// Return the sender's tab ID for log identification
+				return Promise.resolve({ tabId: sender.tab?.id ?? null });
 
 			case "getOptions":
 				return browser.storage.local.get("options").then((r) => r.options);

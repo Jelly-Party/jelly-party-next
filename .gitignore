@@ -33,4 +33,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 legacy
-.dev
+
+# Dev runtime files (scripts in .dev are tracked)
+.dev/*.pid
+.dev/*.log
