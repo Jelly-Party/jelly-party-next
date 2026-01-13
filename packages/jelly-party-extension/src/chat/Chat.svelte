@@ -99,6 +99,7 @@ function toggleMinimize() {
 
 async function createParty() {
 	const partyId = crypto.randomUUID().slice(0, 8);
+	log.info("Starting new party", { partyId });
 	await joinParty(partyId);
 }
 
@@ -112,6 +113,7 @@ async function joinParty(partyId: string) {
 function handleJoinById() {
 	const id = extractPartyId(joinPartyId);
 	if (id) {
+		log.info("Joining party by ID", { partyId: id });
 		joinParty(id);
 	}
 }

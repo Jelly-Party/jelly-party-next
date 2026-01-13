@@ -22,6 +22,11 @@ dev-services:
     @echo "Starting backend services..."
     pnpm run dev:services
 
+# Test: run backend services + log streamer (for E2E tests)
+test-services:
+    @echo "Starting test services (backend + log streamer)..."
+    pnpm run test:services
+
 # Stop all dev processes (emergency fallback)
 stop:
     node .dev/stop.js

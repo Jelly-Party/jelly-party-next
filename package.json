@@ -8,6 +8,7 @@
 		"dev:all": "pnpm --filter jelly-party-lib build && mkdir -p .dev && FORCE_COLOR=1 concurrently --kill-others \"pnpm run dev:logs\" \"pnpm --filter jelly-party-server dev\" \"pnpm --filter jelly-party-join dev\" \"pnpm --filter jelly-party-extension dev\" --names \"logs,server,join,ext\" --prefix-colors \"yellow,blue,green,magenta\" | tee .dev/dev.log",
 		"dev:logs": "node .dev/log-streamer.js",
 		"dev:services": "concurrently --kill-others \"pnpm --filter jelly-party-server dev\" \"pnpm --filter jelly-party-join dev\" --names \"server,join\" --prefix-colors \"blue,green\"",
+		"test:services": "concurrently --kill-others \"pnpm run dev:logs\" \"pnpm run dev:services\" --names \"logs,services\" --prefix-colors \"yellow,cyan\"",
 		"dev:vite": "vite dev",
 		"build": "pnpm --filter '*' build",
 		"preview": "vite preview",

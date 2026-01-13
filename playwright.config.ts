@@ -59,7 +59,7 @@ export default defineConfig({
 
 	// Run local dev server before starting the tests
 	webServer: {
-		command: "just dev-services",
+		command: "just test-services",
 		// Wait for both backend and join site (Playwright waits for 2xx response)
 		// Since we can only specify one URL, we rely on 'just dev-services' to start both.
 		// Waiting for the join page is safer as it means Vite processed the static site.

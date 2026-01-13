@@ -43,7 +43,8 @@ async function fetchTabId(): Promise<void> {
 }
 
 function connect() {
-	if (import.meta.env.MODE !== "development") return;
+	const mode = import.meta.env.MODE;
+	if (mode !== "development" && mode !== "test") return;
 
 	identity = detectIdentity();
 	ws = new WebSocket(WS_URL);
@@ -83,7 +84,8 @@ function flushQueue() {
 }
 
 function send(level: LogLevel, msg: string, data?: object) {
-	if (import.meta.env.MODE !== "development") return;
+	const mode = import.meta.env.MODE;
+	if (mode !== "development" && mode !== "test") return;
 
 	if (isConnected && ws) {
 		const entry = JSON.stringify({
@@ -120,7 +122,8 @@ function parseStructuredLog(
 }
 
 export function initDevLogger() {
-	if (import.meta.env.MODE !== "development") return;
+	const mode = import.meta.env.MODE;
+	if (mode !== "development" && mode !== "test") return;
 
 	connect();
 

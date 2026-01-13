@@ -2,39 +2,65 @@
 trigger: always_on
 ---
 
-# Project Overview
+# Technical Architecture & Guidelines
 
-Jelly Party is a Webextension that synchronizes video playback across participants in a Jelly Party.
+**Jelly Party** is a browser extension + backend for watch parties. Sync videos across browsers with minimal friction—install, share a link, done.
 
-This project is a rewrite of the original project (which you can find in the "legacy" folder), that ports it to modern, simple Svelte.
+## System Architecture
 
-It comprises of a pnpm monorepo with the following packages:
-- jelly-party-extension: The webextension that synchronizes video playback.
-- jelly-party-server: The server that enables party communication.
-- jelly-party-join: A simple website that enables party joining.
-- jelly-party-website: The website that explains the project.
-- jelly-party-status: Simple status website that shows the status of Jelly Party components and some stats.
+### Extension Model (Manifest V3)
 
-With the rewrite, we're changing a few things:
-- Full port to modern Svelte 5
-- Sidebar removal: Rather than a sidebar, which is error prone and needs custom CSS for each website, we're planning a hover that upon click minimizes/maximizes the Jelly Party Chat Window.
-- Tailwind for CSS
-- Move to Manifest V3
-- Replacement of the customization and avatar creation with a (random but configurable) Emoji.
-- Complete removal of integration with ELK stack, we're switchting to simple idiomatic cloud-hosted Grafana for logs & metrics.
-- KISS and simplification where it makes sense.
-- Simple orchestration & building via pnpm, with a single Dockerfile that defines all targets.
-- Idiomatic and simple tests, and the ability to load the extension for manual testing
+The extension operates under MV3 constraints: service workers only, no persistent background page.
 
-Crucially, we want to keep the same:
-- Design & UX
-- Synchronization & Chat Features
-- Video playback logic, in particular playback synchronization
-- API compatibility in between the old and new extensions, for a seamless upgrade path
+**Permission strategy**: We never ask for "all sites" access. Instead:
+1. User clicks the extension icon → request permission for *this* origin only.
+2. User clicks a magic link (`join.jelly-party.com/?redirectURL=...`) → extension intercepts, requests permission for the *target* origin, then redirects.
 
-# Grounding Rule: Search First for Uncertain/Evolving Tech
+This keeps things privacy-friendly and avoids the scary install prompts.
 
-You must ALWAYS "Stop and Search" when encountering a library, framework, or API that is:
-1.  **Alpha/Beta or Rapidly Evolving** (e.g., Zero Sync, young open-source projects).
-2.  **Not Fully Known** or where you are less than 100% certain of the specific API signature.
-3.  **Potentially Hallucinated** due to your training data cutoff conflicting with recent versions.
+### Component Communication
+
+Message passing architecture within the browser:
+
+| Component | Location | What it does |
+|-----------|----------|--------------|
+| **Background** | Service Worker | Orchestrates permissions, routing, icon clicks. Has access to `browser.*` APIs. |
+| **Chat Iframe** | `src/chat/chat.html` | Holds the WebSocket, stores party state. Lives in `chrome-extension://` origin—isolated from the host page. |
+| **Main Script** | `src/content/main.ts` | Runs in top frame. Bridges the iframe to video agents via `postMessage`. |
+| **VideoAgent** | `src/content/videoAgent.ts` | Runs in *all* frames. Finds `<video>` elements, hooks events, executes commands. |
+
+**Data flow for video sync:**
+```
+Server ──(WS)──► Chat Iframe ──(postMessage)──► Main Script ──(postMessage)──► VideoAgent ──(DOM)──► <video>
+```
+
+Why this chain? The Chat Iframe can't touch the host page (different origin). VideoAgents might be inside cross-origin iframes (e.g. Vimeo embed on a blog). The bridge in the top frame stitches them together.
+
+### Sync Logic (`VideoController`)
+
+- **Time reference**: We sync using `timeFromEnd` (duration - currentTime), not absolute time. Ad-blockers and regional pre-roll differences often shift video start times. Syncing from the end keeps the actual content aligned.
+
+- **Echo cancellation**: When applying a remote command, set an `ignoreNext` flag before mutating the video. The browser fires an event, the controller sees the flag, drops it. Simple.
+
+## Development Rules
+
+### Stack
+
+- **Svelte 5**: Runes only (`$state`, `$effect`). No `export let` for state, no legacy store syntax.
+- **Tailwind v4**: Zero-config. Styles in `app.css` or `<style>` blocks.
+- **TypeScript**: Strict mode. No `any`. Shared types go in `jelly-party-lib`.
+
+### Testing
+
+**E2E (Playwright)**:
+- Use `fixtures.ts` to load the extension.
+- Test sync by spawning two browser contexts and asserting they stay in lockstep.
+
+**Unit (Vitest)**:
+- Test `VideoController` with mocked `HTMLVideoElement`.
+
+### Workflow
+
+- **Protocol changes**: Edit `jelly-party-lib` first. Run `just build-pkg jelly-party-lib` before other packages will see the new types.
+- **Commands**: Use `just` for everything. Run `just` to see available tasks.
+- **Hot reload**: The extension builds in watch mode, but you have to manually reload at `chrome://extensions` after changing `manifest.json` or service worker code.

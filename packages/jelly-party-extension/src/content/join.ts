@@ -1,7 +1,13 @@
 // Content script for join.jelly-party.com - runs at document_start
 // Handles magic link redirect and permission requests via background script
 
+import { createLogger } from "jelly-party-lib";
 import browser from "webextension-polyfill";
+import { initDevLogger } from "../lib/devLogger";
+
+initDevLogger();
+
+const log = createLogger("join");
 
 // Signal to the page that extension is installed (for cross-browser detection)
 document.documentElement.setAttribute("data-jellyparty-installed", "true");
@@ -11,43 +17,39 @@ const partyId = params.get("jellyPartyId");
 const redirectURL = params.get("redirectURL");
 
 async function init() {
-	console.log("Jelly Party [join]: init", { partyId, redirectURL });
+	log.info("Init", { partyId, redirectURL });
 
 	if (!partyId || !redirectURL) {
-		console.log(
-			"Jelly Party [join]: No partyId or redirectURL, showing fallback",
-		);
+		log.debug("No partyId or redirectURL, showing fallback");
 		return;
 	}
 
 	try {
 		const decodedURL = decodeURIComponent(redirectURL);
-		console.log("Jelly Party [join]: Decoded redirectURL", { decodedURL });
+		log.debug("Decoded redirectURL", { decodedURL });
 
 		// Validate URL
 		const urlObj = new URL(decodedURL);
 		const origin = `${urlObj.origin}/*`;
-		console.log("Jelly Party [join]: Parsed origin", { origin });
+		log.debug("Parsed origin", { origin });
 
 		// Ask background to check if we already have permission
 		const response = await browser.runtime.sendMessage({
 			type: "checkPermission",
 			payload: { origin },
 		});
-		console.log("Jelly Party [join]: Permission check response", response);
+		log.debug("Permission check response", response);
 
 		if (response?.hasPermission) {
 			// We have permission, proceed directly to redirect
-			console.log(
-				"Jelly Party [join]: Permission already granted, redirecting",
-			);
+			log.info("Permission already granted, redirecting");
 			requestRedirect(decodedURL, partyId);
 		} else {
 			// Show permission prompt
 			showPermissionPrompt(origin, decodedURL, partyId);
 		}
 	} catch (e) {
-		console.error("Jelly Party [join]: Error in init", e);
+		log.error("Error in init", { error: String(e) });
 		// Fallback: show permission prompt anyway
 		if (partyId && redirectURL) {
 			try {
@@ -56,14 +58,14 @@ async function init() {
 				const origin = `${urlObj.origin}/*`;
 				showPermissionPrompt(origin, decodedURL, partyId);
 			} catch {
-				console.error("Jelly Party [join]: Could not parse redirectURL");
+				log.error("Could not parse redirectURL");
 			}
 		}
 	}
 }
 
 function requestRedirect(url: string, partyId: string) {
-	console.log("Jelly Party [join]: Requesting redirect", { partyId, url });
+	log.info("Requesting redirect", { partyId, url });
 	browser.runtime.sendMessage({
 		type: "redirectToParty",
 		payload: { redirectURL: url, partyId },
@@ -75,7 +77,7 @@ function showPermissionPrompt(
 	redirectURL: string,
 	partyId: string,
 ) {
-	console.log("Jelly Party [join]: Showing permission prompt");
+	log.debug("Showing permission prompt");
 
 	// Wait for DOM to be ready
 	if (!document.body) {
@@ -153,18 +155,12 @@ function showPermissionPrompt(
 			status.textContent = "";
 
 			try {
-				console.log(
-					"Jelly Party [join]: Requesting permission via background",
-					{ origin },
-				);
+				log.debug("Requesting permission via background", { origin });
 				const response = await browser.runtime.sendMessage({
 					type: "requestPermission",
 					payload: { origin },
 				});
-				console.log(
-					"Jelly Party [join]: Permission request response",
-					response,
-				);
+				log.info("Permission request response", response);
 
 				if (response?.granted) {
 					status.textContent = "Permission granted! Joining party...";
@@ -175,7 +171,7 @@ function showPermissionPrompt(
 					btn.textContent = "Grant Permissions & Join";
 				}
 			} catch (e) {
-				console.error("Jelly Party [join]: Error requesting permission", e);
+				log.error("Error requesting permission", { error: String(e) });
 				status.textContent = "Error requesting permission. Try again.";
 				btn.disabled = false;
 				btn.textContent = "Grant Permissions & Join";
