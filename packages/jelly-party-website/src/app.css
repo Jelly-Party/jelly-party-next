@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+	/* Fonts */
+	--font-sans:
+		"Roboto", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+		"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+	/* Colors */
+	--color-jelly-purple: #9164ff;
+	--color-jelly-pink: #ee64f6;
+	--color-jelly-orange: #ff9494;
+
+	/* Extension-specific dark mode backgrounds */
+	--color-bg-dark: #0a0a0a;
+}
+
+:root {
+	/* Gradients from extension */
+	--gradient-hero: linear-gradient(135deg, #ff9494 0%, #ee64f6 100%);
+	--gradient-accent: linear-gradient(135deg, #9164ff 0%, #8bfff4 100%);
+
+	/* Shared tokens */
+	--nav-height: 64px;
+}
+
+body {
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	background-color: var(--color-bg-dark);
+	color: white;
+}
+
+/* Button style matching extension's .create-btn / .btn-primary */
+.cta-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--color-jelly-purple);
+	color: white;
+	border: none;
+	border-radius: 9999px; /* 50rem/pill */
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		transform 0.2s ease,
+		box-shadow 0.2s ease,
+		background-color 0.2s;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.cta-button:hover {
+	background-color: #7a4de6;
+	transform: translateY(-2px);
+	box-shadow: 0 6px 20px rgba(145, 100, 255, 0.5);
+}
+
+/* Secondary/Outline button style */
+.cta-button-secondary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background-color: transparent;
+	color: rgba(255, 255, 255, 0.9);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	border-radius: 9999px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.cta-button-secondary:hover {
+	background-color: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.8);
+	color: white;
+}
+
+/* Utilities */
+.gradient-hero {
+	background: var(--gradient-hero);
+}
+
+.gradient-accent {
+	background: var(--gradient-accent);
+}
+
+/* Animations */
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-10px);
+	}
+}
+
+.animate-float {
+	animation: float 6s ease-in-out infinite;
+}
+
+@keyframes excited {
+	0%,
+	100% {
+		transform: translate(0, 0) rotate(0deg) scale(1);
+	}
+	10% {
+		transform: translate(-5px, -5px) rotate(-2deg) scale(1.05);
+	}
+	20% {
+		transform: translate(5px, 5px) rotate(2deg) scale(1.05);
+	}
+	30% {
+		transform: translate(-5px, 5px) rotate(-2deg) scale(1.05);
+	}
+	40% {
+		transform: translate(5px, -5px) rotate(2deg) scale(1.05);
+	}
+	50% {
+		transform: translate(-2px, 2px) rotate(-1deg) scale(1.05);
+	}
+	60% {
+		transform: translate(2px, -2px) rotate(1deg) scale(1.05);
+	}
+	70% {
+		transform: translate(0, 5px) rotate(0deg) scale(1.05);
+	}
+	80% {
+		transform: translate(-5px, 0) rotate(-1deg) scale(1.05);
+	}
+	90% {
+		transform: translate(5px, 0) rotate(1deg) scale(1.05);
+	}
+}
+
+.animate-excited {
+	animation: excited 0.5s linear infinite;
+}

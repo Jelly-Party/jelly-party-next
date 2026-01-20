@@ -48,6 +48,10 @@ dev-extension-firefox:
 dev-server:
     pnpm --filter jelly-party-server dev
 
+# Development: website only
+dev-website:
+    pnpm --filter jelly-party-website dev
+
 # Build all packages
 build:
     pnpm --filter '*' build

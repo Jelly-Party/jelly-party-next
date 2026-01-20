@@ -134,6 +134,7 @@
     setInterval(updateStatus, 500);
 
     // Simulate ad insertion (like YouTube does - swap source)
+    // biome-ignore lint/correctness/noUnusedVariables: used in HTML
     function playAd() {
       const v = document.getElementById('player');
       if (!v || isPlayingAd) return;
@@ -150,6 +151,7 @@
     }
 
     // Return to main video after ad
+    // biome-ignore lint/correctness/noUnusedVariables: used in HTML
     function swapToMain() {
       const v = document.getElementById('player');
       if (!v) return;
@@ -166,6 +168,7 @@
     }
 
     // Simulate video destruction (some sites do this)
+    // biome-ignore lint/correctness/noUnusedVariables: used in HTML
     function destroyVideo() {
       const v = document.getElementById('player');
       if (v) {
@@ -176,11 +179,12 @@
     }
 
     // Recreate video element
+    // biome-ignore lint/correctness/noUnusedVariables: used in HTML
     function recreateVideo() {
       if (document.getElementById('player')) return;
       
       log('--- RECREATING VIDEO ---');
-      const container = document.querySelector('body');
+      const _container = document.querySelector('body');
       const newVideo = document.createElement('video');
       newVideo.id = 'player';
       newVideo.controls = true;
@@ -196,6 +200,7 @@
       updateStatus();
     }
 
+    // biome-ignore lint/correctness/noUnusedVariables: used in HTML
     function clearLog() {
       logEl.innerHTML = '';
     }

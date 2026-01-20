@@ -87,7 +87,8 @@ test.describe("Video Swap Handling (Ad Simulation)", () => {
 		// Extract party ID from magic link and join manually
 		const partyIdMatch = magicLink.match(/jellyPartyId=([^&]+)/);
 		expect(partyIdMatch).toBeTruthy();
-		const partyId = partyIdMatch![1];
+		if (!partyIdMatch) throw new Error("Match failed despite expect");
+		const partyId = partyIdMatch[1];
 
 		// Click "Join Party" and enter the party ID
 		await chatIframeB.getByTestId("join-party-input").fill(partyId);
@@ -151,8 +152,7 @@ test.describe("Video Swap Handling (Ad Simulation)", () => {
 			() => {
 				const v = document.querySelector("video");
 				return (
-					v &&
-					v.currentSrc?.includes("ad-video.mp4") &&
+					v?.currentSrc?.includes("ad-video.mp4") &&
 					v.readyState >= 1 &&
 					!Number.isNaN(v.duration)
 				);
@@ -194,7 +194,7 @@ test.describe("Video Swap Handling (Ad Simulation)", () => {
 		await pageA.waitForFunction(
 			() => {
 				const v = document.querySelector("video");
-				return v && v.currentSrc?.includes("main-video.mp4") && v.duration > 10;
+				return v?.currentSrc?.includes("main-video.mp4") && v.duration > 10;
 			},
 			{ timeout: OPERATION_TIMEOUT },
 		);
@@ -272,7 +272,8 @@ test.describe("Video Swap Handling (Ad Simulation)", () => {
 			.inputValue();
 		const partyIdMatch = magicLink.match(/jellyPartyId=([^&]+)/);
 		expect(partyIdMatch).toBeTruthy();
-		const partyId = partyIdMatch![1];
+		if (!partyIdMatch) throw new Error("Match failed");
+		const partyId = partyIdMatch[1];
 
 		const pageB = await context.newPage();
 		await pageB.goto(site.url, { waitUntil: "domcontentloaded" });

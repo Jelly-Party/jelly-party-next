@@ -3,10 +3,10 @@
  * Stop all dev processes - emergency fallback.
  * First tries clean PID-based kill, then falls back to port-based killing.
  */
-import { execSync } from "child_process";
-import { existsSync, readFileSync, unlinkSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+import { execSync } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PID_FILE = join(__dirname, "dev.pid");
@@ -64,7 +64,7 @@ function killOnPort(port) {
 			const pids = output.trim().split("\n").filter(Boolean);
 			for (const pid of pids) {
 				try {
-					process.kill(parseInt(pid), "SIGKILL");
+					process.kill(parseInt(pid, 10), "SIGKILL");
 				} catch {
 					// Process already dead
 				}
@@ -83,7 +83,7 @@ let killedViaPid = false;
 // First try PID file (clean approach)
 if (existsSync(PID_FILE)) {
 	try {
-		const pid = parseInt(readFileSync(PID_FILE, "utf8"));
+		const pid = parseInt(readFileSync(PID_FILE, "utf8"), 10);
 		console.log(`\x1b[33m[stop]\x1b[0m Killing process group (PID ${pid})...`);
 		killedViaPid = killProcessTree(pid);
 		unlinkSync(PID_FILE);

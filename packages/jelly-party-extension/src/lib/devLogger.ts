@@ -33,7 +33,9 @@ function detectIdentity(): string {
 async function fetchTabId(): Promise<void> {
 	if (identity !== "content") return;
 	try {
-		const response = await browser.runtime.sendMessage({ type: "getTabId" });
+		const response = (await browser.runtime.sendMessage({
+			type: "getTabId",
+		})) as { tabId?: number };
 		if (response?.tabId) {
 			identity = String(response.tabId);
 		}
@@ -103,6 +105,7 @@ function send(level: LogLevel, msg: string, data?: object) {
 }
 
 function parseStructuredLog(
+	// biome-ignore lint/suspicious/noExplicitAny: console args are any
 	args: any[],
 ): { level: LogLevel; msg: string; data?: object } | null {
 	if (args.length !== 1 || typeof args[0] !== "string") return null;
@@ -134,8 +137,10 @@ export function initDevLogger() {
 	const originalError = console.error;
 
 	const processConsoleCall = (
+		// biome-ignore lint/suspicious/noExplicitAny: console overrides
 		original: (...args: any[]) => void,
 		defaultLevel: LogLevel,
+		// biome-ignore lint/suspicious/noExplicitAny: console args
 		...args: any[]
 	) => {
 		original(...args);

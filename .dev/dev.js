@@ -4,16 +4,16 @@
  * Ensures only one dev process runs at a time by using a PID file.
  * If a previous dev process is running, it will be killed first.
  */
-import { spawn, execSync } from "child_process";
+import { execSync, spawn } from "node:child_process";
 import {
-	writeFileSync,
-	unlinkSync,
-	readFileSync,
 	existsSync,
 	mkdirSync,
-} from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
+	readFileSync,
+	unlinkSync,
+	writeFileSync,
+} from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEV_DIR = __dirname;
@@ -46,7 +46,7 @@ function killProcessTree(pid) {
 // Kill existing dev process if running
 if (existsSync(PID_FILE)) {
 	try {
-		const oldPid = parseInt(readFileSync(PID_FILE, "utf8"));
+		const oldPid = parseInt(readFileSync(PID_FILE, "utf8"), 10);
 		killProcessTree(oldPid);
 		console.log(
 			`\x1b[33m[dev]\x1b[0m Stopped previous dev process (PID ${oldPid})`,
