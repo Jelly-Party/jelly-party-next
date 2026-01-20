@@ -26,14 +26,21 @@ export const sites: VideoSite[] = [
 		videoSelector: "video",
 		requiresLogin: false,
 	},
+	{
+		name: "video-swap-test",
+		displayName: "Video Swap Test (Local)",
+		// This is a local file served by Playwright's webServer
+		url: "http://localhost:3333/video-swap-test.html",
+		videoSelector: "video",
+		requiresLogin: false,
+	},
 	// Future sites can be added here:
 	// {
-	//   name: 'netflix',
-	//   displayName: 'Netflix',
-	//   url: 'https://www.netflix.com/watch/...',
+	//   name: 'youtube',
+	//   displayName: 'YouTube',
+	//   url: 'https://www.youtube.com/watch?v=BHACKCNDMW8',
 	//   videoSelector: 'video',
-	//   requiresLogin: true,
-	//   authStatePath: 'netflix.json',
+	//   requiresLogin: false,
 	// },
 ];
 

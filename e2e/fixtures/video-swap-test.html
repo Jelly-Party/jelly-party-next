@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Swap Test - Simulating Ads</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    video {
+      width: 100%;
+      max-width: 720px;
+      background: #000;
+      border-radius: 8px;
+    }
+    .controls {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      background: #4a4e69;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover {
+      background: #6b6f8a;
+    }
+    button.danger {
+      background: #c9184a;
+    }
+    button.danger:hover {
+      background: #e01e5a;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 10px;
+      background: #2a2a4e;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .log {
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #1a1a2e;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+    .log-entry {
+      padding: 2px 0;
+      border-bottom: 1px solid #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>Video Swap Test Page</h1>
+  <p>This page simulates YouTube's ad behavior: swapping the video source mid-playback.</p>
+  
+  <video id="player" controls>
+    <source src="main-video.mp4" type="video/mp4">
+  </video>
+  
+  <div class="controls">
+    <button onclick="playAd()">▶️ Insert 5s Ad</button>
+    <button onclick="swapToMain()">📺 Back to Main</button>
+    <button onclick="destroyVideo()" class="danger">💥 Destroy Video</button>
+    <button onclick="recreateVideo()">🔄 Recreate Video</button>
+    <button onclick="clearLog()">🧹 Clear Log</button>
+  </div>
+  
+  <div class="status" id="status">
+    Status: Loading...
+  </div>
+  
+  <div class="log" id="log"></div>
+
+  <script>
+    const video = document.getElementById('player');
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    
+    let isPlayingAd = false;
+    let savedTime = 0;
+    let savedPaused = true;
+
+    function log(msg) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${new Date().toISOString().slice(11, 23)}] ${msg}`;
+      logEl.insertBefore(entry, logEl.firstChild);
+    }
+
+    function updateStatus() {
+      const v = document.getElementById('player');
+      if (!v) {
+        statusEl.textContent = 'Status: Video element destroyed';
+        return;
+      }
+      statusEl.textContent = `Status: ${isPlayingAd ? '🔴 AD' : '🟢 Main'} | ` +
+        `src: ${v.currentSrc.split('/').pop()} | ` +
+        `time: ${v.currentTime.toFixed(2)}s / ${v.duration?.toFixed(2) || '?'}s | ` +
+        `${v.paused ? 'paused' : 'playing'}`;
+    }
+
+    // Attach event listeners
+    function attachEvents(v) {
+      const events = [
+        'play', 'pause', 'seeked', 'seeking', 'emptied', 
+        'loadedmetadata', 'durationchange', 'error', 'ended'
+      ];
+      events.forEach(e => {
+        v.addEventListener(e, () => {
+          log(`Event: ${e} | duration=${v.duration?.toFixed(2)} src=${v.currentSrc?.split('/').pop()}`);
+          updateStatus();
+        });
+      });
+    }
+    
+    attachEvents(video);
+    setInterval(updateStatus, 500);
+
+    // Simulate ad insertion (like YouTube does - swap source)
+    function playAd() {
+      const v = document.getElementById('player');
+      if (!v || isPlayingAd) return;
+      
+      log('--- INSERTING AD ---');
+      savedTime = v.currentTime;
+      savedPaused = v.paused;
+      isPlayingAd = true;
+      
+      // YouTube swaps the source on the same video element
+      v.src = 'ad-video.mp4';
+      v.load();
+      v.play().catch(() => {});
+    }
+
+    // Return to main video after ad
+    function swapToMain() {
+      const v = document.getElementById('player');
+      if (!v) return;
+      
+      log('--- RETURNING TO MAIN VIDEO ---');
+      isPlayingAd = false;
+      
+      v.src = 'main-video.mp4';
+      v.load();
+      v.currentTime = savedTime;
+      if (!savedPaused) {
+        v.play().catch(() => {});
+      }
+    }
+
+    // Simulate video destruction (some sites do this)
+    function destroyVideo() {
+      const v = document.getElementById('player');
+      if (v) {
+        log('--- DESTROYING VIDEO ---');
+        v.remove();
+        updateStatus();
+      }
+    }
+
+    // Recreate video element
+    function recreateVideo() {
+      if (document.getElementById('player')) return;
+      
+      log('--- RECREATING VIDEO ---');
+      const container = document.querySelector('body');
+      const newVideo = document.createElement('video');
+      newVideo.id = 'player';
+      newVideo.controls = true;
+      newVideo.src = 'main-video.mp4';
+      newVideo.style.cssText = 'width: 100%; max-width: 720px; background: #000; border-radius: 8px;';
+      
+      // Insert after h1
+      const h1 = document.querySelector('h1');
+      h1.parentNode.insertBefore(newVideo, h1.nextSibling.nextSibling);
+      
+      attachEvents(newVideo);
+      isPlayingAd = false;
+      updateStatus();
+    }
+
+    function clearLog() {
+      logEl.innerHTML = '';
+    }
+
+    log('Page loaded, video ready');
+    updateStatus();
+  </script>
+</body>
+</html>

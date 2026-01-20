@@ -58,15 +58,26 @@ export default defineConfig({
 	outputDir: "test-results",
 
 	// Run local dev server before starting the tests
-	webServer: {
-		command: "just test-services",
-		// Wait for both backend and join site (Playwright waits for 2xx response)
-		// Since we can only specify one URL, we rely on 'just dev-services' to start both.
-		// Waiting for the join page is safer as it means Vite processed the static site.
-		url: "http://localhost:5180",
-		reuseExistingServer: !process.env.CI,
-		stdout: "pipe",
-		stderr: "pipe",
-		timeout: 120 * 1000, // 2 minutes to start dev servers
-	},
+	webServer: [
+		{
+			command: "just test-services",
+			// Wait for both backend and join site (Playwright waits for 2xx response)
+			// Since we can only specify one URL, we rely on 'just dev-services' to start both.
+			// Waiting for the join page is safer as it means Vite processed the static site.
+			url: "http://localhost:5180",
+			reuseExistingServer: !process.env.CI,
+			stdout: "pipe",
+			stderr: "pipe",
+			timeout: 120 * 1000, // 2 minutes to start dev servers
+		},
+		{
+			// Serve e2e/fixtures for local video swap tests
+			command: "npx http-server e2e/fixtures -p 3333 --cors",
+			url: "http://localhost:3333/video-swap-test.html",
+			reuseExistingServer: !process.env.CI,
+			stdout: "pipe",
+			stderr: "pipe",
+			timeout: 10 * 1000,
+		},
+	],
 });
