@@ -18,7 +18,7 @@
 		"@tailwindcss/vite": "^4.1.17",
 		"@types/chrome": "^0.1.32",
 		"@types/webextension-polyfill": "^0.12.3",
-		"svelte": "^5.45.6",
+		"svelte": "^5.46.4",
 		"svelte-check": "^4.3.4",
 		"tailwindcss": "^4.1.17",
 		"typescript": "^5.9.3",
