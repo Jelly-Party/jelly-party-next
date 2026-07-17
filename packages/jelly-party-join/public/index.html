@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -6,14 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="favicon.ico" />
     <title>Join a Jelly-Party</title>
-    <meta name="description" content="Join your friends on Jelly Party and watch videos together in sync!" />
-    
+    <meta
+      name="description"
+      content="Join your friends on Jelly Party and watch videos together in sync!"
+    />
+
     <!-- Open Graph -->
     <meta property="og:title" content="Join a Jelly-Party" />
-    <meta property="og:description" content="Join your friends on Jelly Party and watch videos together in sync!" />
+    <meta
+      property="og:description"
+      content="Join your friends on Jelly Party and watch videos together in sync!"
+    />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://join.jelly-party.com/" />
-    
+
     <style>
       * {
         margin: 0;
@@ -21,9 +27,12 @@
         box-sizing: border-box;
       }
 
-      html, body {
+      html,
+      body {
         height: 100%;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
         font-size: 16px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
@@ -112,7 +121,9 @@
         border: none;
         padding: 0.875rem 2rem;
         text-decoration: none;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
         box-shadow: 0 4px 16px rgba(145, 100, 255, 0.4);
       }
 
@@ -142,22 +153,15 @@
 
       /* Subtle background animation */
       body::before {
-        content: '';
+        content: "";
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: radial-gradient(
-          ellipse at 30% 20%,
-          rgba(145, 100, 255, 0.15) 0%,
-          transparent 50%
-        ),
-        radial-gradient(
-          ellipse at 70% 80%,
-          rgba(139, 255, 244, 0.15) 0%,
-          transparent 50%
-        );
+        background:
+          radial-gradient(ellipse at 30% 20%, rgba(145, 100, 255, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse at 70% 80%, rgba(139, 255, 244, 0.15) 0%, transparent 50%);
         pointer-events: none;
         z-index: -1;
       }
@@ -174,24 +178,23 @@
     </style>
   </head>
   <body>
-    <div class="card" style="opacity: 0; pointer-events: none;">
-      <img 
-        src="https://www.jelly-party.com/logo.png" 
-        alt="Jelly Party Logo" 
+    <div class="card" style="opacity: 0; pointer-events: none">
+      <img
+        src="https://www.jelly-party.com/logo.png"
+        alt="Jelly Party Logo"
         class="logo"
-        onerror="this.style.display='none'"
+        onerror="this.style.display = 'none'"
       />
       <h1>No Jelly Party detected</h1>
       <p>
-        It looks like you don't have Jelly Party installed yet.
-        Install the extension to join your friends and watch videos together in sync!
+        It looks like you don't have Jelly Party installed yet. Install the extension to join your
+        friends and watch videos together in sync!
       </p>
-      <a href="https://www.jelly-party.com/" class="install-button">
-        Install Jelly Party
-      </a>
+      <a href="https://www.jelly-party.com/" class="install-button"> Install Jelly Party </a>
       <div class="footer">
         <p>
-          Need help? Join our <a href="https://discord.gg/H3dExqc" target="_blank" rel="noopener">Discord community</a>
+          Need help? Join our
+          <a href="https://discord.gg/H3dExqc" target="_blank" rel="noopener">Discord community</a>
         </p>
       </div>
     </div>
@@ -200,24 +203,24 @@
       (() => {
         // Check if extension content script marked its presence
         function extensionInstalled() {
-          return document.documentElement.hasAttribute('data-jellyparty-installed');
+          return document.documentElement.hasAttribute("data-jellyparty-installed");
         }
-        
+
         // If extension is already detected, it will handle the redirect
         if (extensionInstalled()) {
-          console.log('Jelly Party extension detected');
+          console.log("Jelly Party extension detected");
           return;
         }
-        
+
         // Check again after a brief delay (content script runs at document_start,
         // but this inline script might race with it)
         setTimeout(() => {
           if (!extensionInstalled()) {
             // No extension found - show install prompt
-            const card = document.querySelector('.card');
+            const card = document.querySelector(".card");
             if (card) {
-              card.style.opacity = '1';
-              card.style.pointerEvents = 'auto';
+              card.style.opacity = "1";
+              card.style.pointerEvents = "auto";
             }
           }
         }, 300);
@@ -225,4 +228,3 @@
     </script>
   </body>
 </html>
-

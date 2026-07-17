@@ -13,8 +13,9 @@ trigger: always_on
 The extension operates under MV3 constraints: service workers only, no persistent background page.
 
 **Permission strategy**: We never ask for "all sites" access. Instead:
-1. User clicks the extension icon → request permission for *this* origin only.
-2. User clicks a magic link (`join.jelly-party.com/?redirectURL=...`) → extension intercepts, requests permission for the *target* origin, then redirects.
+
+1. User clicks the extension icon → request permission for _this_ origin only.
+2. User clicks a magic link (`join.jelly-party.com/?redirectURL=...`) → extension intercepts, requests permission for the _target_ origin, then redirects.
 
 This keeps things privacy-friendly and avoids the scary install prompts.
 
@@ -22,14 +23,15 @@ This keeps things privacy-friendly and avoids the scary install prompts.
 
 Message passing architecture within the browser:
 
-| Component | Location | What it does |
-|-----------|----------|--------------|
-| **Background** | Service Worker | Orchestrates permissions, routing, icon clicks. Has access to `browser.*` APIs. |
-| **Chat Iframe** | `src/chat/chat.html` | Holds the WebSocket, stores party state. Lives in `chrome-extension://` origin—isolated from the host page. |
-| **Main Script** | `src/content/main.ts` | Runs in top frame. Bridges the iframe to video agents via `postMessage`. |
-| **VideoAgent** | `src/content/videoAgent.ts` | Runs in *all* frames. Finds `<video>` elements, hooks events, executes commands. |
+| Component       | Location                    | What it does                                                                                                |
+| --------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Background**  | Service Worker              | Orchestrates permissions, routing, icon clicks. Has access to `browser.*` APIs.                             |
+| **Chat Iframe** | `src/chat/chat.html`        | Holds the WebSocket, stores party state. Lives in `chrome-extension://` origin—isolated from the host page. |
+| **Main Script** | `src/content/main.ts`       | Runs in top frame. Bridges the iframe to video agents via `postMessage`.                                    |
+| **VideoAgent**  | `src/content/videoAgent.ts` | Runs in _all_ frames. Finds `<video>` elements, hooks events, executes commands.                            |
 
 **Data flow for video sync:**
+
 ```
 Server ──(WS)──► Chat Iframe ──(postMessage)──► Main Script ──(postMessage)──► VideoAgent ──(DOM)──► <video>
 ```
@@ -53,14 +55,16 @@ Why this chain? The Chat Iframe can't touch the host page (different origin). Vi
 ### Testing
 
 **E2E (Playwright)**:
+
 - Use `fixtures.ts` to load the extension.
 - Test sync by spawning two browser contexts and asserting they stay in lockstep.
 
 **Unit (Vitest)**:
+
 - Test `VideoController` with mocked `HTMLVideoElement`.
 
 ### Workflow
 
-- **Protocol changes**: Edit `jelly-party-lib` first. Run `just build-pkg jelly-party-lib` before other packages will see the new types.
-- **Commands**: Use `just` for everything. Run `just` to see available tasks.
+- **Protocol changes**: Edit `jelly-party-lib` first. Run `vp run jelly-party-lib#build` before other packages will see the new types.
+- **Commands**: Use `vp` for the JavaScript toolchain and Vite Task for project workflows. Run `vp run` to see available tasks.
 - **Hot reload**: The extension builds in watch mode, but you have to manually reload at `chrome://extensions` after changing `manifest.json` or service worker code.

@@ -10,115 +10,115 @@ export { createLogger, type Logger, type LogLevel, log } from "./logger.js";
 
 // WebSocket Message Types
 export interface ClientState {
-	clientName: string;
-	emoji: string; // Replaces avatar with configurable emoji
+  clientName: string;
+  emoji: string; // Replaces avatar with configurable emoji
 }
 
 export interface Peer {
-	uuid: string;
-	clientState: ClientState;
+  uuid: string;
+  clientState: ClientState;
 }
 
 export interface PartyState {
-	isActive: boolean;
-	partyId: string;
-	peers: Peer[];
+  isActive: boolean;
+  partyId: string;
+  peers: Peer[];
 }
 
 // WebSocket Messages
 export type MessageType =
-	| "join"
-	| "setUUID"
-	| "forward"
-	| "clientUpdate"
-	| "partyStateUpdate"
-	| "chatMessage"
-	| "videoUpdate";
+  | "join"
+  | "setUUID"
+  | "forward"
+  | "clientUpdate"
+  | "partyStateUpdate"
+  | "chatMessage"
+  | "videoUpdate";
 
 export interface BaseMessage {
-	type: MessageType;
+  type: MessageType;
 }
 
 export interface JoinMessage extends BaseMessage {
-	type: "join";
-	data: {
-		partyId: string;
-		clientState: ClientState;
-	};
+  type: "join";
+  data: {
+    partyId: string;
+    clientState: ClientState;
+  };
 }
 
 export interface SetUUIDMessage extends BaseMessage {
-	type: "setUUID";
-	data: {
-		uuid: string;
-	};
+  type: "setUUID";
+  data: {
+    uuid: string;
+  };
 }
 
 export interface ChatMessage extends BaseMessage {
-	type: "chatMessage";
-	peer: { uuid: string };
-	data: {
-		text: string;
-		timestamp: number;
-	};
+  type: "chatMessage";
+  peer: { uuid: string };
+  data: {
+    text: string;
+    timestamp: number;
+  };
 }
 
 export interface PartyStateUpdateMessage extends BaseMessage {
-	type: "partyStateUpdate";
-	data: {
-		partyState: PartyState;
-	};
+  type: "partyStateUpdate";
+  data: {
+    partyState: PartyState;
+  };
 }
 
 export interface VideoUpdateMessage extends BaseMessage {
-	type: "videoUpdate";
-	data: {
-		variant: "playPause" | "seek";
-		tick?: number;
-		paused?: boolean;
-	};
+  type: "videoUpdate";
+  data: {
+    variant: "playPause" | "seek";
+    tick?: number;
+    paused?: boolean;
+  };
 }
 
 export type WSMessage =
-	| JoinMessage
-	| SetUUIDMessage
-	| ChatMessage
-	| PartyStateUpdateMessage
-	| VideoUpdateMessage;
+  | JoinMessage
+  | SetUUIDMessage
+  | ChatMessage
+  | PartyStateUpdateMessage
+  | VideoUpdateMessage;
 
 // API Constants
 export const API_VERSION = "2.0.0";
 
 export const ENDPOINTS = {
-	production: "wss://ws.jelly-party.com:8080",
-	staging: "wss://staging.jelly-party.com:8080",
-	development: "ws://localhost:8080",
+  production: "wss://ws.jelly-party.com:8080",
+  staging: "wss://staging.jelly-party.com:8080",
+  development: "ws://localhost:8080",
 } as const;
 
 // Random emoji generation for new users
 const PARTY_EMOJIS = [
-	"🎉",
-	"🎊",
-	"🥳",
-	"🎈",
-	"🎁",
-	"🍿",
-	"🎬",
-	"📺",
-	"🎭",
-	"🌟",
-	"✨",
-	"🦋",
-	"🐙",
-	"🦄",
-	"🐳",
-	"🦊",
-	"🐼",
-	"🐨",
-	"🦁",
-	"🐯",
+  "🎉",
+  "🎊",
+  "🥳",
+  "🎈",
+  "🎁",
+  "🍿",
+  "🎬",
+  "📺",
+  "🎭",
+  "🌟",
+  "✨",
+  "🦋",
+  "🐙",
+  "🦄",
+  "🐳",
+  "🦊",
+  "🐼",
+  "🐨",
+  "🦁",
+  "🐯",
 ];
 
 export function getRandomEmoji(): string {
-	return PARTY_EMOJIS[Math.floor(Math.random() * PARTY_EMOJIS.length)];
+  return PARTY_EMOJIS[Math.floor(Math.random() * PARTY_EMOJIS.length)];
 }

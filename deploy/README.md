@@ -10,6 +10,7 @@ Deploy the Jelly Party WebSocket server with observability via Grafana Cloud OTL
 ## Setup
 
 1. Copy `.env.example` to `.env`:
+
    ```bash
    cp .env.example .env
    ```
@@ -37,11 +38,11 @@ docker compose up -d
 
 ## Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| server | 8080 | WebSocket server |
-| server | 9090 | Metrics (internal, scraped by Alloy) |
-| alloy | - | OTLP forwarding to Grafana Cloud |
+| Service | Port | Description                          |
+| ------- | ---- | ------------------------------------ |
+| server  | 8080 | WebSocket server                     |
+| server  | 9090 | Metrics (internal, scraped by Alloy) |
+| alloy   | -    | OTLP forwarding to Grafana Cloud     |
 
 ## Observability
 

@@ -8,12 +8,12 @@ A browser extension + backend for watch parties. Install the extension, share a 
 
 A pnpm monorepo with four packages:
 
-| Package | What it does |
-|---------|--------------|
+| Package                 | What it does                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `jelly-party-extension` | MV3 browser extension. Service worker orchestrates, content scripts handle the page, an iframe hosts the UI. |
-| `jelly-party-server` | WebSocket broker. Manages `Party` rooms and forwards messages between peers. Doesn't touch video state. |
-| `jelly-party-join` | The `join.jelly-party.com` site. A single-page app that triggers permission requests for arbitrary origins. |
-| `jelly-party-lib` | Shared types. The protocol contract lives here—`PartyState`, `ClientState`, all WebSocket message shapes. |
+| `jelly-party-server`    | WebSocket broker. Manages `Party` rooms and forwards messages between peers. Doesn't touch video state.      |
+| `jelly-party-join`      | The `join.jelly-party.com` site. A single-page app that triggers permission requests for arbitrary origins.  |
+| `jelly-party-lib`       | Shared types. The protocol contract lives here—`PartyState`, `ClientState`, all WebSocket message shapes.    |
 
 ### How the extension works
 
@@ -52,22 +52,28 @@ Echo cancellation is straightforward: when a remote command arrives, the control
 
 ## Development
 
-We use [`just`](https://github.com/casey/just) as a task runner.
+The Nix development shell is configured to activate through nix-direnv after a one-time approval and provides the Playwright browsers. [Vite+](https://viteplus.dev/) manages Node.js, pnpm, formatting, linting, tests, builds, and project tasks through the `vp` CLI.
 
 ```bash
-# Start everything (server, extension, join site)
-just dev
+# Approve the shell once after cloning, then install dependencies
+direnv allow
+vp install
 
-# See all commands
-just
+# Start everything (server, extension, join site)
+vp run dev
+
+# Explore project tasks
+vp run
 ```
 
 The extension builds in watch mode. After changing `manifest.json` or background scripts, the extension reloads automatically.
 
+Use `vp check`, `vp test --run`, and `vp build` for the standard development loop. Project-specific workflows such as the full dev environment and E2E suite live under `vp run` in `vite.config.ts`.
+
 ### Monorepo notes
 
-- **Protocol changes**: Edit `jelly-party-lib` first. Rebuild it (`just build-pkg jelly-party-lib`) before other packages pick up the types.
-- **E2E tests**: `just test` builds a special test extension with pre-granted permissions (no prompts in CI). Tests spawn two browser contexts and verify sync between them.
+- **Protocol changes**: Edit `jelly-party-lib` first. Rebuild it (`vp run jelly-party-lib#build`) before other packages pick up the types.
+- **E2E tests**: `vp run test:e2e` builds a special test extension with pre-granted permissions (no prompts in CI). Tests spawn two browser contexts and verify sync between them.
 
 ## Packages
 
@@ -80,6 +86,7 @@ Exports: `ClientState`, `Peer`, `PartyState`, `WSMessage`, `ENDPOINTS`, `createL
 ### `jelly-party-extension`
 
 Structure:
+
 - `src/background/` — Service worker. Handles permissions, icon clicks, message routing.
 - `src/content/` — Content scripts. `main.ts` is the bridge, `videoAgent.ts` controls video.
 - `src/chat/` — The Svelte app inside the iframe. Manages party state, chat, sync controls.

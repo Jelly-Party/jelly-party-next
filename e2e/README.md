@@ -5,25 +5,20 @@ This directory contains End-to-End tests using [Playwright](https://playwright.d
 ## How it works
 
 The tests run against a **special test build** of the extension (`dist-test`), which has:
+
 1. `host_permissions` pre-granted (converted from `optional_host_permissions`).
-2. Environment variables pointing to local dev services (`localhost:8080`, `localhost:5180`).
+2. Environment variables pointing to dedicated test services (`localhost:16080`, `localhost:16180`).
 
 This setup allows us to test the **real user flow** (magic links, chat, synchronization) without manually interacting with native browser permission dialogs, which are difficult to automate.
 
 ## Running Tests
 
-To run the tests, you need the dev services running:
+The Vite Task starts the test services on dedicated `16xxx` ports, then runs Playwright:
 
 ```bash
-just dev-server  # Starts the backend and join site
-```
-
-Then run the tests:
-
-```bash
-just test-headed # Runs in visible browser
+vp run test:e2e:headed # Runs in visible browser
 # OR
-just test        # Runs headless
+vp run test:e2e        # Runs headless
 ```
 
 ## What is Tested
@@ -33,7 +28,7 @@ just test        # Runs headless
 - **Auto-Join**: Automatic redirection and joining from the magic link.
 - **System Messages**: "Joined the party" and "left the party" event messages.
 - **Chat**: Real-time chat messaging between peers.
-- **Video Sync (Bidirectional)**: 
+- **Video Sync (Bidirectional)**:
   - A→B: Peer A's actions sync to Peer B
   - B→A: Peer B's actions sync back to Peer A
   - Seek, play, and pause all tested in both directions

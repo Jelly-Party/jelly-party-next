@@ -3,7 +3,7 @@
  * Simplified Icon component to render Lucide icon nodes
  * avoids importing from the broken lucide-svelte package
  */
-// biome-ignore lint/suspicious/noExplicitAny: generic icon node structure
+// oxlint-disable-next-line typescript/no-explicit-any -- Lucide nodes have heterogeneous attributes.
 export let iconNode: any[] = [];
 export let size = 24;
 export let color = "currentColor";
@@ -17,8 +17,8 @@ $: attrs = {
 	fill: "none",
 	stroke: color,
 	"stroke-width": strokeWidth,
-	"stroke-linecap": "round" as "round",
-	"stroke-linejoin": "round" as "round",
+	"stroke-linecap": "round" as const,
+	"stroke-linejoin": "round" as const,
 	...$$restProps,
 };
 </script>

@@ -1,10 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# ============================================
-# Base Stage: Common dependencies
-# ============================================
-FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Vite+ supplies the build-time Node.js runtime and package manager.
+FROM ghcr.io/voidzero-dev/vite-plus:0.2.5 AS base
 WORKDIR /app
 
 # Copy workspace configuration
@@ -17,8 +14,7 @@ FROM base AS deps
 COPY packages/jelly-party-lib/package.json ./packages/jelly-party-lib/
 COPY packages/jelly-party-server/package.json ./packages/jelly-party-server/
 
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-  pnpm install --frozen-lockfile
+RUN vp install --frozen-lockfile
 
 # ============================================
 # Build Stage: Build server packages
@@ -26,14 +22,15 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 FROM deps AS build
 COPY packages/jelly-party-lib ./packages/jelly-party-lib
 COPY packages/jelly-party-server ./packages/jelly-party-server
-RUN pnpm --filter jelly-party-lib build && \
-  pnpm --filter jelly-party-server build
+RUN vp run jelly-party-lib#build && vp run jelly-party-server#build
 
 # ============================================
 # Server Target (only deployable via Docker)
 # Website, Join, and Status are deployed via Vercel
 # ============================================
-FROM base AS server
+FROM node:24-alpine AS server
+WORKDIR /app
+ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/jelly-party-server/node_modules ./packages/jelly-party-server/node_modules
 COPY --from=deps /app/packages/jelly-party-lib/node_modules ./packages/jelly-party-lib/node_modules
