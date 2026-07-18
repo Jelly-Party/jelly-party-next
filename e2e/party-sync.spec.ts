@@ -23,11 +23,12 @@ test("two peers create, join, chat, and synchronize playback in both directions"
 
     const joinPage = await peerB.context.newPage();
     await joinPage.goto(invite);
+    const sidebarB = await openSidebar(peerB, joinPage);
+    await expect(sidebarB.getByTestId("video-state")).toHaveText("No video found yet");
     await expect(joinPage.getByRole("button", { name: "Open video and join" })).toBeEnabled();
     await joinPage.getByRole("button", { name: "Open video and join" }).click();
     await joinPage.waitForURL(videoUrl);
     await expect(joinPage.locator("video")).toHaveJSProperty("readyState", 4);
-    const sidebarB = await openSidebar(peerB, joinPage);
 
     await expect(sidebarB.getByTestId("connection-status")).toHaveText("connected");
     await expect(sidebarA.getByTestId("peer")).toHaveCount(2);
