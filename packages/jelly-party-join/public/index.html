@@ -1,230 +1,40 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="favicon.ico" />
-    <title>Join a Jelly-Party</title>
-    <meta
-      name="description"
-      content="Join your friends on Jelly Party and watch videos together in sync!"
-    />
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Join a Jelly-Party" />
-    <meta
-      property="og:description"
-      content="Join your friends on Jelly Party and watch videos together in sync!"
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://join.jelly-party.com/" />
-
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        height: 100%;
-        font-family:
-          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
-          sans-serif;
-        font-size: 16px;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-
-      body {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        padding: 1rem;
-        background: linear-gradient(
-          135deg,
-          rgba(145, 100, 255, 0.25) 0%,
-          rgba(139, 255, 244, 0.25) 100%
-        );
-        background-color: #1a1a2e;
-      }
-
-      .card {
-        max-width: 28rem;
-        width: 100%;
-        padding: 2.5rem 2rem;
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border-radius: 1.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        text-align: center;
-        color: #fff;
-        opacity: 0;
-        transform: translateY(10px);
-        animation: fadeIn 0.6s ease forwards;
-        animation-delay: 0.8s;
-      }
-
-      @keyframes fadeIn {
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .logo {
-        width: 80px;
-        height: 80px;
-        margin-bottom: 1.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 16px rgba(145, 100, 255, 0.3);
-      }
-
-      h1 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        color: #fff;
-      }
-
-      p {
-        font-size: 1rem;
-        color: rgba(255, 255, 255, 0.85);
-        margin-bottom: 1.5rem;
-      }
-
-      p a {
-        color: #a78bfa;
-        text-decoration: none;
-        transition: color 0.2s ease;
-      }
-
-      p a:hover {
-        color: #c4b5fd;
-        text-decoration: underline;
-      }
-
-      .install-button {
-        display: inline-block;
-        font-size: 1.1rem;
-        font-weight: 600;
-        cursor: pointer;
-        border-radius: 50rem;
-        background: linear-gradient(135deg, #ff9494 0%, #9164ff 100%);
-        color: white;
-        border: none;
-        padding: 0.875rem 2rem;
-        text-decoration: none;
-        transition:
-          transform 0.2s ease,
-          box-shadow 0.2s ease;
-        box-shadow: 0 4px 16px rgba(145, 100, 255, 0.4);
-      }
-
-      .install-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 24px rgba(145, 100, 255, 0.5);
-      }
-
-      .install-button:active {
-        transform: translateY(0);
-      }
-
-      .footer {
-        margin-top: 2rem;
-        font-size: 0.875rem;
-        color: rgba(255, 255, 255, 0.6);
-      }
-
-      .footer a {
-        color: rgba(255, 255, 255, 0.8);
-        text-decoration: none;
-      }
-
-      .footer a:hover {
-        text-decoration: underline;
-      }
-
-      /* Subtle background animation */
-      body::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background:
-          radial-gradient(ellipse at 30% 20%, rgba(145, 100, 255, 0.15) 0%, transparent 50%),
-          radial-gradient(ellipse at 70% 80%, rgba(139, 255, 244, 0.15) 0%, transparent 50%);
-        pointer-events: none;
-        z-index: -1;
-      }
-
-      @media (max-width: 480px) {
-        .card {
-          padding: 2rem 1.5rem;
-        }
-
-        h1 {
-          font-size: 1.5rem;
-        }
-      }
-    </style>
+    <meta name="description" content="Join a temporary Jelly Party watch party." />
+    <title>Join a Jelly Party</title>
+    <script type="module" src="/main.ts"></script>
   </head>
-  <body>
-    <div class="card" style="opacity: 0; pointer-events: none">
-      <img
-        src="https://www.jelly-party.com/logo.png"
-        alt="Jelly Party Logo"
-        class="logo"
-        onerror="this.style.display = 'none'"
-      />
-      <h1>No Jelly Party detected</h1>
-      <p>
-        It looks like you don't have Jelly Party installed yet. Install the extension to join your
-        friends and watch videos together in sync!
-      </p>
-      <a href="https://www.jelly-party.com/" class="install-button"> Install Jelly Party </a>
-      <div class="footer">
-        <p>
-          Need help? Join our
-          <a href="https://discord.gg/H3dExqc" target="_blank" rel="noopener">Discord community</a>
-        </p>
+  <body class="min-h-screen grid place-items-center bg-slate-950 p-4 text-slate-100">
+    <main
+      class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-8 text-center shadow-2xl"
+    >
+      <div
+        class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 text-4xl"
+        aria-hidden="true"
+      >
+        🪼
       </div>
-    </div>
-    <script>
-      // Extension detection handler
-      (() => {
-        // Check if extension content script marked its presence
-        function extensionInstalled() {
-          return document.documentElement.hasAttribute("data-jellyparty-installed");
-        }
-
-        // If extension is already detected, it will handle the redirect
-        if (extensionInstalled()) {
-          console.log("Jelly Party extension detected");
-          return;
-        }
-
-        // Check again after a brief delay (content script runs at document_start,
-        // but this inline script might race with it)
-        setTimeout(() => {
-          if (!extensionInstalled()) {
-            // No extension found - show install prompt
-            const card = document.querySelector(".card");
-            if (card) {
-              card.style.opacity = "1";
-              card.style.pointerEvents = "auto";
-            }
-          }
-        }, 300);
-      })();
-    </script>
+      <h1 class="m-0 text-2xl font-bold">You’re invited</h1>
+      <p id="description" class="my-4 text-slate-300">Checking your Jelly Party invite…</p>
+      <button
+        id="join"
+        class="w-full cursor-pointer rounded-xl border-0 bg-violet-500 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        disabled
+      >
+        Open video and join
+      </button>
+      <p
+        id="status"
+        class="mt-4 min-h-6 text-sm text-amber-200"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <a id="install" class="hidden text-cyan-300 underline" href="https://www.jelly-party.com/"
+        >Install Jelly Party</a
+      >
+    </main>
   </body>
 </html>

@@ -72,7 +72,7 @@ export default defineConfig({
     },
     {
       // Serve e2e/fixtures for local video swap tests
-      command: "vp dlx http-server e2e/fixtures -p 16333 --cors",
+      command: "vp dev e2e/fixtures --port 16333 --strictPort",
       url: "http://localhost:16333/video-swap-test.html",
       reuseExistingServer: !process.env.CI,
       stdout: "pipe",

@@ -1,7 +1,4 @@
-@import "tailwindcss";
-
-@theme {
-  /* Fonts */
+:root {
   --font-sans:
     "Roboto", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
@@ -11,12 +8,7 @@
   --color-jelly-pink: #ee64f6;
   --color-jelly-orange: #ff9494;
 
-  /* Extension-specific dark mode backgrounds */
   --color-bg-dark: #0a0a0a;
-}
-
-:root {
-  /* Gradients from extension */
   --gradient-hero: linear-gradient(135deg, #ff9494 0%, #ee64f6 100%);
   --gradient-accent: linear-gradient(135deg, #9164ff 0%, #8bfff4 100%);
 

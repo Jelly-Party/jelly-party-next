@@ -3,258 +3,141 @@ import { createNodeWebSocket } from "@hono/node-ws";
 import { Hono } from "hono";
 import type { WSContext } from "hono/ws";
 import {
-  type ClientState,
-  config,
   createLogger,
-  getRandomEmoji,
-  type PartyState,
+  parseClientMessage,
+  type PeerIdentity,
+  type ServerMessage,
 } from "jelly-party-lib";
-import { v4 as uuid } from "uuid";
-import {
-  activeClients,
-  activeParties,
-  clientConnectionsTotal,
-  messagesTotal,
-  partiesCreatedTotal,
-  registry,
-} from "./metrics.js";
+
+interface Connection {
+  ws: WSContext;
+  partyId?: string;
+  peer?: PeerIdentity;
+}
 
 const log = createLogger("server");
-
-// ============================================
-// Types
-// ============================================
-
-interface JellyPartyWSContext {
-  ws: WSContext;
-  uuid: string;
-  isAlive: boolean;
-  partyId?: string;
-  clientState?: ClientState;
-  party?: Party;
-  heartbeatInterval?: ReturnType<typeof setInterval>;
-}
-
-// ============================================
-// Party Management
-// ============================================
-
-const parties: Record<string, Party> = {};
-
-class Party {
-  partyId: string;
-  connections: JellyPartyWSContext[] = [];
-
-  constructor(partyId: string) {
-    this.partyId = partyId;
-    log.info("Party created", { type: "partyCreated", partyId });
-    partiesCreatedTotal.inc();
-    activeParties.inc();
-  }
-
-  notifyClients(excludeId: string | undefined, msg: object) {
-    const json = JSON.stringify(msg);
-    log.debug("Notifying clients", {
-      excludeId,
-      msgType: (msg as { type: string }).type,
-    });
-
-    for (const conn of this.connections) {
-      if (conn.uuid !== excludeId) {
-        try {
-          conn.ws.send(json);
-        } catch (_e) {
-          log.error("Failed to send to client", { uuid: conn.uuid });
-        }
-      }
-    }
-  }
-
-  addClient(client: JellyPartyWSContext) {
-    this.connections.push(client);
-    activeClients.inc();
-    clientConnectionsTotal.inc();
-    this.broadcastPartyState();
-  }
-
-  removeClient(clientId: string) {
-    log.debug("Removing client", { clientId });
-    this.connections = this.connections.filter((c) => c.uuid !== clientId);
-    activeClients.dec();
-
-    if (this.connections.length === 0) {
-      this.removeParty();
-    } else {
-      this.broadcastPartyState();
-    }
-  }
-
-  broadcastPartyState() {
-    const partyState: PartyState = {
-      isActive: true,
-      partyId: this.partyId,
-      peers: this.connections.map((c) => ({
-        uuid: c.uuid,
-        clientState: c.clientState as ClientState,
-      })),
-    };
-
-    this.notifyClients(undefined, {
-      type: "partyStateUpdate",
-      data: { partyState },
-    });
-  }
-
-  removeParty() {
-    log.info("Party removed", { type: "partyRemoved", partyId: this.partyId });
-    activeParties.dec();
-    delete parties[this.partyId];
-  }
-}
-
-// ============================================
-// Hono App
-// ============================================
-
+const parties = new Map<string, Set<Connection>>();
 const app = new Hono();
-const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
+const nodeWebSocket = createNodeWebSocket({ app });
 
-// WebSocket endpoint
+app.get("/health", (context) =>
+  context.json({ status: "ok", parties: parties.size, version: "2.0.0" }),
+);
+
 app.get(
   "/",
-  upgradeWebSocket(() => {
-    const ctx: JellyPartyWSContext = {
-      ws: null as unknown as WSContext,
-      uuid: uuid(),
-      isAlive: true,
-    };
+  nodeWebSocket.upgradeWebSocket(() => {
+    const connection: Connection = { ws: null as unknown as WSContext };
 
     return {
       onOpen(_event, ws) {
-        ctx.ws = ws;
-        log.debug("Connection opened", { uuid: ctx.uuid });
-
-        // Heartbeat
-        ctx.heartbeatInterval = setInterval(() => {
-          if (!ctx.isAlive) {
-            ws.close();
-            return;
-          }
-          ctx.isAlive = false;
-          // Note: ping/pong handled by ws library
-        }, 30000);
+        connection.ws = ws;
       },
-
       onMessage(event) {
-        try {
-          const raw = typeof event.data === "string" ? event.data : event.data.toString();
-          const msg = JSON.parse(raw);
-          const { type, data } = msg;
-
-          log.debug("Received message", { type, uuid: ctx.uuid });
-          messagesTotal.inc({ type });
-
-          switch (type) {
-            case "join": {
-              const partyId = data.partyId as string;
-              ctx.partyId = partyId;
-              const providedState = data.clientState || {};
-              ctx.clientState = {
-                clientName: providedState.clientName || "Anonymous",
-                emoji: providedState.emoji || getRandomEmoji(),
-              };
-
-              // Send UUID to client
-              ctx.ws.send(JSON.stringify({ type: "setUUID", data: { uuid: ctx.uuid } }));
-
-              log.info("Client joining", {
-                type: "join",
-                partyId,
-                clientName: ctx.clientState?.clientName,
-                uuid: ctx.uuid,
-              });
-
-              if (partyId in parties) {
-                const party = parties[partyId];
-                party.addClient(ctx);
-                ctx.party = party;
-              } else {
-                const party = new Party(partyId);
-                party.addClient(ctx);
-                parties[partyId] = party;
-                ctx.party = party;
-              }
-              break;
-            }
-
-            case "forward": {
-              if (!ctx.party) break;
-              const cmd = data.commandToForward;
-              cmd.peer = { uuid: ctx.uuid };
-              ctx.party.notifyClients(ctx.uuid, cmd);
-              break;
-            }
-
-            case "clientUpdate": {
-              if (!ctx.party || !ctx.clientState) break;
-              // Prevent mutation of immutable fields
-              delete data.newClientState?.clientName;
-              delete data.newClientState?.uuid;
-              ctx.clientState = { ...ctx.clientState, ...data.newClientState };
-              ctx.party.broadcastPartyState();
-              break;
-            }
-
-            default:
-              log.warn("Unknown message type", { type });
-          }
-        } catch (e) {
-          log.error("Error handling message", { error: String(e) });
+        const raw =
+          typeof event.data === "string"
+            ? event.data
+            : event.data instanceof ArrayBuffer
+              ? new TextDecoder().decode(event.data)
+              : "";
+        const parsed = parseClientMessage(raw);
+        if (!parsed.ok) {
+          send(connection, {
+            type: "error",
+            code: "invalid-message",
+            message: parsed.error,
+          });
+          return;
         }
-      },
 
+        const message = parsed.value;
+        if (message.type === "join") {
+          leave(connection);
+          connection.partyId = message.partyId;
+          connection.peer = message.peer;
+          const party = parties.get(message.partyId) ?? new Set<Connection>();
+          party.add(connection);
+          parties.set(message.partyId, party);
+          send(connection, { type: "welcome", peerId: message.peer.id });
+          broadcastPresence(message.partyId);
+          return;
+        }
+
+        if (!connection.partyId || !connection.peer) {
+          send(connection, {
+            type: "error",
+            code: "join-required",
+            message: "Join a party before sending messages",
+          });
+          return;
+        }
+
+        if (message.type === "chat") {
+          broadcast(connection.partyId, {
+            type: "chat",
+            peer: connection.peer,
+            text: message.text,
+            sentAt: Date.now(),
+          });
+          return;
+        }
+
+        broadcast(
+          connection.partyId,
+          {
+            type: "playback",
+            peerId: connection.peer.id,
+            action: message.action,
+            timeFromEnd: message.timeFromEnd,
+          },
+          connection,
+        );
+      },
       onClose() {
-        log.info("Client disconnected", { type: "disconnect", uuid: ctx.uuid });
-
-        if (ctx.heartbeatInterval) {
-          clearInterval(ctx.heartbeatInterval);
-        }
-
-        if (ctx.party) {
-          ctx.party.removeClient(ctx.uuid);
-        }
+        leave(connection);
       },
-
-      onError(event) {
-        log.error("WebSocket error", { uuid: ctx.uuid, error: String(event) });
+      onError() {
+        log.warn("WebSocket connection failed");
+        leave(connection);
       },
     };
   }),
 );
 
-// ============================================
-// Start Servers
-// ============================================
+function leave(connection: Connection): void {
+  const partyId = connection.partyId;
+  if (!partyId) return;
+  const party = parties.get(partyId);
+  party?.delete(connection);
+  connection.partyId = undefined;
+  connection.peer = undefined;
+  if (!party || party.size === 0) parties.delete(partyId);
+  else broadcastPresence(partyId);
+}
 
-const PORT = parseInt(process.env.PORT || "8080", 10);
-const METRICS_PORT = parseInt(process.env.METRICS_PORT || "9090", 10);
+function broadcastPresence(partyId: string): void {
+  const peers = [...(parties.get(partyId) ?? [])]
+    .map((connection) => connection.peer)
+    .filter((peer): peer is PeerIdentity => Boolean(peer));
+  broadcast(partyId, { type: "presence", peers });
+}
 
-log.info(`Starting server`, { version: config.version, port: PORT });
+function broadcast(partyId: string, message: ServerMessage, exclude?: Connection): void {
+  for (const connection of parties.get(partyId) ?? []) {
+    if (connection !== exclude) send(connection, message);
+  }
+}
 
-const server = serve({ fetch: app.fetch, port: PORT }, (info) => {
-  log.info(`WebSocket server listening`, { port: info.port });
+function send(connection: Connection, message: ServerMessage): void {
+  try {
+    connection.ws.send(JSON.stringify(message));
+  } catch (error) {
+    log.warn("Could not send WebSocket message", { error: String(error) });
+  }
+}
+
+const port = Number.parseInt(process.env.PORT ?? "8080", 10);
+const server = serve({ fetch: app.fetch, port }, (info) => {
+  log.info("Jelly Party 2.0 listening", { port: info.port });
 });
-
-injectWebSocket(server);
-
-// Metrics endpoint (separate port for Prometheus scraping)
-const metricsApp = new Hono();
-metricsApp.get("/metrics", async (c) => {
-  c.header("Content-Type", registry.contentType);
-  return c.text(await registry.metrics());
-});
-metricsApp.get("/health", (c) => c.json({ status: "ok" }));
-
-serve({ fetch: metricsApp.fetch, port: METRICS_PORT }, (info) => {
-  log.info(`Metrics server listening`, { port: info.port });
-});
+nodeWebSocket.injectWebSocket(server);

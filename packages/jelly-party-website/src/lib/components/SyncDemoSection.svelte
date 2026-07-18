@@ -2,8 +2,8 @@
 import { browser } from "$app/environment";
 import WaveDivider from "./WaveDivider.svelte";
 
-let video1: HTMLVideoElement;
-let video2: HTMLVideoElement;
+let video1 = null as unknown as HTMLVideoElement;
+let video2 = null as unknown as HTMLVideoElement;
 
 $effect(() => {
 	if (browser && video1 && video2) {

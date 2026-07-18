@@ -2,140 +2,63 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type BrowserContext, test as base, chromium } from "@playwright/test";
+import { type BrowserContext, type Page, chromium, test } from "@playwright/test";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const directory = path.dirname(fileURLToPath(import.meta.url));
+const extensionPath = path.join(directory, "..", "packages", "jelly-party-extension", "dist-test");
 
-// Path to the test build of the extension (with pre-granted permissions)
-const EXTENSION_PATH = path.join(__dirname, "..", "packages", "jelly-party-extension", "dist-test");
-
-export const test = base.extend<{
+export interface ExtensionPeer {
   context: BrowserContext;
   extensionId: string;
-}>({
-  // oxlint-disable-next-line no-empty-pattern -- Playwright fixtures require object destructuring.
-  context: async ({}, use) => {
-    // Create a temporary user data directory
-    const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "jelly-party-test-"));
-
-    const context = await chromium.launchPersistentContext(userDataDir, {
-      channel: "chromium",
-      headless: process.env.JELLY_E2E_HEADED !== "1",
-      // colorScheme: "dark",
-      args: [
-        `--disable-extensions-except=${EXTENSION_PATH}`,
-        `--load-extension=${EXTENSION_PATH}`,
-        "--allow-running-insecure-content",
-      ],
-    });
-
-    // Wait for extension service worker to load
-    let serviceWorker = context.serviceWorkers()[0];
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent("serviceworker", {
-        timeout: 10000,
-      });
-    }
-
-    await use(context);
-    await context.close();
-
-    // Cleanup temp directory
-    fs.rmSync(userDataDir, { recursive: true, force: true });
-  },
-
-  extensionId: async ({ context }, use) => {
-    let [serviceWorker] = context.serviceWorkers();
-    if (!serviceWorker) {
-      serviceWorker = await context.waitForEvent("serviceworker");
-    }
-    const extensionId = serviceWorker.url().split("/")[2];
-    await use(extensionId);
-  },
-});
-
-export const expect = test.expect;
-
-/**
- * Trigger the extension overlay.
- *
- * We use a robust programmatic approach:
- * 1. Try sending a message to the content script (if already injected)
- * 2. If that fails, inject the content scripts (allowed due to host_permissions in test build)
- * 3. Send the message again
- *
- * This is more reliable than keyboard shortcuts in automated testing environments.
- */
-export async function triggerExtension(
-  page: Awaited<ReturnType<BrowserContext["newPage"]>>,
-): Promise<void> {
-  await page.bringToFront();
-
-  // Get the extension service worker
-  const context = page.context();
-  let serviceWorker = context.serviceWorkers()[0];
-  if (!serviceWorker) {
-    serviceWorker = await context.waitForEvent("serviceworker");
-  }
-
-  const result = await serviceWorker.evaluate(async () => {
-    try {
-      // Get the active tab
-      // @ts-expect-error
-      const tabs = await chrome.tabs.query({
-        active: true,
-        lastFocusedWindow: true,
-      });
-      const tab = tabs[0];
-      if (!tab?.id) return { success: false, error: "No active tab" };
-
-      const tabId = tab.id;
-
-      // Helper to send message
-      const sendMessage = async () => {
-        // @ts-expect-error
-        await chrome.tabs.sendMessage(tabId, {
-          type: "jellyparty:showOverlay",
-        });
-      };
-
-      try {
-        // Try sending message first (fast path)
-        await sendMessage();
-        return { success: true, method: "message" };
-      } catch (_e) {
-        // Content script not ready, need to inject
-      }
-
-      // Inject scripts (guaranteed to work with host_permissions)
-      // @ts-expect-error
-      await chrome.scripting.executeScript({
-        target: { tabId, allFrames: true },
-        files: ["src/content/videoAgent.js"],
-      });
-      // @ts-expect-error
-      await chrome.scripting.executeScript({
-        target: { tabId, allFrames: false },
-        files: ["src/content/main.js"],
-      });
-
-      // Small delay for script init
-      await new Promise((r) => setTimeout(r, 100));
-
-      await sendMessage();
-      return { success: true, method: "inject-and-message" };
-    } catch (e) {
-      return { success: false, error: String(e) };
-    }
-  });
-
-  if (!result.success) {
-    console.error("Failed to trigger extension:", result.error);
-    throw new Error(`Failed to trigger extension: ${result.error}`);
-  }
-
-  console.log(`Extension triggered via ${result.method}`);
-
-  // Wait for overlay to render
-  await page.waitForTimeout(1000);
+  close(): Promise<void>;
 }
+
+export async function launchExtensionPeer(): Promise<ExtensionPeer> {
+  const userDataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "jelly-party-e2e-"));
+  const context = await chromium.launchPersistentContext(userDataDirectory, {
+    channel: "chromium",
+    headless: process.env.JELLY_E2E_HEADED !== "1",
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+      "--autoplay-policy=no-user-gesture-required",
+    ],
+  });
+  let worker = context.serviceWorkers()[0];
+  if (!worker) worker = await context.waitForEvent("serviceworker");
+  const extensionId = new URL(worker.url()).host;
+  return {
+    context,
+    extensionId,
+    async close() {
+      await context.close();
+      fs.rmSync(userDataDirectory, { recursive: true, force: true });
+    },
+  };
+}
+
+export async function extensionTabId(peer: ExtensionPeer, page: Page): Promise<number> {
+  const worker = peer.context.serviceWorkers()[0];
+  const url = page.url();
+  return worker.evaluate(async (pageUrl) => {
+    const extension = globalThis as typeof globalThis & {
+      chrome: { tabs: { query(query: object): Promise<Array<{ id?: number; url?: string }>> } };
+    };
+    const tabs = await extension.chrome.tabs.query({});
+    const tab = tabs.find((candidate) => candidate.url === pageUrl);
+    if (!tab?.id) throw new Error(`No extension tab for ${pageUrl}`);
+    return tab.id;
+  }, url);
+}
+
+export async function openSidebar(peer: ExtensionPeer, videoPage: Page): Promise<Page> {
+  const tabId = await extensionTabId(peer, videoPage);
+  const sidebar = await peer.context.newPage();
+  await sidebar.goto(
+    `chrome-extension://${peer.extensionId}/src/sidebar/sidebar.html?tab=${tabId}`,
+  );
+  return sidebar;
+}
+
+export { test };
+export const expect = test.expect;

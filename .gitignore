@@ -17,7 +17,10 @@ packages/*/build/
 
 # Extension build
 packages/jelly-party-extension/dist/
+packages/jelly-party-extension/dist-chromium/
+packages/jelly-party-extension/dist-firefox/
 packages/jelly-party-extension/.dev-chrome-profile/
+artifacts/
 
 # OS
 .DS_Store

@@ -1,0 +1,105 @@
+export const MAX_CHAT_LENGTH = 500;
+export const MAX_NAME_LENGTH = 40;
+export const MAX_EMOJI_LENGTH = 16;
+export const PARTY_ID_LENGTH = 22;
+
+export type PlaybackAction = "play" | "pause" | "seek";
+
+export interface PeerIdentity {
+  id: string;
+  name: string;
+  emoji: string;
+}
+
+export type ClientMessage =
+  | { type: "join"; partyId: string; peer: PeerIdentity }
+  | { type: "chat"; text: string }
+  | { type: "playback"; action: PlaybackAction; timeFromEnd: number };
+
+export type ServerMessage =
+  | { type: "welcome"; peerId: string }
+  | { type: "presence"; peers: PeerIdentity[] }
+  | { type: "chat"; peer: PeerIdentity; text: string; sentAt: number }
+  | {
+      type: "playback";
+      peerId: string;
+      action: PlaybackAction;
+      timeFromEnd: number;
+    }
+  | { type: "error"; code: "invalid-message" | "join-required"; message: string };
+
+export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
+
+const partyIdPattern = /^[A-Za-z0-9_-]{22}$/;
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function parsePartyId(value: unknown): string | null {
+  return typeof value === "string" && partyIdPattern.test(value) ? value : null;
+}
+
+export function isPeerIdentity(value: unknown): value is PeerIdentity {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    uuidPattern.test(value.id) &&
+    isBoundedText(value.name, MAX_NAME_LENGTH) &&
+    isBoundedText(value.emoji, MAX_EMOJI_LENGTH)
+  );
+}
+
+export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
+  if (typeof raw !== "string" || raw.length > 4096) return invalid("Message must be bounded text");
+
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return invalid("Message is not valid JSON");
+  }
+  if (!isRecord(value) || typeof value.type !== "string") return invalid("Missing message type");
+
+  if (value.type === "join") {
+    const partyId = parsePartyId(value.partyId);
+    if (!partyId || !isPeerIdentity(value.peer)) return invalid("Invalid join message");
+    return { ok: true, value: { type: "join", partyId, peer: value.peer } };
+  }
+
+  if (value.type === "chat") {
+    if (!isBoundedText(value.text, MAX_CHAT_LENGTH)) return invalid("Invalid chat message");
+    return { ok: true, value: { type: "chat", text: value.text } };
+  }
+
+  if (value.type === "playback") {
+    if (
+      !isPlaybackAction(value.action) ||
+      typeof value.timeFromEnd !== "number" ||
+      !Number.isFinite(value.timeFromEnd) ||
+      value.timeFromEnd < 0 ||
+      value.timeFromEnd > 7 * 24 * 60 * 60
+    ) {
+      return invalid("Invalid playback message");
+    }
+    return {
+      ok: true,
+      value: { type: "playback", action: value.action, timeFromEnd: value.timeFromEnd },
+    };
+  }
+
+  return invalid("Unknown message type");
+}
+
+function isPlaybackAction(value: unknown): value is PlaybackAction {
+  return value === "play" || value === "pause" || value === "seek";
+}
+
+function isBoundedText(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function invalid(error: string): ParseResult<never> {
+  return { ok: false, error };
+}

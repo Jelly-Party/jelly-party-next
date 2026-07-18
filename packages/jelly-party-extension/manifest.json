@@ -3,7 +3,8 @@
   "version": "2.0.0",
   "description": "Watch videos with your friends — in sync!",
   "manifest_version": 3,
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage", "scripting", "sidePanel"],
+  "host_permissions": ["https://join.jelly-party.com/*"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
   "action": {
     "default_icon": {
@@ -12,6 +13,9 @@
       "48": "48x48.png",
       "128": "128x128.png"
     }
+  },
+  "side_panel": {
+    "default_path": "src/sidebar/sidebar.html"
   },
   "background": {
     "service_worker": "src/background/index.ts",
@@ -29,11 +33,5 @@
     "32": "32x32.png",
     "48": "48x48.png",
     "128": "128x128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["src/chat/chat.html", "src/chat/*", "*.png"],
-      "matches": ["https://*/*", "http://*/*"]
-    }
-  ]
+  }
 }

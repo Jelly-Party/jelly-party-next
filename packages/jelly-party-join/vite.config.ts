@@ -1,4 +1,5 @@
-import { defineConfig } from "vite-plus";
+import { defineConfig, lazyPlugins } from "vite-plus";
+import UnoCSS from "unocss/vite";
 
 export default defineConfig({
   root: "public",
@@ -9,4 +10,5 @@ export default defineConfig({
     outDir: "../dist",
     emptyOutDir: true,
   },
+  plugins: lazyPlugins(() => [UnoCSS()]),
 });
