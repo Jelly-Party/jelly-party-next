@@ -10,6 +10,10 @@ export default defineConfig({
         command: "vp exec node .dev/dev.js",
         cache: false,
       },
+      "prototype:join": {
+        command: "vp exec node packages/jelly-party-join/prototypes/magic-link-flow/tui.ts",
+        cache: false,
+      },
       "dev:all": {
         command:
           'vp run jelly-party-lib#build && mkdir -p .dev && vp exec concurrently --kill-others "vp run dev:logs" "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" "vp run jelly-party-extension#dev" "vp run jelly-party-website#dev" --names "logs,server,join,ext,web" --prefix-colors "yellow,blue,green,magenta,cyan" | tee .dev/dev.log',
