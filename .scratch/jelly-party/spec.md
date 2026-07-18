@@ -26,7 +26,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 10. As a peer, I want synchronization to use position from the end of the video, so that differing pre-roll durations are less disruptive.
 11. As a peer, I want remote playback changes not to echo back into the party, so that one action does not loop.
 12. As a peer, I want clear connection, missing-video, permission, and retry states, so that ordinary failures are recoverable.
-13. As a peer, I want leaving or closing the sidebar to leave the party, so that participation is explicit and temporary.
+13. As a peer, I want closing the sidebar to hide the interface without leaving, and an explicit Leave action to end my participation, so that ordinary tab switching never disconnects me accidentally.
 14. As a developer, I want one hot-reloading command for the backend, extension, join site, and website, so that changes are visible immediately.
 15. As a developer, I want one Vite+ toolchain for runtime management, dependencies, formatting, linting, type-checking, unit tests, builds, and tasks, so that the repository has one obvious workflow.
 16. As a releaser, I want deterministic Chrome, Firefox, and Edge packages, so that the existing listings can be updated without manual archive surgery.
@@ -37,7 +37,8 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 - Write TypeScript throughout. Use Svelte for extension and website UI, UnoCSS for styling, and browser/platform APIs before adding dependencies.
 - Use Vite+ as the only JavaScript toolchain. `vp dev`, `vp check`, `vp test --run`, `vp build`, and Vite Task must cover the standard loop. Do not add another task runner or separate formatter/linter.
 - Provide a single Vite Task that hot-reloads the backend and sites and rebuilds/reloads the extension during development.
-- Put party creation, joining, peer presence, chat, connection state, and the WebSocket in one shared sidebar application. Use Chrome/Edge `sidePanel` and Firefox `sidebar_action` with thin browser-specific manifest/configuration differences.
+- Keep at most one active party in the extension background context and associate it with one video tab. The sidebar is a view over that session: closing it only hides the interface, while Leave or closing the associated video tab ends the party. Use a contextual Chrome/Edge `sidePanel` and Firefox `sidebar_action` with thin browser-specific presentation differences.
+- On an unrelated tab, Chromium hides the contextual party panel. Firefox shows a compact inactive state that identifies the active party and offers Return to party and Leave; it must never silently control a different tab.
 - Keep page code small: find the most relevant HTML video in each frame, report local play/pause/seek, and apply remote actions. Use extension runtime messaging between the page and sidebar/background; do not inject a visual iframe or maintain a public service-driver framework.
 - Keep the old, understandable event-shaped playback behavior. Synchronize finite videos with `timeFromEnd`, suppress echoes, tolerate small drift, and add site-specific handling only after a real site proves it necessary.
 - A party has a capability-style random ID, a set of connected peers, ephemeral chat, and no persistence. A peer has a generated ID, display name, and emoji. There are no avatars or avatar assets.

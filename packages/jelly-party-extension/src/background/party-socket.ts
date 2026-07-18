@@ -9,6 +9,7 @@ export interface PartySocketHandlers {
 
 export class PartySocket {
   #socket: WebSocket | null = null;
+  #keepalive: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly url: string,
@@ -20,22 +21,27 @@ export class PartySocket {
     const socket = new WebSocket(this.url);
     this.#socket = socket;
     socket.addEventListener("open", () => {
+      if (this.#socket !== socket) return;
       this.send({ type: "join", partyId, peer });
+      this.#keepalive = setInterval(() => this.send({ type: "ping" }), 20_000);
       this.handlers.onOpen();
     });
     socket.addEventListener("message", (event) => {
+      if (this.#socket !== socket) return;
       try {
         this.handlers.onMessage(JSON.parse(String(event.data)) as ServerMessage);
       } catch {
         this.handlers.onError("The party sent an unreadable message");
       }
     });
-    socket.addEventListener("error", () => this.handlers.onError("Could not connect to the party"));
+    socket.addEventListener("error", () => {
+      if (this.#socket === socket) this.handlers.onError("Could not connect to the party");
+    });
     socket.addEventListener("close", () => {
-      if (this.#socket === socket) {
-        this.#socket = null;
-        this.handlers.onClose();
-      }
+      if (this.#socket !== socket) return;
+      this.#socket = null;
+      this.stopKeepalive();
+      this.handlers.onClose();
     });
   }
 
@@ -50,10 +56,16 @@ export class PartySocket {
   close(): void {
     const socket = this.#socket;
     this.#socket = null;
+    this.stopKeepalive();
     socket?.close();
   }
 
   private send(message: ClientMessage): void {
     if (this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(JSON.stringify(message));
+  }
+
+  private stopKeepalive(): void {
+    if (this.#keepalive !== null) clearInterval(this.#keepalive);
+    this.#keepalive = null;
   }
 }

@@ -51,6 +51,28 @@ export async function extensionTabId(peer: ExtensionPeer, page: Page): Promise<n
   }, url);
 }
 
+export async function sidePanelOptions(
+  peer: ExtensionPeer,
+  page: Page,
+): Promise<{ enabled?: boolean; path?: string; tabId?: number }> {
+  const tabId = await extensionTabId(peer, page);
+  const worker = peer.context.serviceWorkers()[0];
+  return worker.evaluate(async (targetTabId) => {
+    const extension = globalThis as typeof globalThis & {
+      chrome: {
+        sidePanel: {
+          getOptions(options: { tabId: number }): Promise<{
+            enabled?: boolean;
+            path?: string;
+            tabId?: number;
+          }>;
+        };
+      };
+    };
+    return extension.chrome.sidePanel.getOptions({ tabId: targetTabId });
+  }, tabId);
+}
+
 export async function openSidebar(peer: ExtensionPeer, videoPage: Page): Promise<Page> {
   const tabId = await extensionTabId(peer, videoPage);
   const sidebar = await peer.context.newPage();

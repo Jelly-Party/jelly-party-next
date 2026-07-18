@@ -51,6 +51,10 @@ app.get(
         }
 
         const message = parsed.value;
+        if (message.type === "ping") {
+          send(connection, { type: "pong" });
+          return;
+        }
         if (message.type === "join") {
           leave(connection);
           connection.partyId = message.partyId;

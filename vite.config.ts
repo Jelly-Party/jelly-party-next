@@ -102,6 +102,9 @@ export default defineConfig({
   test: {
     expect: { requireAssertions: true },
     environment: "node",
-    include: ["packages/jelly-party-lib/src/**/*.{test,spec}.ts"],
+    include: [
+      "packages/jelly-party-lib/src/**/*.{test,spec}.ts",
+      "packages/jelly-party-extension/src/**/*.{test,spec}.ts",
+    ],
   },
 });

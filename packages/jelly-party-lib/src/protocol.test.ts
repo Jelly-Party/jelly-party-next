@@ -45,6 +45,13 @@ describe("client protocol validation", () => {
     });
   });
 
+  it("accepts the keepalive used while the party interface is hidden", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "ping" }))).toEqual({
+      ok: true,
+      value: { type: "ping" },
+    });
+  });
+
   it.each([
     "not json",
     JSON.stringify({ type: "join", partyId: "bad", peer: { id: "x", name: "", emoji: "" } }),

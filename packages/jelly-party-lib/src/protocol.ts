@@ -14,9 +14,11 @@ export interface PeerIdentity {
 export type ClientMessage =
   | { type: "join"; partyId: string; peer: PeerIdentity }
   | { type: "chat"; text: string }
-  | { type: "playback"; action: PlaybackAction; timeFromEnd: number };
+  | { type: "playback"; action: PlaybackAction; timeFromEnd: number }
+  | { type: "ping" };
 
 export type ServerMessage =
+  | { type: "pong" }
   | { type: "welcome"; peerId: string }
   | { type: "presence"; peers: PeerIdentity[] }
   | { type: "chat"; peer: PeerIdentity; text: string; sentAt: number }
@@ -84,6 +86,8 @@ export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
       value: { type: "playback", action: value.action, timeFromEnd: value.timeFromEnd },
     };
   }
+
+  if (value.type === "ping") return { ok: true, value: { type: "ping" } };
 
   return invalid("Unknown message type");
 }
