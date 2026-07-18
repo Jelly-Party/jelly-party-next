@@ -41,8 +41,11 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => candidates.delete(tabId));
-chrome.tabs.onUpdated.addListener((tabId, change) => {
+chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.status === "loading") candidates.delete(tabId);
+  if (change.status === "complete") {
+    void notifySidebar({ type: "tab:navigated", tabId, url: tab.url });
+  }
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {

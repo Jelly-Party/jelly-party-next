@@ -44,6 +44,10 @@
       ) {
         socket?.playback(incoming.action, incoming.timeFromEnd);
       }
+      if (incoming.type === "tab:navigated" && incoming.tabId === tabId) {
+        if (partyId) void refreshVideo();
+        else if (tabId !== null) void initialize(tabId);
+      }
     };
     chrome.runtime.onMessage.addListener(listener);
     window.addEventListener("pagehide", leave);
@@ -55,12 +59,16 @@
     };
   });
 
-  async function initialize(): Promise<void> {
+  async function initialize(preferredTabId?: number): Promise<void> {
     identity = await chrome.runtime.sendMessage({ type: "identity:get" });
     const requestedTab = Number.parseInt(new URLSearchParams(location.search).get("tab") ?? "", 10);
     const tab = await chrome.runtime.sendMessage({
       type: "tab:active",
-      ...(Number.isInteger(requestedTab) ? { tabId: requestedTab } : {}),
+      ...(preferredTabId
+        ? { tabId: preferredTabId }
+        : Number.isInteger(requestedTab)
+          ? { tabId: requestedTab }
+          : {}),
     });
     if (tab.error || !tab.tabId || !tab.url?.startsWith("http")) {
       notice = tab.error ?? "Open a web page containing a video, then try again.";
@@ -75,6 +83,12 @@
     const pending = await chrome.runtime.sendMessage({ type: "pending:consume", tabId });
     status = "ready";
     if (pending?.partyId) void connect(pending.partyId);
+  }
+
+  async function refreshVideo(): Promise<void> {
+    if (tabId === null) return;
+    const candidate = await chrome.runtime.sendMessage({ type: "video:scan", tabId });
+    hasVideo = candidate?.hasVideo === true;
   }
 
   async function saveIdentity(): Promise<void> {
