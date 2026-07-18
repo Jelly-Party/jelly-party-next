@@ -1,13 +1,31 @@
-## Jelly Party development decisions
+# Jelly Party agent guide
 
-- The development environment is the Nix flake. `.envrc` is configured to activate it through nix-direnv when entering the repository after a one-time `direnv allow`; when diagnosing the environment, verify activation rather than assuming it from the presence of `vp`.
-- Use the `vp` CLI for Node.js, dependency management, formatting, linting, type-checking, tests, builds, and project commands. Do not invoke `node`, `npm`, `npx`, `pnpm`, `vite`, or `vitest` directly.
-- Use built-in commands for the common loop: `vp install`, `vp dev`, `vp check`, `vp test --run`, and `vp build`.
-- Use Vite Task for project workflows: inspect them with `vp run`, then invoke them as `vp run <task>`. Prefer adding a task to `vite.config.ts` over introducing another task runner or a package script.
-- Use `vp node` for Node.js scripts from the shell. Inside a Vite Task command, use `vp exec node`; the task environment resolves the workspace-local `vp` entrypoint, whose command surface does not include `vp node`.
-- Target workspace package scripts through Vite Task, for example `vp run jelly-party-lib#build` or `vp run -r build`.
-- Nix supplies the Playwright browser binaries; Vite+ supplies and runs the JavaScript toolchain. Keep the nixpkgs Playwright revision aligned with the Playwright version in the workspace lockfile.
-- `just`, Biome, ESLint, and Prettier are intentionally not part of this project. Vite+ owns those responsibilities.
+Jelly Party is a deliberately small browser extension: create a temporary watch party, share a link, chat, and synchronize play, pause, and seek. The product and acceptance criteria live in [the Jelly Party 2.0 spec](.scratch/jelly-party/spec.md). Keep the implementation simpler than the existing prototype wherever possible.
+
+## Non-negotiables
+
+- Be pragmatic. Do not introduce frameworks, abstraction layers, compatibility systems, or infrastructure unless the spec requires them now.
+- Preserve user-visible behavior from the old extension, not its internal architecture.
+- The extension UI belongs in Chrome/Edge side panels and the Firefox sidebar. Page scripts only find/control video and communicate through extension runtime messaging.
+- Production uses `wss://v2.jelly-party.com` only. Do not implement compatibility with the old extension or backend.
+- A peer has a display name and emoji. Do not add avatars.
+- Use TypeScript, Svelte, and UnoCSS. Prefer browser APIs and small local modules over dependencies.
+
+## Tooling
+
+- Enter the Nix development environment through the configured nix-direnv setup (`direnv allow` once). Nix supplies Playwright browsers.
+- Use `vp` for Node.js, dependency management, formatting, linting, type-checking, tests, builds, and tasks. Never invoke `node`, `npm`, `npx`, `pnpm`, `vite`, or `vitest` directly.
+- Use `vp install`, `vp dev`, `vp check`, `vp test --run`, and `vp build` for built-in workflows.
+- Inspect project workflows with `vp run` and invoke them with `vp run <task>`. Add cross-package workflows to Vite Task in `vite.config.ts`; do not add another task runner.
+- Use `vp node` for a Node.js script from the shell and `vp exec node` inside a Vite Task.
+- Vite+ owns formatting, linting, type-checking, Vitest, builds, and tasks. Do not add Biome, ESLint, Prettier, or `just`.
+
+## Validation
+
+- Prefer one high-value Playwright flow over many brittle tests: create, share, join, chat, play, pause, and seek with two peers.
+- Use Vitest for meaningful pure logic only, especially protocol validation, magic-link parsing, and playback synchronization behavior.
+- Before handing off changes, run `vp check`, `vp test --run`, the Playwright E2E task, and the relevant Vite Task build.
+- Extension build work is not complete until deterministic Chrome, Edge, and Firefox store archives are produced and their manifests are validated.
 
 <!--VITE PLUS START-->
 
@@ -26,16 +44,6 @@ Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.de
 
 <!--VITE PLUS END-->
 
-## Agent skills
+## Local specifications
 
-### Issue tracker
-
-Issues and specs are tracked as local Markdown under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The tracker uses the five default triage role names. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-This repository uses a single-context domain-doc layout. See `docs/agents/domain.md`.
+Specs live at `.scratch/<feature>/spec.md`; implementation tickets, when genuinely useful, live at `.scratch/<feature>/issues/`. Keep the spec authoritative and avoid duplicating its decisions into extra planning documents.
