@@ -57,6 +57,46 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await sidebarB.getByTestId("send-chat").click();
     await expect(sidebarA.getByTestId("messages")).toContainText("Ready for movie night?");
 
+    for (let index = 1; index <= 16; index += 1) {
+      await sendChat(sidebarB, `Scroll check ${index}: keeping the conversation moving.`);
+    }
+    await expect(sidebarA.getByTestId("chat-message")).toHaveCount(17);
+    await expect.poll(() => chatDistanceFromBottom(sidebarA)).toBeLessThanOrEqual(1);
+
+    await sidebarA.getByTestId("messages").evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event("scroll"));
+    });
+    const detachedScrollTop = await sidebarA
+      .getByTestId("messages")
+      .evaluate((element) => element.scrollTop);
+    await sendChat(sidebarB, "This arrives while Mira is reading older messages.");
+    await expect(sidebarA.getByTestId("new-messages")).toHaveText("↓ 1 new message");
+    await expect
+      .poll(() => sidebarA.getByTestId("messages").evaluate((element) => element.scrollTop))
+      .toBe(detachedScrollTop);
+
+    await sidebarA.getByTestId("new-messages").click();
+    await expect(sidebarA.getByTestId("new-messages")).toBeHidden();
+    await expect.poll(() => chatDistanceFromBottom(sidebarA)).toBeLessThanOrEqual(1);
+    await sendChat(sidebarB, "Following the latest messages again.");
+    await expect(sidebarA.getByTestId("new-messages")).toBeHidden();
+    await expect.poll(() => chatDistanceFromBottom(sidebarA)).toBeLessThanOrEqual(1);
+
+    await sidebarA.getByTestId("messages").evaluate((element) => {
+      element.scrollTop = 0;
+      element.dispatchEvent(new Event("scroll"));
+    });
+    await sendChat(sidebarB, "Another message while the reader is detached.");
+    await expect(sidebarA.getByTestId("new-messages")).toBeVisible();
+    await sidebarA.getByTestId("messages").evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+      element.dispatchEvent(new Event("scroll"));
+    });
+    await expect(sidebarA.getByTestId("new-messages")).toBeHidden();
+    await sendChat(sidebarB, "Manual return to the bottom reattaches too.");
+    await expect.poll(() => chatDistanceFromBottom(sidebarA)).toBeLessThanOrEqual(1);
+
     await sidebarA.close();
     await expect(sidebarB.getByTestId("peer")).toHaveCount(2);
 
@@ -135,4 +175,15 @@ async function currentTime(page: import("@playwright/test").Page): Promise<numbe
 
 async function paused(page: import("@playwright/test").Page): Promise<boolean> {
   return page.locator("video").evaluate((video: HTMLVideoElement) => video.paused);
+}
+
+async function sendChat(sidebar: import("@playwright/test").Page, text: string): Promise<void> {
+  await sidebar.getByTestId("chat-input").fill(text);
+  await sidebar.getByTestId("send-chat").click();
+}
+
+async function chatDistanceFromBottom(sidebar: import("@playwright/test").Page): Promise<number> {
+  return sidebar
+    .getByTestId("messages")
+    .evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop);
 }

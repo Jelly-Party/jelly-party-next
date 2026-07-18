@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
   import { buildMagicLink, MAX_CHAT_LENGTH, type PeerIdentity } from "jelly-party-lib";
   import {
     initialPartyState,
@@ -7,6 +7,7 @@
     type PartyConnectionStatus,
     type PartyState,
   } from "../background/party-state";
+  import { isChatAttached } from "./chat-scroll";
   import { shouldFollowTabActivation } from "./view-context";
 
   let identity: PeerIdentity = { id: "", name: "", emoji: "🍿" };
@@ -18,6 +19,9 @@
   let notice = "";
   let message = "";
   let copied = false;
+  let messagesElement: HTMLDivElement | null = null;
+  let chatAttached = true;
+  let unseenMessages = 0;
   let partyState: PartyState = initialPartyState;
   const requestedTabId = Number.parseInt(
     new URLSearchParams(location.search).get("tab") ?? "",
@@ -35,7 +39,7 @@
     const listener = (incoming: unknown) => {
       if (!isRecord(incoming)) return;
       if (incoming.type === "party:state" && isPartyState(incoming.state)) {
-        partyState = incoming.state;
+        void applyPartyState(incoming.state);
       }
       if (
         incoming.type === "tab:activated" &&
@@ -44,6 +48,11 @@
         shouldFollowTabActivation(isContextualPanel, viewWindowId, incoming.windowId)
       ) {
         viewTabId = incoming.tabId;
+        if (partyState.kind === "active" && partyState.party.tabId === incoming.tabId) {
+          chatAttached = true;
+          unseenMessages = 0;
+          void tick().then(() => scrollChatToBottom());
+        }
         void refreshTab(incoming.tabId);
       }
       if (
@@ -79,8 +88,58 @@
       notice = tab?.error ?? "Open a web page containing a video, then try again.";
     }
     const state = await chrome.runtime.sendMessage({ type: "party:state" });
-    if (isPartyState(state)) partyState = state;
     loading = false;
+    if (isPartyState(state)) await applyPartyState(state);
+  }
+
+  async function applyPartyState(nextState: PartyState): Promise<void> {
+    const addedMessages = numberOfAddedMessages(partyState, nextState);
+    const shouldFollow = chatAttached;
+    partyState = nextState;
+
+    if (nextState.kind === "idle") {
+      chatAttached = true;
+      unseenMessages = 0;
+      return;
+    }
+    if (addedMessages === 0) return;
+
+    await tick();
+    if (shouldFollow) scrollChatToBottom();
+    else unseenMessages += addedMessages;
+  }
+
+  function numberOfAddedMessages(previous: PartyState, next: PartyState): number {
+    if (next.kind === "idle") return 0;
+    if (previous.kind === "idle" || previous.party.partyId !== next.party.partyId) {
+      return next.party.messages.length;
+    }
+
+    const previousLast = previous.party.messages.at(-1);
+    const nextLast = next.party.messages.at(-1);
+    if (
+      !nextLast ||
+      (previousLast &&
+        previousLast.sentAt === nextLast.sentAt &&
+        previousLast.peer.id === nextLast.peer.id &&
+        previousLast.text === nextLast.text)
+    ) {
+      return 0;
+    }
+    return Math.max(1, next.party.messages.length - previous.party.messages.length);
+  }
+
+  function handleChatScroll(): void {
+    if (!messagesElement) return;
+    chatAttached = isChatAttached(messagesElement);
+    if (chatAttached) unseenMessages = 0;
+  }
+
+  function scrollChatToBottom(behavior: ScrollBehavior = "auto"): void {
+    if (!messagesElement) return;
+    chatAttached = true;
+    unseenMessages = 0;
+    messagesElement.scrollTo({ top: messagesElement.scrollHeight, behavior });
   }
 
   async function refreshTab(tabId: number | null): Promise<void> {
@@ -159,7 +218,7 @@
 
 <svelte:head><title>Jelly Party</title></svelte:head>
 
-<main class="min-h-screen flex flex-col gap-4 p-4 text-slate-100" data-testid="sidebar">
+<main class="h-screen min-h-0 flex flex-col gap-4 overflow-y-auto p-4 text-slate-100" data-testid="sidebar">
   <header class="flex items-center gap-3">
     <div class="logo" aria-hidden="true">🪼</div>
     <div class="min-w-0">
@@ -235,15 +294,34 @@
       </ul>
     </section>
 
-    <section class="card min-h-0 flex flex-1 flex-col gap-3">
+    <section class="card min-h-0 flex flex-1 flex-col gap-3 overflow-hidden">
       <h2 class="section-title">Chat</h2>
-      <div class="messages" aria-live="polite" data-testid="messages">
-        {#if view.party.messages.length === 0}<p class="empty">No messages yet. Say hello!</p>{/if}
-        {#each view.party.messages as entry}
-          <article class="message" data-testid="chat-message">
-            <strong>{entry.peer.emoji} {entry.peer.name}</strong><p>{entry.text}</p>
-          </article>
-        {/each}
+      <div class="relative min-h-0 flex-1">
+        <div
+          class="messages h-full overscroll-contain [scrollbar-gutter:stable]"
+          bind:this={messagesElement}
+          on:scroll={handleChatScroll}
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          data-testid="messages"
+        >
+          {#if view.party.messages.length === 0}<p class="empty">No messages yet. Say hello!</p>{/if}
+          {#each view.party.messages as entry}
+            <article class="message" data-testid="chat-message">
+              <strong>{entry.peer.emoji} {entry.peer.name}</strong><p>{entry.text}</p>
+            </article>
+          {/each}
+        </div>
+        {#if unseenMessages > 0}
+          <button
+            class="absolute bottom-2 left-1/2 z-1 -translate-x-1/2 whitespace-nowrap border-violet-400/30 bg-violet-950/95 px-3 py-2 text-xs font-700 text-violet-100 shadow-lg hover:bg-violet-900"
+            on:click={() => scrollChatToBottom("smooth")}
+            data-testid="new-messages"
+          >
+            ↓ {unseenMessages} new {unseenMessages === 1 ? "message" : "messages"}
+          </button>
+        {/if}
       </div>
       <form class="flex gap-2" on:submit|preventDefault={sendChat}>
         <label class="sr-only" for="message">Message</label>

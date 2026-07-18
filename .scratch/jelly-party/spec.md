@@ -21,7 +21,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 5. As an invited viewer, I want to land on the shared video and join the party automatically where the browser permits it, so that joining is quick.
 6. As a peer, I want a display name and an emoji, so that other peers can identify me without an avatar system.
 7. As a peer, I want to see who is in the party, so that I know my friends connected.
-8. As a peer, I want to send and receive ephemeral text chat, so that we can talk while watching.
+8. As a peer, I want to send and receive ephemeral text chat, so that we can talk while watching. The chat follows new messages only while I am at the bottom; scrolling up preserves my reading position and offers a clear return to the latest messages.
 9. As a peer, I want play, pause, and seek actions to propagate in both directions, so that everyone stays at roughly the same point.
 10. As a peer, I want synchronization to use position from the end of the video, so that differing pre-roll durations are less disruptive.
 11. As a peer, I want remote playback changes not to echo back into the party, so that one action does not loop.
@@ -51,6 +51,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 ## Testing Decisions
 
 - The primary acceptance seam is one Playwright test against a local video fixture, local backend, join site, and built extension. It creates a party in one browser context, joins through the magic link in a second, verifies both peers and chat, then verifies bidirectional play, pause, and seek. This replaces tests of internal UI structure.
+- The Playwright chat flow fills the scroll viewport and verifies attached following, detached position preservation, the new-message affordance, and both explicit and manual reattachment at the bottom.
 - Keep a small Playwright test for video replacement/frame selection only if that behavior cannot be covered clearly in the main flow.
 - Use Vitest for pure, failure-prone logic such as protocol validation, magic-link parsing, and playback position/echo handling. Do not unit-test trivial components, stores, or wiring.
 - Build validation must produce the Chromium and Firefox variants plus the three named store archives and validate their manifests. Chrome and Edge archives should be byte-identical unless a store requirement forces a difference.
