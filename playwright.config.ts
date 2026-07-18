@@ -5,8 +5,7 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Note: Extension tests require:
  * - Chromium browser (not Chrome/Edge which block extension loading)
- * - Persistent context (handled in fixtures.ts)
- * - Headed mode (extensions don't work in headless in most cases)
+ * - A persistent context (configured in fixtures.ts)
  *
  * Use `vp run test:e2e`; its Vite Task builds the test extension first.
  */
@@ -19,7 +18,7 @@ export default defineConfig({
     timeout: 10000,
   },
 
-  // Run tests serially for now (extension context is shared)
+  // Keep the single high-value party flow serial.
   fullyParallel: false,
   workers: 1,
 

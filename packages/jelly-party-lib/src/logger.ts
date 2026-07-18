@@ -50,6 +50,3 @@ export function createLogger(namespace?: string): Logger {
     },
   };
 }
-
-// Default logger instance
-export const log = createLogger();

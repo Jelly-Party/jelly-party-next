@@ -23,19 +23,20 @@ vp run test:e2e        # Runs headless
 
 ## What is Tested
 
-- **Party Creation**: Creating a party from the extension overlay.
+- **Party Creation**: Creating a party from the extension sidebar.
 - **Magic Links**: Joining a party via the `join.jelly-party.com` (local) magic link flow.
-- **Auto-Join**: Automatic redirection and joining from the magic link.
-- **System Messages**: "Joined the party" and "left the party" event messages.
+- **Auto-Join**: Automatic redirection and joining in an already-open sidebar.
 - **Chat**: Real-time chat messaging between peers.
+- **Video Selection**: Choosing the largest video across the top page and child frames.
+- **Video Replacement**: Continuing synchronization after the page replaces its video element.
 - **Video Sync (Bidirectional)**:
   - A→B: Peer A's actions sync to Peer B
   - B→A: Peer B's actions sync back to Peer A
   - Seek, play, and pause all tested in both directions
-- **Leave Party**: Peer leaves, other peer sees the "left" message and peer count updates.
+- **Leave Party**: Peer leaves and the remaining peer count updates.
 
 ## What is NOT Tested
 
-- **Popup UI**: The extension popup (clicked via toolbar icon) is not tested as it's separate from the content script overlay.
+- **Native Side Panel Container**: Playwright opens the built sidebar document directly because it cannot reliably target browser-owned side-panel chrome. The sidebar lifecycle itself is exercised across invite navigation.
 - **Permission Dialogs**: The actual "Allow" permission dialog flow is bypassed by pre-granting permissions in the test build. We explicitly assume the permission request logic works (unit tested/verified manually).
 - **Installation**: The actual browser installation process from the store.
