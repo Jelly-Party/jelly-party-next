@@ -9,6 +9,7 @@ const button = document.querySelector<HTMLButtonElement>("#join")!;
 const description = document.querySelector<HTMLElement>("#description")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 const install = document.querySelector<HTMLElement>("#install")!;
+install.setAttribute("href", __JELLY_WEBSITE_URL__);
 let extensionAvailable = document.documentElement.dataset.jellyPartyExtension === "installed";
 
 if (!invite) {

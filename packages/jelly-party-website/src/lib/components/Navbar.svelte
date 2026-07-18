@@ -1,12 +1,6 @@
 <script lang="ts">
 import { browser } from "$app/environment";
-
-function getDownloadLink(): string {
-	if (browser && navigator.userAgent.includes("Firefox")) {
-		return "https://addons.mozilla.org/en-US/firefox/addon/jelly-party/";
-	}
-	return "https://chrome.google.com/webstore/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd";
-}
+import { getDownloadLink } from "$lib/download-link";
 
 let scrolled = $state(false);
 

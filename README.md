@@ -26,7 +26,7 @@ The implementation contract is the [Jelly Party 2.0 specification](.scratch/jell
 | `jelly-party-lib`       | Shared validated protocol and small cross-package utilities      |
 | `jelly-party-website`   | Static project, install, support, and privacy pages              |
 
-The sidebar owns the party connection, presence, and chat. A small content script runs in relevant frames to discover and control an HTML video. The two communicate with extension runtime messages. The server only validates and relays messages; it stores nothing.
+The extension background process owns the party connection, presence, and chat so closing or navigating away from the sidebar does not leave the party. A small content script runs in relevant frames to discover and control an HTML video. The components communicate through extension runtime messages. The server only validates and relays messages; it stores nothing.
 
 ## Development
 
@@ -46,6 +46,22 @@ vp run
 
 The extension should rebuild and reload while developing. Cross-package workflows belong in Vite Task, listed by `vp run`.
 
+## Build configuration
+
+All public endpoints and project/store links have validated production defaults in `config/urls.ts`.
+Every value can be overridden at build time with the corresponding variable shown in `.env.example`.
+These values are baked into static sites and store archives, so set them before `vp run build:all` and
+do not change the service origins after submitting an extension version.
+
+Production builds require HTTPS URLs and a WSS relay. Test builds are the only mode that permits
+explicit localhost HTTP/WS overrides.
+
+## Server deployment
+
+`deploy/docker-compose.yml` builds and runs only the stateless WebSocket relay, bound to
+`127.0.0.1:8080`. The VPS-wide Caddy instance should proxy `v2.jelly-party.com` to that loopback
+port. See `deploy/README.md` for the complete clone, start, update, and health-check procedure.
+
 ## Quality loop
 
 ```bash
@@ -55,4 +71,8 @@ vp run test:e2e   # Playwright two-peer flow
 vp run build:all  # all deployable and store artifacts
 ```
 
-The Playwright flow is the main acceptance test: create a party, join from a second peer through the shared link, exchange chat, and synchronize play, pause, and seek in both directions. Add focused Vitest coverage only for logic that can fail independently.
+The Chromium Playwright flow is the main acceptance test: it loads two real extension profiles,
+creates a party, joins through the shared link, exchanges chat, and synchronizes play, pause, and seek
+in both directions. Firefox uses the same application sources and receives manifest/build validation,
+but Playwright does not support Firefox WebExtension loading; see the release research in `.scratch`
+for the native manual gate. Add focused Vitest coverage only for logic that can fail independently.

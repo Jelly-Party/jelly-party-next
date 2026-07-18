@@ -1,59 +1,51 @@
 <svelte:head>
 	<title>Privacy Policy - Jelly Party</title>
-	<meta name="description" content="Jelly Party's privacy policy - how we handle your data." />
+	<meta name="description" content="How Jelly Party handles extension and website data." />
 </svelte:head>
 
 <div class="pt-24 pb-16">
 	<div class="container mx-auto px-4 max-w-3xl">
 		<h1 class="text-3xl font-bold mb-8">Privacy Policy</h1>
-		
+
 		<div class="prose prose-gray max-w-none space-y-4">
 			<p>
-				Your privacy is important to us. It is Jelly Party's policy to respect your privacy 
-				regarding any information we may collect from you across our website, 
-				<a href="/" class="text-blue-600 hover:underline">https://www.jelly-party.com/</a>, 
-				and other sites we own and operate.
+				Jelly Party does not require an account, sell personal data, serve advertising, or use
+				tracking analytics.
 			</p>
-			
+
+			<h2 class="text-xl font-semibold pt-4">Data used by a party</h2>
 			<p>
-				We only ask for personal information when we truly need it to provide a service to you. 
-				We collect it by fair and lawful means, with your knowledge and consent. We also let 
-				you know why we're collecting it and how it will be used.
+				While you are connected, the Jelly Party relay processes the temporary party identifier,
+				your chosen display name and emoji, chat messages, the shared video URL, and play, pause,
+				and seek timing. This is necessary to connect peers and synchronize their browsers.
 			</p>
-			
 			<p>
-				We only retain collected information for as long as necessary to provide you with your 
-				requested service. What data we store, we'll protect within commercially acceptable 
-				means to prevent loss and theft, as well as unauthorized access, disclosure, copying, 
-				use or modification.
+				Party membership and chat exist in server memory only and are removed when participants
+				disconnect. Jelly Party does not intentionally retain a party history. Infrastructure
+				providers may process ordinary connection metadata and short-lived operational logs needed
+				to run and secure the service.
 			</p>
-			
+
+			<h2 class="text-xl font-semibold pt-4">Data stored in your browser</h2>
 			<p>
-				We don't share any personally identifying information publicly or with third-parties, 
-				except when required to by law.
+				The extension stores your generated peer identifier, display name, and emoji locally in
+				your browser. A pending invitation may also be stored briefly while its video tab opens.
+				You can remove this local data by uninstalling the extension or clearing its storage.
 			</p>
-			
+
+			<h2 class="text-xl font-semibold pt-4">Website and permissions</h2>
 			<p>
-				Our website may link to external sites that are not operated by us. Please be aware 
-				that we have no control over the content and practices of these sites, and cannot 
-				accept responsibility or liability for their respective privacy policies.
+				The website and invitation page do not load advertising or analytics code. The extension
+				requests access to a video site only when needed to find and control its HTML video. It does
+				not transmit the page contents or browsing history to Jelly Party.
 			</p>
-			
+
 			<p>
-				You are free to refuse our request for your personal information, with the understanding 
-				that we may be unable to provide you with some of your desired services.
-			</p>
-			
-			<p>
-				Your continued use of our website will be regarded as acceptance of our practices around 
-				privacy and personal information. If you have any questions about how we handle user 
-				data and personal information, feel free to contact us at 
+				Questions can be sent to
 				<a href="mailto:hi@jelly-party.com" class="text-blue-600 hover:underline">hi@jelly-party.com</a>.
 			</p>
-			
-			<p class="text-gray-500 text-sm">
-				This policy is effective as of 20 August 2020.
-			</p>
+
+			<p class="text-gray-500 text-sm">Effective 18 July 2026.</p>
 		</div>
 	</div>
 </div>

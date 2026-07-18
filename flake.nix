@@ -22,11 +22,15 @@
         {
           default = pkgs.mkShell {
             packages = [
+              pkgs.firefox
+              pkgs.geckodriver
               pkgs.playwright-driver.browsers
             ];
 
             PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
             PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = true;
+            FIREFOX_BIN = "${pkgs.firefox}/bin/firefox";
+            GECKODRIVER_BIN = "${pkgs.geckodriver}/bin/geckodriver";
           };
         });
     };

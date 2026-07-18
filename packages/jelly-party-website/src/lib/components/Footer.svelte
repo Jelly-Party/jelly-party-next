@@ -12,16 +12,25 @@ const currentYear = new Date().getFullYear();
 				<ul class="space-y-4">
 					<li>
 						<a 
-							href="https://chrome.google.com/webstore/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd"
+							href={__JELLY_CHROME_STORE_URL__}
 							class="text-white/60 hover:text-jelly-purple transition-colors flex items-center justify-center md:justify-start gap-2"
 						>
 							<span class="w-2 h-2 rounded-full bg-jelly-purple"></span>
-							Chrome / Edge
+							Chrome
+						</a>
+					</li>
+					<li>
+						<a
+							href={__JELLY_EDGE_STORE_URL__}
+							class="text-white/60 hover:text-jelly-purple transition-colors flex items-center justify-center md:justify-start gap-2"
+						>
+							<span class="w-2 h-2 rounded-full bg-jelly-purple"></span>
+							Edge
 						</a>
 					</li>
 					<li>
 						<a 
-							href="https://addons.mozilla.org/en-US/firefox/addon/jelly-party/"
+							href={__JELLY_FIREFOX_STORE_URL__}
 							class="text-white/60 hover:text-jelly-orange transition-colors flex items-center justify-center md:justify-start gap-2"
 						>
 							<span class="w-2 h-2 rounded-full bg-jelly-orange"></span>
@@ -47,7 +56,7 @@ const currentYear = new Date().getFullYear();
 					</li>
 					<li>
 						<a 
-							href="https://github.com/Jelly-Party"
+							href={__JELLY_REPOSITORY_URL__}
 							class="text-white/60 hover:text-white transition-colors"
 							target="_blank"
 							rel="noopener noreferrer"
@@ -79,7 +88,7 @@ const currentYear = new Date().getFullYear();
 			<p class="text-center text-white/40 text-sm">
 				&copy; {currentYear} Jelly Party. Free &amp; 
 				<a 
-					href="https://github.com/Jelly-Party"
+					href={__JELLY_REPOSITORY_URL__}
 					class="text-white/60 hover:text-white transition-colors underline decoration-white/20 hover:decoration-white"
 					target="_blank"
 					rel="noopener noreferrer"

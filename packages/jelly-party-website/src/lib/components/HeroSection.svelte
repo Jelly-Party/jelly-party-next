@@ -1,16 +1,9 @@
 <script lang="ts">
-import { browser } from "$app/environment";
+import { getDownloadLink } from "$lib/download-link";
 import Jellyfish from "./Jellyfish.svelte";
 import WaveDivider from "./WaveDivider.svelte";
 
 let isHovered = $state(false);
-
-function getDownloadLink(): string {
-	if (browser && navigator.userAgent.includes("Firefox")) {
-		return "https://addons.mozilla.org/en-US/firefox/addon/jelly-party/";
-	}
-	return "https://chrome.google.com/webstore/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd";
-}
 </script>
 
 <section class="relative min-h-screen flex items-center pt-24 pb-32 overflow-hidden gradient-hero">

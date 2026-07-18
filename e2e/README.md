@@ -1,6 +1,16 @@
 # Jelly Party E2E Tests
 
-This directory contains End-to-End tests using [Playwright](https://playwright.dev/).
+This directory contains loaded-extension end-to-end acceptance tests.
+
+- `party-sync.spec.ts` uses Playwright's officially supported bundled-Chromium extension path.
+- `firefox-extension.ts` uses Selenium/geckodriver because Playwright does not support loading
+  Firefox WebExtensions. It temporarily installs the built package, verifies that Firefox's native
+  sidebar loads the packaged panel and survives close/reopen, then drives that same panel document
+  in a normal extension tab for stable DOM assertions. Firefox keeps the panel in a remote nested
+  browser context that WebDriver cannot target reliably.
+
+Run them with `vp run test:e2e` and `vp run test:e2e:firefox`. The Nix flake supplies all browser
+and driver binaries.
 
 ## How it works
 
@@ -34,9 +44,13 @@ vp run test:e2e        # Runs headless
   - B→A: Peer B's actions sync back to Peer A
   - Seek, play, and pause all tested in both directions
 - **Leave Party**: Peer leaves and the remaining peer count updates.
+- **Firefox Away State**: An unrelated tab shows Return and Leave without ending the party.
 
 ## What is NOT Tested
 
-- **Native Side Panel Container**: Playwright opens the built sidebar document directly because it cannot reliably target browser-owned side-panel chrome. The sidebar lifecycle itself is exercised across invite navigation.
+- **Browser-owned Panel DOM**: The native Chromium panel container and Firefox's remote nested panel
+  DOM are not directly driven. Chromium and Firefox assert the packaged panel document directly;
+  Firefox additionally asserts the real native container's loaded URL and close/reopen lifecycle.
 - **Permission Dialogs**: The actual "Allow" permission dialog flow is bypassed by pre-granting permissions in the test build. We explicitly assume the permission request logic works (unit tested/verified manually).
-- **Installation**: The actual browser installation process from the store.
+- **Store Installation**: Draft uploads, permission prompts, and branded Chrome/Edge/Firefox toolbar
+  smoke tests remain release-checklist items because they require store accounts or browser-owned UI.

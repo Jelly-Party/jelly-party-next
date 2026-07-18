@@ -60,13 +60,20 @@ export default defineConfig({
         cache: false,
       },
       "test:all": {
-        command: ["vp test --run", "vp run test:e2e"],
+        command: ["vp test --run", "vp run test:e2e", "vp run test:e2e:firefox"],
         cache: false,
       },
       "test:e2e": {
         command: [
           "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
           "vp exec playwright test",
+        ],
+        cache: false,
+      },
+      "test:e2e:firefox": {
+        command: [
+          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test:firefox",
+          'vp exec concurrently --kill-others --success first "vp run test:services" "vp dev e2e/fixtures --port 16333 --strictPort" "vp exec node e2e/firefox-extension.ts"',
         ],
         cache: false,
       },
@@ -103,6 +110,7 @@ export default defineConfig({
     expect: { requireAssertions: true },
     environment: "node",
     include: [
+      "config/**/*.{test,spec}.ts",
       "packages/jelly-party-lib/src/**/*.{test,spec}.ts",
       "packages/jelly-party-extension/src/**/*.{test,spec}.ts",
     ],

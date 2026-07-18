@@ -1,68 +1,44 @@
-# Jelly Party Server Deployment
+# Jelly Party server deployment
 
-Deploy the Jelly Party WebSocket server with observability via Grafana Cloud OTLP.
+The production relay is a single in-memory service. Docker Compose builds it from this repository
+and publishes it on VPS loopback so the machine's existing reverse proxy can own TLS.
 
-## Prerequisites
-
-- Docker & Docker Compose
-- Grafana Cloud account (free tier works great)
-
-## Setup
-
-1. Copy `.env.example` to `.env`:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Get your OTLP credentials from Grafana Cloud:
-   - Go to [grafana.com](https://grafana.com) → Your Stack → OpenTelemetry → Configure
-   - Copy the OTLP endpoint (e.g., `https://otlp-gateway-prod-eu-west-2.grafana.net/otlp`)
-   - Copy your Instance ID
-   - Generate an API token
-
-3. Edit `.env` with your credentials
-
-4. Start everything:
-   ```bash
-   docker compose up -d
-   ```
-
-## Updating
+## Run it
 
 ```bash
-git pull
-docker compose build
-docker compose up -d
+git clone https://github.com/Jelly-Party/jelly-party-next.git
+cd jelly-party-next/deploy
+cp .env.example .env
+docker compose up --build -d
+curl http://127.0.0.1:8080/health
 ```
 
-## Services
+To update it:
 
-| Service | Port | Description                          |
-| ------- | ---- | ------------------------------------ |
-| server  | 8080 | WebSocket server                     |
-| server  | 9090 | Metrics (internal, scraped by Alloy) |
-| alloy   | -    | OTLP forwarding to Grafana Cloud     |
-
-## Observability
-
-All telemetry flows through a single OTLP endpoint:
-
-```
-Server → Alloy → Grafana Cloud OTLP Gateway
-  ├── Metrics → Prometheus/Mimir
-  └── Logs → Loki
+```bash
+git pull --ff-only
+docker compose up --build -d
 ```
 
-### Available Metrics
+The service has no database or volume. Parties, presence, and chat live only in process memory, so
+restarting it disconnects active parties.
 
-- `jellyparty_active_parties` - Current party count
-- `jellyparty_active_clients` - Connected clients
-- `jellyparty_messages_total{type="..."}` - Messages by type
-- `jellyparty_parties_created_total` - Historical party count
-- Plus Node.js defaults (CPU, memory, event loop)
+## Global Caddy
 
-### Viewing in Grafana
+Add this route to the VPS-wide Caddy configuration; do not run a second Caddy container here:
 
-- **Metrics**: Explore → Prometheus → query `jellyparty_*`
-- **Logs**: Explore → Loki → query `{container="server"}`
+```caddyfile
+v2.jelly-party.com {
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+Caddy forwards WebSocket upgrades automatically. After DNS points at the VPS and Caddy reloads,
+verify both endpoints:
+
+```bash
+curl https://v2.jelly-party.com/health
+```
+
+Then run the two-peer extension smoke test against the production WebSocket before store submission.
+Set `JELLY_PARTY_PORT` in `deploy/.env` only if port 8080 conflicts with another local service.

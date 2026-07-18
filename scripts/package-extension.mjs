@@ -23,6 +23,7 @@ await writeFile(path.join(artifacts, "jelly-party-2.0.0-edge.zip"), chromiumArch
 await writeFile(path.join(artifacts, "jelly-party-2.0.0-firefox.zip"), firefoxArchive);
 
 const sourceFiles = [
+  ".env.example",
   "AGENTS.md",
   "README.md",
   "package.json",
@@ -32,6 +33,9 @@ const sourceFiles = [
   "flake.nix",
   "flake.lock",
   "vite.config.ts",
+  "config/build-environment.ts",
+  "config/urls.ts",
+  "config/urls.test.ts",
   "scripts/package-extension.mjs",
   "packages/jelly-party-extension/SOURCE-REVIEW.md",
   "packages/jelly-party-extension/manifest.json",
@@ -77,7 +81,9 @@ async function validateManifest(directory, browser) {
     manifest.sidebar_action?.default_panel !== "src/sidebar/sidebar.html" ||
     manifest.side_panel ||
     manifest.permissions?.includes("sidePanel") ||
-    !manifest.browser_specific_settings?.gecko?.id
+    !manifest.browser_specific_settings?.gecko?.id ||
+    manifest.browser_specific_settings.gecko.strict_min_version !== "140.0" ||
+    manifest.browser_specific_settings.gecko.data_collection_permissions?.required?.length !== 4
   ) {
     throw new Error("firefox: invalid sidebar manifest");
   }
@@ -98,8 +104,67 @@ async function validateManifest(directory, browser) {
 
   const scripts = (await filesBelow(directory)).filter((file) => file.endsWith(".js"));
   const builtCode = (await Promise.all(scripts.map((file) => readFile(file, "utf8")))).join("\n");
-  if (!builtCode.includes("wss://v2.jelly-party.com") || builtCode.includes("ws.jelly-party.com")) {
-    throw new Error(`${browser}: production WebSocket endpoint is invalid`);
+  if (!/wss:\/\/[^"'`\s]+/.test(builtCode) || /ws:\/\/localhost/.test(builtCode)) {
+    throw new Error(`${browser}: production build does not contain a secure WebSocket endpoint`);
+  }
+
+  const manifestText = JSON.stringify(manifest);
+  if (/localhost|127\.0\.0\.1/.test(manifestText)) {
+    throw new Error(`${browser}: production manifest contains a local development origin`);
+  }
+  if (
+    !manifest.content_security_policy?.extension_pages?.includes("script-src 'self'") ||
+    /script-src[^;]*https?:/.test(manifest.content_security_policy.extension_pages)
+  ) {
+    throw new Error(`${browser}: extension pages do not enforce a local-only script policy`);
+  }
+
+  const joinMatches = (manifest.content_scripts ?? []).flatMap(
+    (contentScript) => contentScript.matches ?? [],
+  );
+  if (joinMatches.length !== 1 || !joinMatches[0].startsWith("https://")) {
+    throw new Error(`${browser}: join content script must match one secure configured origin`);
+  }
+
+  await validateNoRemoteExecutableContent(directory, browser);
+}
+
+async function validateNoRemoteExecutableContent(directory, browser) {
+  const files = await filesBelow(directory);
+  const checks = [
+    {
+      extensions: [".html"],
+      pattern: /<(?:script|link)\b[^>]*(?:src|href)=["']https?:\/\//i,
+      description: "remote script or stylesheet",
+    },
+    {
+      extensions: [".css"],
+      pattern: /(?:@import|url\()\s*["']?https?:\/\//i,
+      description: "remote stylesheet resource",
+    },
+    {
+      extensions: [".js"],
+      pattern: /(?:importScripts|import)\s*\(\s*["'`]https?:\/\//,
+      description: "remote executable import",
+    },
+    {
+      extensions: [".js"],
+      pattern: /\beval\s*\(|\bnew\s+Function\s*\(/,
+      description: "runtime-generated code",
+    },
+  ];
+
+  for (const file of files) {
+    const extension = path.extname(file);
+    for (const check of checks) {
+      if (!check.extensions.includes(extension)) continue;
+      const contents = await readFile(file, "utf8");
+      if (check.pattern.test(contents)) {
+        throw new Error(
+          `${browser}: ${check.description} found in ${path.relative(directory, file)}`,
+        );
+      }
+    }
   }
 }
 
