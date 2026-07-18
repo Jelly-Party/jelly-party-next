@@ -2,9 +2,9 @@
   import { onMount } from "svelte";
   import {
     buildMagicLink,
+    isPlaybackAction,
     MAX_CHAT_LENGTH,
     type PeerIdentity,
-    type PlaybackAction,
     type ServerMessage,
   } from "jelly-party-lib";
   import { PartySocket } from "./party-socket";
@@ -74,7 +74,7 @@
     hasVideo = candidate?.hasVideo === true;
     const pending = await chrome.runtime.sendMessage({ type: "pending:consume", tabId });
     status = "ready";
-    if (pending?.partyId) connect(pending.partyId);
+    if (pending?.partyId) void connect(pending.partyId);
   }
 
   async function saveIdentity(): Promise<void> {
@@ -91,11 +91,11 @@
       .replaceAll("+", "-")
       .replaceAll("/", "_")
       .replaceAll("=", "");
-    connect(id);
+    void connect(id);
   }
 
-  function connect(id: string): void {
-    void saveIdentity();
+  async function connect(id: string): Promise<void> {
+    await saveIdentity();
     partyId = id;
     peers = [];
     messages = [];
@@ -158,9 +158,6 @@
     return typeof value === "object" && value !== null;
   }
 
-  function isPlaybackAction(value: unknown): value is PlaybackAction {
-    return value === "play" || value === "pause" || value === "seek";
-  }
 </script>
 
 <svelte:head><title>Jelly Party</title></svelte:head>
@@ -198,7 +195,7 @@
         <div class="text-xs text-slate-400" data-testid="party-id">Party {partyId.slice(0, 8)}</div>
       </div>
       <div class="flex gap-2">
-        {#if status === "disconnected"}<button on:click={() => connect(partyId)} data-testid="retry">Retry</button>{/if}
+        {#if status === "disconnected"}<button on:click={() => void connect(partyId)} data-testid="retry">Retry</button>{/if}
         <button on:click={leave} data-testid="leave-party">Leave</button>
       </div>
     </section>

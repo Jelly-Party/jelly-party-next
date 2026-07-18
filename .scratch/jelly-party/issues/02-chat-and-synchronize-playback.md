@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Create and join a temporary party.
 
-**Status:** done
+Status: ready-for-agent
 
 - [x] Connected peers can send and receive bounded ephemeral text messages, with no account or history introduced.
 - [x] Small page scripts select the most relevant HTML video across frames, report local play, pause, and seek actions, and apply remote actions through extension runtime messaging.

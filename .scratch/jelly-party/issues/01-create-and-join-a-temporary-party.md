@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** done
+Status: ready-for-agent
 
 - [x] The toolbar action opens a shared Svelte sidebar application through the Chromium side panel or Firefox sidebar without injecting visual UI into the page.
 - [x] A peer with a display name and emoji can create a capability-ID party for the active tab's video, copy its magic link, see connected peers, and explicitly leave; closing the sidebar also ends participation.

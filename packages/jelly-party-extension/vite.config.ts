@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => {
               (permission) => permission !== "sidePanel",
             );
             mutableManifest.sidebar_action = { default_panel: "src/sidebar/sidebar.html" };
-            mutableManifest.background = { scripts: ["src/background/index.ts"], type: "module" };
+            mutableManifest.background = { scripts: ["src/background/index.js"], type: "module" };
             mutableManifest.browser_specific_settings = {
               gecko: { id: "jelly-party@jelly-party.com", strict_min_version: "121.0" },
             };

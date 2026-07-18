@@ -15,7 +15,15 @@ window.addEventListener("message", (event) => {
   }
   void chrome.runtime
     .sendMessage({ type: "join:request", ...parsed })
-    .then((result) => window.postMessage({ type: "jelly-party:result", ...result }, "*"))
+    .then((result) => {
+      window.postMessage({ type: "jelly-party:result", ...result }, "*");
+      if (result?.ok && typeof result.destination === "string") {
+        setTimeout(
+          () => window.location.assign(result.destination),
+          result.sidebarOpened ? 50 : 1500,
+        );
+      }
+    })
     .catch(() =>
       window.postMessage(
         { type: "jelly-party:result", ok: false, error: "The extension could not open the video" },

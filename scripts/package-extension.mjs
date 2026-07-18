@@ -28,14 +28,21 @@ const sourceFiles = [
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
+  ".envrc",
+  "flake.nix",
+  "flake.lock",
   "vite.config.ts",
+  "scripts/package-extension.mjs",
   "packages/jelly-party-extension/SOURCE-REVIEW.md",
   "packages/jelly-party-extension/manifest.json",
   "packages/jelly-party-extension/package.json",
   "packages/jelly-party-extension/tsconfig.json",
   "packages/jelly-party-extension/uno.config.ts",
   "packages/jelly-party-extension/vite.config.ts",
+  "packages/jelly-party-lib/package.json",
+  "packages/jelly-party-lib/tsconfig.json",
   ...(await filesBelow(path.join(extensionRoot, "src"))).map((file) => path.relative(root, file)),
+  ...(await filesBelow(path.join(extensionRoot, "icons"))).map((file) => path.relative(root, file)),
   ...(await filesBelow(path.join(root, "packages/jelly-party-lib/src"))).map((file) =>
     path.relative(root, file),
   ),
@@ -73,6 +80,20 @@ async function validateManifest(directory, browser) {
     !manifest.browser_specific_settings?.gecko?.id
   ) {
     throw new Error("firefox: invalid sidebar manifest");
+  }
+
+  const referencedFiles = [
+    manifest.side_panel?.default_path,
+    manifest.sidebar_action?.default_panel,
+    manifest.background?.service_worker,
+    ...(manifest.background?.scripts ?? []),
+    ...(manifest.content_scripts ?? []).flatMap((contentScript) => contentScript.js ?? []),
+    ...Object.values(manifest.icons ?? {}),
+  ].filter(Boolean);
+  for (const referencedFile of referencedFiles) {
+    await readFile(path.join(directory, referencedFile)).catch(() => {
+      throw new Error(`${browser}: manifest references missing file ${referencedFile}`);
+    });
   }
 
   const scripts = (await filesBelow(directory)).filter((file) => file.endsWith(".js"));

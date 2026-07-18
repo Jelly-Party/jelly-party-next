@@ -88,7 +88,7 @@ export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
   return invalid("Unknown message type");
 }
 
-function isPlaybackAction(value: unknown): value is PlaybackAction {
+export function isPlaybackAction(value: unknown): value is PlaybackAction {
   return value === "play" || value === "pause" || value === "seek";
 }
 

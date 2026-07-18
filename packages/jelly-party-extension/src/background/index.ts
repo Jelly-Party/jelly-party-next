@@ -1,8 +1,8 @@
 import {
   authorizeMagicJoin,
   getRandomEmoji,
+  isPlaybackAction,
   parsePartyId,
-  type PlaybackAction,
 } from "jelly-party-lib";
 
 interface Identity {
@@ -130,6 +130,7 @@ async function handleMessage(
     const tab = await chrome.tabs.get(message.tabId);
     if (!sameDestination(tab.url, pending.destination)) return null;
     await chrome.storage.local.remove("pendingJoin");
+    await chrome.action.setBadgeText({ tabId: message.tabId, text: "" });
     return pending;
   }
 
@@ -154,9 +155,9 @@ async function handleMessage(
       destination: message.destination,
     };
     await chrome.storage.local.set({ pendingJoin });
-    await chrome.tabs.update(sender.tab.id, { url: message.destination });
-    await chrome.sidePanel?.open({ tabId: sender.tab.id }).catch(() => undefined);
-    return { ok: true };
+    const sidebarOpened = await openPartySidebar(sender.tab.id);
+    if (!sidebarOpened) await markToolbarJoin(sender.tab.id);
+    return { ok: true, destination: message.destination, sidebarOpened };
   }
 
   return undefined;
@@ -195,6 +196,30 @@ async function notifySidebar(message: object): Promise<void> {
   await chrome.runtime.sendMessage(message).catch(() => undefined);
 }
 
+async function markToolbarJoin(tabId: number): Promise<void> {
+  await chrome.action.setBadgeBackgroundColor({ tabId, color: "#7c3aed" });
+  await chrome.action.setBadgeText({ tabId, text: "1" });
+  await chrome.action.setTitle({ tabId, title: "Click to join your Jelly Party" });
+}
+
+async function openPartySidebar(tabId: number): Promise<boolean> {
+  if (chrome.sidePanel) {
+    return chrome.sidePanel
+      .open({ tabId })
+      .then(() => true)
+      .catch(() => false);
+  }
+  const firefox = globalThis as typeof globalThis & {
+    browser?: { sidebarAction?: { open(): Promise<void> } };
+  };
+  return (
+    firefox.browser?.sidebarAction
+      ?.open()
+      .then(() => true)
+      .catch(() => false) ?? false
+  );
+}
+
 function sameDestination(current: string | undefined, expected: string): boolean {
   if (!current) return false;
   try {
@@ -216,8 +241,4 @@ function pick<T>(values: T[]): T {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function isPlaybackAction(value: unknown): value is PlaybackAction {
-  return value === "play" || value === "pause" || value === "seek";
 }

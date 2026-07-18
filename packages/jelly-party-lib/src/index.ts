@@ -9,6 +9,7 @@ export { RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
 export {
   type ClientMessage,
   isPeerIdentity,
+  isPlaybackAction,
   MAX_CHAT_LENGTH,
   MAX_EMOJI_LENGTH,
   MAX_NAME_LENGTH,

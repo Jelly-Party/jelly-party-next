@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 — Chat and synchronize playback.
 
-**Status:** done
+Status: ready-for-agent
 
 - [x] Vite+ is the only JavaScript toolchain, UnoCSS owns styling, unnecessary packages and compatibility code are removed, and one Vite Task hot-reloads the backend, extension, join site, and website.
 - [x] The compact sidebar and static sites provide accessible keyboard behavior, responsive layouts, and useful empty and error states without reproducing obsolete architecture or visual details.

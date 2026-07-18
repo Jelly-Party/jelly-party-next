@@ -37,6 +37,14 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await sidebarB.getByTestId("send-chat").click();
     await expect(sidebarA.getByTestId("messages")).toContainText("Ready for movie night?");
 
+    const secondaryVideo = joinPage.frameLocator("iframe").locator("video");
+    await expect(secondaryVideo).toHaveJSProperty("readyState", 4);
+    await secondaryVideo.evaluate((video: HTMLVideoElement) => {
+      video.currentTime = 2;
+    });
+    await joinPage.waitForTimeout(500);
+    expect(await currentTime(videoA)).toBeLessThan(0.5);
+
     await seek(joinPage, 1);
     await expect.poll(() => currentTime(videoA)).toBeCloseTo(1, 0);
 
@@ -45,6 +53,12 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await videoA.locator("video").evaluate((video: HTMLVideoElement) => video.pause());
     await expect.poll(() => paused(joinPage)).toBe(true);
 
+    await videoA.locator("video").evaluate((video: HTMLVideoElement) => {
+      const replacement = video.cloneNode(true) as HTMLVideoElement;
+      video.replaceWith(replacement);
+      replacement.load();
+    });
+    await expect(videoA.locator("video")).toHaveJSProperty("readyState", 4);
     await seek(videoA, 3);
     await expect.poll(() => currentTime(joinPage)).toBeCloseTo(3, 0);
     await joinPage.locator("video").evaluate((video: HTMLVideoElement) => video.play());

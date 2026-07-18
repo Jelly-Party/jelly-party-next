@@ -1,4 +1,10 @@
-import { RemoteEchoGuard, targetTime, timeFromEnd, type PlaybackAction } from "jelly-party-lib";
+import {
+  isPlaybackAction,
+  RemoteEchoGuard,
+  targetTime,
+  timeFromEnd,
+  type PlaybackAction,
+} from "jelly-party-lib";
 
 declare global {
   interface Window {
@@ -111,7 +117,7 @@ function isApplyMessage(value: unknown): value is {
   const message = value as Record<string, unknown>;
   return (
     message.type === "video:apply" &&
-    (message.action === "play" || message.action === "pause" || message.action === "seek") &&
+    isPlaybackAction(message.action) &&
     typeof message.timeFromEnd === "number" &&
     Number.isFinite(message.timeFromEnd)
   );
