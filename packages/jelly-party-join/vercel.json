@@ -1,3 +1,6 @@
 {
-  "outputDirectory": "public"
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "vp run jelly-party-lib#build && vp build",
+  "framework": null,
+  "outputDirectory": "dist"
 }
