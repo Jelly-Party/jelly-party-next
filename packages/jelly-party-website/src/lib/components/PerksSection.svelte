@@ -1,80 +1,65 @@
 <script lang="ts">
 import LucideIcon from "./LucideIcon.svelte";
 
-// Icon definitions extracted from lucide-svelte to avoid import errors
-const VideoIcon = [
-	[
-		"path",
-		{
-			d: "m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5",
-		},
-	],
-	["rect", { x: "2", y: "6", width: "14", height: "12", rx: "2" }],
+const PanelIcon = [
+	["rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }],
+	["path", { d: "M15 3v18" }],
 ];
-const RefreshCcwIcon = [
-	["path", { d: "M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" }],
-	["path", { d: "M3 3v5h5" }],
-	["path", { d: "M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" }],
-	["path", { d: "M16 16h5v5" }],
+const LinkIcon = [
+	["path", { d: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" }],
+	["path", { d: "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" }],
 ];
-const BeerIcon = [
-	["path", { d: "M17 11h1a3 3 0 0 1 0 6h-1" }],
-	["path", { d: "M9 12v6" }],
-	["path", { d: "M13 12v6" }],
-	[
-		"path",
-		{
-			d: "M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z",
-		},
-	],
-	["path", { d: "M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" }],
+const MessageIcon = [
+	["path", { d: "M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" }],
+];
+const SyncIcon = [
+	["path", { d: "M20 7h-5V2" }],
+	["path", { d: "M4 17h5v5" }],
+	["path", { d: "M5.1 9A8 8 0 0 1 18.4 5.6L20 7" }],
+	["path", { d: "M18.9 15A8 8 0 0 1 5.6 18.4L4 17" }],
 ];
 
-const perks = [
+const features = [
 	{
-		title: "(Video-) Chat with friends",
-		icon: VideoIcon,
-		description:
-			"Stay connected while watching together with integrated video chat.",
+		title: "Lives beside the video",
+		icon: PanelIcon,
+		description: "Jelly Party opens in the browser side panel or sidebar, leaving the page itself alone.",
 	},
 	{
-		title: "Always watch in sync",
-		icon: RefreshCcwIcon,
-		description:
-			"Advanced synchronization ensures everyone sees the same frame at the same time.",
+		title: "One link to join",
+		icon: LinkIcon,
+		description: "A temporary invite opens the shared video and guides friends through any required site access.",
 	},
 	{
-		title: "Free. As in free beer.",
-		icon: BeerIcon,
-		description:
-			"Open source software. No hidden costs, no premium tiers, just fun.",
+		title: "Text chat and presence",
+		icon: MessageIcon,
+		description: "See who joined and chat with a display name and emoji. Nothing becomes a permanent profile.",
+	},
+	{
+		title: "Playback stays together",
+		icon: SyncIcon,
+		description: "Play, pause, and seek travel in both directions so everyone stays near the same moment.",
 	},
 ];
 </script>
 
-<section class="py-24 bg-[#0a0a0a] relative z-10">
-	<div class="container mx-auto px-4">
-		<h2 class="text-3xl md:text-5xl font-bold text-center mb-20 text-white tracking-tight">
-			Worry-free watch parties
-		</h2>
-		
-		<div class="grid md:grid-cols-3 gap-8 lg:gap-12">
-			{#each perks as perk}
-				<div class="flex flex-col items-center text-center p-8 rounded-3xl bg-white/5 border border-white/10 hover:border-white/20 transition-all duration-300 hover:-translate-y-2 group">
-					<!-- Icon with gradient background -->
-					<div class="w-20 h-20 mb-8 rounded-2xl bg-gradient-to-br from-jelly-purple to-jelly-pink p-[1px] group-hover:shadow-[0_0_30px_rgba(145,100,255,0.3)] transition-shadow">
-						<div class="w-full h-full rounded-2xl bg-[#0a0a0a] flex items-center justify-center">
-							<LucideIcon iconNode={perk.icon} class="w-10 h-10 text-white group-hover:scale-110 transition-transform duration-300" />
-						</div>
+<section id="features" class="bg-jelly-ink py-20 sm:py-24">
+	<div class="jp-container">
+		<div class="max-w-2xl">
+			<p class="jp-kicker m-0">What 2.0 does</p>
+			<h2 class="mb-0 mt-3 text-3xl leading-tight font-800 tracking-normal text-white sm:text-5xl">A watch party without the ceremony</h2>
+			<p class="mb-0 mt-5 text-lg leading-8 text-slate-300">Jelly Party keeps the useful parts close: invite, chat, and playback sync. Parties disappear when everyone leaves.</p>
+		</div>
+
+		<div class="mt-12 grid gap-4 md:grid-cols-2">
+			{#each features as feature}
+				<article class="jp-panel p-6 sm:p-7">
+					<div class="grid h-11 w-11 place-items-center rounded-lg bg-jelly-purple/20 text-jelly-mint" aria-hidden="true">
+						<LucideIcon iconNode={feature.icon} size={22} />
 					</div>
-					
-					<h3 class="text-xl md:text-2xl font-bold text-white mb-4">
-						{perk.title}
-					</h3>
-					<p class="text-white/60 leading-relaxed max-w-sm">
-						{perk.description}
-					</p>
-				</div>
+					<h3 class="mb-0 mt-5 text-xl font-750 tracking-normal text-white">{feature.title}</h3>
+					<p class="mb-0 mt-2 leading-7 text-slate-400">{feature.description}</p>
+				</article>
 			{/each}
 		</div>
 	</div>

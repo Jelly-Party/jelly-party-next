@@ -1,36 +1,40 @@
-<section class="py-24 bg-[#0a0a0a] border-t border-white/5">
-	<div class="container mx-auto px-4">
-		<h2 class="text-3xl md:text-4xl font-bold text-center mb-16 text-white tracking-tight">
-			Get Jelly Party and...
-		</h2>
-		
-		<div class="grid md:grid-cols-3 gap-8 text-center max-w-4xl mx-auto">
-			<div class="p-8 rounded-2xl bg-white/5 border border-white/5 hover:border-jelly-purple/50 transition-colors group">
-				<h3 class="text-3xl md:text-4xl font-bold text-white mb-2 group-hover:text-jelly-purple transition-colors">
-					Get social.
-				</h3>
-				<p class="text-white/60 text-sm mt-4">
-					Distance doesn't matter when you're watching together.
-				</p>
-			</div>
-			
-			<div class="p-8 rounded-2xl bg-white/5 border border-white/5 hover:border-jelly-pink/50 transition-colors group">
-				<h3 class="text-3xl md:text-4xl font-bold text-white mb-2 group-hover:text-jelly-pink transition-colors">
-					Have fun.
-				</h3>
-				<p class="text-white/60 text-sm mt-4">
-					Experience reactions in real-time.
-				</p>
-			</div>
-			
-			<div class="p-8 rounded-2xl bg-white/5 border border-white/5 hover:border-jelly-orange/50 transition-colors group">
-				<h3 class="text-3xl md:text-4xl font-bold text-white mb-2 group-hover:text-jelly-orange transition-colors">
-					Watch smart.
-				</h3>
-				<p class="text-white/60 text-sm mt-4">
-					Perfect sync, every time.
-				</p>
-			</div>
-		</div>
+<script lang="ts">
+import { getDownloadLink } from "$lib/download-link";
+
+const steps = [
+	{
+		number: "01",
+		title: "Open the sidebar",
+		description: "Go to a page with a video and open Jelly Party from the browser toolbar.",
+	},
+	{
+		number: "02",
+		title: "Start a party",
+		description: "Choose a display name and emoji, then create a temporary party for that video.",
+	},
+	{
+		number: "03",
+		title: "Share the invite",
+		description: "Send one link. Your friend opens the same video and joins you in the sidebar.",
+	},
+];
+</script>
+
+<section id="how-it-works" class="bg-jelly-coral py-20 text-jelly-ink sm:py-24">
+	<div class="jp-container">
+		<p class="m-0 text-xs font-850 tracking-widest uppercase">Three steps</p>
+		<h2 class="mb-0 mt-3 max-w-2xl text-3xl leading-tight font-850 tracking-normal sm:text-5xl">From video to party in one link</h2>
+
+		<ol class="m-0 mt-12 grid list-none gap-10 p-0 md:grid-cols-3 md:gap-8">
+			{#each steps as step}
+				<li class="border-t-2 border-jelly-ink/25 pt-5">
+					<span class="text-sm font-850">{step.number}</span>
+					<h3 class="mb-0 mt-5 text-xl font-800 tracking-normal">{step.title}</h3>
+					<p class="mb-0 mt-2 leading-7 text-jelly-ink/75">{step.description}</p>
+				</li>
+			{/each}
+		</ol>
+
+		<a href={getDownloadLink()} class="jp-button mt-12 bg-jelly-ink px-7 text-white hover:bg-[#171b32]">Get Jelly Party</a>
 	</div>
 </section>

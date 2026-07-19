@@ -7,15 +7,32 @@
     <title>Join a Jelly Party</title>
     <script type="module" src="/src/main.ts"></script>
   </head>
-  <body>
-    <main class="join-panel">
-      <img class="logo" src="/favicon.ico" alt="Jelly Party" width="128" height="128" />
-      <p class="brand">Jelly Party</p>
-      <h1>You’re invited to watch together</h1>
-      <p id="description" class="description">Checking your Jelly Party invite…</p>
-      <button id="join" class="join-button" disabled>Open video and join</button>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
-      <a id="install" class="install hidden" href="/">Install Jelly Party</a>
+  <body
+    class="grid min-h-[100svh] place-items-center overflow-x-hidden bg-gradient-to-br from-jelly-coral to-jelly-pink p-5 text-slate-100"
+  >
+    <main class="jp-panel w-full max-w-108 p-7 text-center sm:p-10">
+      <img
+        class="jp-logo mx-auto h-22 w-22"
+        src="/favicon.ico"
+        alt="Jelly Party"
+        width="128"
+        height="128"
+      />
+      <p class="mb-6 mt-3 text-xs font-800 tracking-widest text-rose-300 uppercase">Jelly Party</p>
+      <h1 class="m-0 text-3xl leading-tight font-750 tracking-normal sm:text-4xl">
+        You’re invited to watch together
+      </h1>
+      <p id="description" class="my-5 break-words text-sm leading-6 text-slate-300">
+        Checking your Jelly Party invite…
+      </p>
+      <button id="join" class="jp-button-primary w-full" disabled>Open video and join</button>
+      <p
+        id="status"
+        class="mb-0 mt-4 min-h-5 text-sm leading-5 text-amber-200"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <a id="install" class="jp-link mt-2 hidden" href="/">Install Jelly Party</a>
     </main>
   </body>
 </html>

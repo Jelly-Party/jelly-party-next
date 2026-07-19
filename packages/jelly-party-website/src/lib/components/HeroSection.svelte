@@ -1,52 +1,21 @@
 <script lang="ts">
 import { getDownloadLink } from "$lib/download-link";
-import Jellyfish from "./Jellyfish.svelte";
-import WaveDivider from "./WaveDivider.svelte";
-
-let isHovered = $state(false);
 </script>
 
-<section class="relative min-h-screen flex items-center pt-24 pb-32 overflow-hidden gradient-hero">
-	<div class="container mx-auto px-4 relative z-10">
-		<div class="grid lg:grid-cols-2 gap-12 items-center">
-			<!-- Text content -->
-			<div class="text-center lg:text-left order-2 lg:order-1">
-				<h1 class="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1] tracking-tight">
-					Watch anything. <br/>
-					<span class="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/80">Together.</span>
-				</h1>
-				<p class="text-xl md:text-2xl text-white/90 mb-10 max-w-xl mx-auto lg:mx-0 font-light leading-relaxed">
-					Sync videos across browsers. No sign-ups. <br class="hidden md:block"/>
-					Just share a link and enjoy your favorite content with friends.
-				</p>
-				<div class="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start items-center">
-					<a 
-						href={getDownloadLink()} 
-						class="cta-button text-lg px-8 py-4 shadow-xl shadow-purple-900/20"
-						onmouseenter={() => isHovered = true}
-						onmouseleave={() => isHovered = false}
-					>
-						Get the extension now!
-					</a>
-					<p class="text-white/60 text-sm font-medium">
-						Free & open source forever.
-					</p>
-				</div>
-			</div>
-
-			<!-- Jellyfish -->
-			<div class="flex justify-center order-1 lg:order-2">
-				<div 
-					class="w-72 h-72 md:w-96 md:h-96 drop-shadow-[0_0_50px_rgba(255,255,255,0.3)] transition-all duration-300"
-					class:animate-float={!isHovered}
-					class:animate-excited={isHovered}
-				>
-					<Jellyfish />
-				</div>
-			</div>
+<section class="min-h-[calc(100svh-5rem)] flex items-center bg-gradient-to-br from-jelly-coral to-jelly-pink pb-12 pt-26 text-center">
+	<div class="jp-container flex flex-col items-center">
+		<img class="jp-logo h-28 w-28 sm:h-32 sm:w-32" src="/favicon.ico" alt="" width="128" height="128" />
+		<h1 class="mb-0 mt-5 text-5xl leading-none font-850 tracking-normal text-white sm:text-7xl">Jelly Party</h1>
+		<p class="mb-0 mt-5 max-w-2xl text-xl leading-8 font-650 text-white sm:text-2xl">
+			Watch videos with friends, in sync.
+		</p>
+		<p class="mb-0 mt-3 max-w-xl text-base leading-7 text-white/85 sm:text-lg">
+			Open Jelly Party beside any accessible HTML video, start a temporary party, and share one link. No account or room setup.
+		</p>
+		<div class="mt-8 flex w-full max-w-md flex-col justify-center gap-3 sm:w-auto sm:max-w-none sm:flex-row">
+			<a href={getDownloadLink()} class="jp-button-primary bg-jelly-ink px-7 hover:bg-[#171b32]">Get the extension</a>
+			<a href="#how-it-works" class="jp-button-secondary border-white/45 px-7 hover:bg-white/15">See how it works</a>
 		</div>
+		<p class="mb-0 mt-5 text-sm font-650 text-white/75">Chrome, Firefox, and Edge · Free and open source</p>
 	</div>
-
-	<!-- Wave divider at bottom - blending into dark bg -->
-	<WaveDivider position="bottom" fillColor="#0a0a0a" />
 </section>

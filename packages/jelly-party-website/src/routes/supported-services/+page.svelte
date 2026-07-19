@@ -1,27 +1,30 @@
 <svelte:head>
-	<title>Video Compatibility - Jelly Party</title>
-	<meta name="description" content="How Jelly Party works with browser-based video players." />
+	<title>Video compatibility - Jelly Party</title>
+	<meta name="description" content="How Jelly Party works with browser-based HTML video players." />
 </svelte:head>
 
-<div class="pt-24 pb-16 bg-[#0a0a0a] min-h-screen">
-	<div class="container mx-auto px-4 max-w-3xl text-white">
-		<h1 class="text-3xl font-bold mb-8 text-center">Video compatibility</h1>
-		<div class="rounded-xl border border-white/10 bg-white/5 p-6 space-y-4 text-white/80">
-			<p>
-				Jelly Party synchronizes a standard HTML video that the browser extension can access. It
-				uses the browser's play, pause, and seek controls and does not bypass subscriptions,
-				paywalls, or digital-rights protections.
-			</p>
-			<p>
-				Compatibility varies as video sites change their players. Jelly Party 2.0 is currently
-				validated against a local standards-based video fixture; specific streaming services are
-				not yet guaranteed.
-			</p>
-			<p>
-				If a site does not work, please
-				<a href="mailto:hi@jelly-party.com" class="text-jelly-pink hover:text-white underline">tell us</a>
-				which page and browser you used.
-			</p>
+<section class="min-h-[calc(100svh-4.5rem)] bg-jelly-ink pb-20 pt-30">
+	<div class="jp-container max-w-3xl">
+		<p class="jp-kicker m-0">Compatibility</p>
+		<h1 class="mb-0 mt-3 text-4xl leading-tight font-800 tracking-normal text-white sm:text-5xl">Works with accessible HTML video</h1>
+		<p class="mb-0 mt-5 text-lg leading-8 text-slate-300">Jelly Party finds a standard video player on the active page and shares play, pause, and seek actions with the party.</p>
+
+		<div class="mt-12 space-y-10">
+			<section>
+				<h2 class="m-0 text-xl font-750 text-white">What that means</h2>
+				<p class="mb-0 mt-3 leading-7 text-slate-400">It can work on many sites that expose their player as ordinary HTML video. Compatibility can change when a site changes its player, and Jelly Party does not claim guaranteed support for named streaming services.</p>
+			</section>
+
+			<section>
+				<h2 class="m-0 text-xl font-750 text-white">What it does not do</h2>
+				<p class="mb-0 mt-3 leading-7 text-slate-400">Jelly Party does not bypass subscriptions, paywalls, digital-rights protections, or a site’s own access rules. Everyone still needs legitimate access to the video they are watching.</p>
+			</section>
+
+			<section class="jp-panel p-6">
+				<h2 class="m-0 text-xl font-750 text-white">Found a page that does not work?</h2>
+				<p class="mb-0 mt-3 leading-7 text-slate-400">Tell us which page and browser you used. Real reports help us decide where site-specific work is worthwhile.</p>
+				<a href="mailto:hi@jelly-party.com" class="jp-link mt-5 inline-block">hi@jelly-party.com</a>
+			</section>
 		</div>
 	</div>
-</div>
+</section>

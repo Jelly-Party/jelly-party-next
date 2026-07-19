@@ -218,9 +218,9 @@
 
 <svelte:head><title>Jelly Party</title></svelte:head>
 
-<main class="h-screen min-h-0 flex flex-col gap-4 overflow-y-auto p-4 text-slate-100" data-testid="sidebar">
+<main class="h-screen min-h-0 flex flex-col gap-4 overflow-y-auto bg-jelly-ink p-4 text-slate-100" data-testid="sidebar">
   <header class="flex items-center gap-3">
-    <div class="logo" aria-hidden="true">🪼</div>
+    <img class="jp-logo h-11 w-11" src="/128x128.png" alt="" width="128" height="128" />
     <div class="min-w-0">
       <h1 class="m-0 text-xl font-700">Jelly Party</h1>
       <p class="m-0 truncate text-sm text-slate-400">
@@ -230,43 +230,43 @@
   </header>
 
   {#if loading}
-    <section class="card" aria-live="polite">Finding your video…</section>
+    <section class="jp-panel p-4" aria-live="polite">Finding your video…</section>
   {:else if view.mode === "setup"}
-    <section class="card flex flex-col gap-3" data-testid="setup-view">
+    <section class="jp-panel flex flex-col gap-3 p-4" data-testid="setup-view">
       <div>
         <h2 class="section-title">Start watching together</h2>
         <p class="m-0 mt-1 text-sm leading-5 text-slate-400">Choose how friends will see you in the party.</p>
       </div>
-      <label>Display name <input bind:value={identity.name} maxlength="40" data-testid="name-input" /></label>
-      <label>Emoji <input bind:value={identity.emoji} maxlength="16" data-testid="emoji-input" /></label>
+      <label>Display name <input class="jp-field mt-1" bind:value={identity.name} maxlength="40" data-testid="name-input" /></label>
+      <label>Emoji <input class="jp-field mt-1" bind:value={identity.emoji} maxlength="16" data-testid="emoji-input" /></label>
       <div class:ok={hasVideo} class="video-state" data-testid="video-state">
         {hasVideo ? "Video ready" : "No video found in this tab"}
       </div>
       <p class="m-0 truncate text-sm text-slate-400" title={tabTitle}>{tabTitle || "No supported tab"}</p>
       <button
-        class="primary"
+        class="jp-button-primary"
         on:click={createParty}
         disabled={!viewTabId || !hasVideo || !identity.name.trim()}
         data-testid="create-party"
       >
         Start party
       </button>
-      {#if notice}<p class="notice" role="alert">{notice}</p>{/if}
+      {#if notice}<p class="jp-notice m-0" role="alert">{notice}</p>{/if}
     </section>
   {:else if view.mode === "away"}
-    <section class="card mt-2 flex flex-col gap-4 text-center" data-testid="away-view">
+    <section class="jp-panel mt-2 flex flex-col gap-4 p-4 text-center" data-testid="away-view">
       <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-500/20 text-violet-300" aria-hidden="true">▶</div>
       <div>
         <h2 class="m-0 text-lg">Your party is still active</h2>
         <p class="m-0 mt-1 truncate text-sm leading-5 text-slate-400" title={view.party.tabTitle}>{view.party.tabTitle}</p>
         <p class="m-0 text-sm text-slate-400">Return to the video and party chat.</p>
       </div>
-      <button class="primary" on:click={returnToParty} data-testid="return-to-party">Return to party</button>
-      <button class="text-rose-300 hover:bg-rose-500/10" on:click={leaveParty} data-testid="leave-party">Leave party</button>
-      {#if notice}<p class="notice" role="alert">{notice}</p>{/if}
+      <button class="jp-button-primary" on:click={returnToParty} data-testid="return-to-party">Return to party</button>
+      <button class="jp-button-danger" on:click={leaveParty} data-testid="leave-party">Leave party</button>
+      {#if notice}<p class="jp-notice m-0" role="alert">{notice}</p>{/if}
     </section>
   {:else}
-    <section class="card flex items-start justify-between gap-3">
+    <section class="jp-panel flex items-start justify-between gap-3 p-4">
       <div class="min-w-0">
         <div class="mb-1 text-xs font-700 tracking-widest text-indigo-300 uppercase">Watching together</div>
         <h2 class="m-0 truncate text-base leading-5" title={view.party.tabTitle}>{view.party.tabTitle}</h2>
@@ -275,16 +275,16 @@
           {connectionLabel(view.party.status)} · {view.party.peers.length} {view.party.peers.length === 1 ? "person" : "people"}
         </div>
       </div>
-      <button class="text-rose-300 hover:bg-rose-500/10" on:click={leaveParty} data-testid="leave-party">Leave</button>
+      <button class="jp-button-danger min-h-9 px-3 py-1.5" on:click={leaveParty} data-testid="leave-party">Leave</button>
     </section>
 
-    <section class="card flex flex-col gap-3">
+    <section class="jp-panel flex flex-col gap-3 p-4">
       <div>
         <h2 class="section-title">Invite friends</h2>
         <p class="m-0 mt-1 text-sm leading-5 text-slate-400">One link opens this video and joins the party.</p>
       </div>
       <span class="sr-only" data-testid="invite-link">{inviteLink}</span>
-      <button class="primary" on:click={copyInvite} data-testid="copy-invite">
+      <button class="jp-button-primary" on:click={copyInvite} data-testid="copy-invite">
         {copied ? "Invite copied!" : "Copy invite link"}
       </button>
       <ul class="peer-list" aria-label="People in this party" data-testid="peer-list">
@@ -294,7 +294,7 @@
       </ul>
     </section>
 
-    <section class="card min-h-0 flex flex-1 flex-col gap-3 overflow-hidden">
+    <section class="jp-panel min-h-0 flex flex-1 flex-col gap-3 overflow-hidden p-4">
       <h2 class="section-title">Chat</h2>
       <div class="relative min-h-0 flex-1">
         <div
@@ -327,22 +327,22 @@
         <label class="sr-only" for="message">Message</label>
         <input
           id="message"
-          class="min-w-0 flex-1"
+          class="jp-field min-w-0 flex-1"
           bind:value={message}
           maxlength={MAX_CHAT_LENGTH}
           placeholder="Message the party"
           data-testid="chat-input"
         />
-        <button class="primary" type="submit" disabled={!message.trim()} data-testid="send-chat">Send</button>
+        <button class="jp-button-primary px-4" type="submit" disabled={!message.trim()} data-testid="send-chat">Send</button>
       </form>
       {#if view.party.status === "disconnected"}
-        <div class="notice flex items-center justify-between gap-3" role="alert">
+        <div class="jp-notice flex items-center justify-between gap-3" role="alert">
           <span>Connection lost. Your party is still here.</span>
-          <button on:click={retry} data-testid="retry">Retry</button>
+          <button class="jp-button-secondary min-h-9 px-3 py-1.5" on:click={retry} data-testid="retry">Retry</button>
         </div>
       {/if}
-      {#if !view.party.hasVideo}<p class="notice" role="alert">The video is unavailable. Return to the page or reload it.</p>{/if}
-      {#if view.party.notice}<p class="notice" role="alert">{view.party.notice}</p>{/if}
+      {#if !view.party.hasVideo}<p class="jp-notice m-0" role="alert">The video is unavailable. Return to the page or reload it.</p>{/if}
+      {#if view.party.notice}<p class="jp-notice m-0" role="alert">{view.party.notice}</p>{/if}
     </section>
   {/if}
 </main>

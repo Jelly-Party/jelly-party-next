@@ -7,8 +7,7 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  color: #f8fafc;
-  background: #f27b91;
+  background: #ff9494;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -24,127 +23,6 @@ body {
   min-height: 100%;
 }
 
-body {
-  display: grid;
-  min-height: 100svh;
-  place-items: center;
-  overflow-x: hidden;
-  padding: 1.25rem;
-  background: linear-gradient(145deg, #ff9494, #ee64f6);
-}
-
 button {
   font: inherit;
-}
-
-.join-panel {
-  width: min(100%, 27rem);
-  padding: clamp(1.75rem, 7vw, 2.75rem);
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 0.5rem;
-  background: #0b1020;
-  box-shadow: 0 1.5rem 4rem rgb(47 15 57 / 35%);
-  text-align: center;
-}
-
-.logo {
-  display: block;
-  width: 5.5rem;
-  height: 5.5rem;
-  margin: 0 auto 0.75rem;
-}
-
-.brand {
-  margin: 0 0 1.5rem;
-  color: #fda4af;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 0;
-  color: #fff;
-  font-size: clamp(1.75rem, 7vw, 2.25rem);
-  line-height: 1.12;
-  letter-spacing: 0;
-}
-
-.description {
-  margin: 1rem 0 1.5rem;
-  color: #cbd5e1;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.join-button {
-  width: 100%;
-  min-height: 3rem;
-  padding: 0.75rem 1rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: #9164ff;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 750;
-  transition:
-    background-color 160ms ease,
-    transform 160ms ease;
-}
-
-.join-button:hover:not(:disabled) {
-  background: #7c4fe6;
-  transform: translateY(-1px);
-}
-
-.join-button:focus-visible,
-.install:focus-visible {
-  outline: 3px solid #8bfff4;
-  outline-offset: 3px;
-}
-
-.join-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.status {
-  min-height: 1.25rem;
-  margin: 1rem 0 0;
-  color: #fde68a;
-  font-size: 0.85rem;
-  line-height: 1.45;
-}
-
-.install {
-  display: inline-block;
-  margin-top: 0.5rem;
-  color: #8bfff4;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.hidden {
-  display: none;
-}
-
-@media (max-height: 35rem) {
-  body {
-    place-items: start center;
-  }
-
-  .join-panel {
-    padding-block: 1.5rem;
-  }
-
-  .logo {
-    width: 4rem;
-    height: 4rem;
-  }
-
-  .brand {
-    margin-bottom: 1rem;
-  }
 }

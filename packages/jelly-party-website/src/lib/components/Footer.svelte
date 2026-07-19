@@ -1,101 +1,29 @@
 <script lang="ts">
+import { getDownloadLink } from "$lib/download-link";
+
 const currentYear = new Date().getFullYear();
 </script>
 
-<footer class="bg-[#050505] text-white py-16 border-t border-white/5">
-	<div class="container mx-auto px-4">
-		<!-- Main footer content -->
-		<div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
-			<!-- Extensions -->
-			<div class="text-center md:text-left">
-				<h3 class="font-bold mb-6 text-white text-lg">Get the Extension</h3>
-				<ul class="space-y-4">
-					<li>
-						<a 
-							href={__JELLY_CHROME_STORE_URL__}
-							class="text-white/60 hover:text-jelly-purple transition-colors flex items-center justify-center md:justify-start gap-2"
-						>
-							<span class="w-2 h-2 rounded-full bg-jelly-purple"></span>
-							Chrome
-						</a>
-					</li>
-					<li>
-						<a
-							href={__JELLY_EDGE_STORE_URL__}
-							class="text-white/60 hover:text-jelly-purple transition-colors flex items-center justify-center md:justify-start gap-2"
-						>
-							<span class="w-2 h-2 rounded-full bg-jelly-purple"></span>
-							Edge
-						</a>
-					</li>
-					<li>
-						<a 
-							href={__JELLY_FIREFOX_STORE_URL__}
-							class="text-white/60 hover:text-jelly-orange transition-colors flex items-center justify-center md:justify-start gap-2"
-						>
-							<span class="w-2 h-2 rounded-full bg-jelly-orange"></span>
-							Firefox
-						</a>
-					</li>
-				</ul>
-			</div>
-
-			<!-- Links -->
-			<div class="text-center">
-				<h3 class="font-bold mb-6 text-white text-lg">Links</h3>
-				<ul class="space-y-4">
-					<li>
-						<a href="/privacy-policy" class="text-white/60 hover:text-white transition-colors">
-							Privacy Policy
-						</a>
-					</li>
-					<li>
-						<a href="/supported-services" class="text-white/60 hover:text-white transition-colors">
-							Supported Services
-						</a>
-					</li>
-					<li>
-						<a 
-							href={__JELLY_REPOSITORY_URL__}
-							class="text-white/60 hover:text-white transition-colors"
-							target="_blank"
-							rel="noopener noreferrer"
-						>
-							GitHub
-						</a>
-					</li>
-				</ul>
-			</div>
-
-			<!-- Feedback -->
-			<div class="text-center md:text-right">
-				<h3 class="font-bold mb-6 text-white text-lg">Feedback</h3>
-				<p class="text-white/60 mb-4 text-sm leading-relaxed">
-					Have questions or suggestions? <br/>
-					We'd love to hear from you.
-				</p>
-				<a 
-					href="mailto:hi@jelly-party.com"
-					class="text-jelly-pink hover:text-white transition-colors font-medium inline-block border border-jelly-pink/30 px-6 py-2 rounded-full hover:bg-jelly-pink hover:border-transparent"
-				>
-					hi@jelly-party.com
+<footer class="border-t border-white/10 bg-jelly-ink py-12 text-slate-300">
+	<div class="jp-container flex flex-col gap-10">
+		<div class="flex flex-col justify-between gap-8 md:flex-row md:items-start">
+			<div class="max-w-sm">
+				<a href="/" class="jp-brand">
+					<img class="jp-logo h-11 w-11" src="/favicon.ico" alt="" width="128" height="128" />
+					<span class="text-xl font-800">Jelly Party</span>
 				</a>
+				<p class="mb-0 mt-4 text-sm leading-6 text-slate-400">Temporary watch parties with text chat and synchronized HTML video playback. No accounts, ads, or tracking analytics.</p>
 			</div>
+
+			<nav class="grid grid-cols-2 gap-x-10 gap-y-3 text-sm" aria-label="Footer navigation">
+				<a class="text-slate-300 no-underline hover:text-white" href={getDownloadLink()}>Install</a>
+				<a class="text-slate-300 no-underline hover:text-white" href="/supported-services">Compatibility</a>
+				<a class="text-slate-300 no-underline hover:text-white" href="/privacy-policy">Privacy</a>
+				<a class="text-slate-300 no-underline hover:text-white" href={__JELLY_REPOSITORY_URL__} target="_blank" rel="noopener noreferrer">GitHub</a>
+				<a class="text-slate-300 no-underline hover:text-white" href="mailto:hi@jelly-party.com">Email us</a>
+			</nav>
 		</div>
 
-		<!-- Divider -->
-		<div class="border-t border-white/5 pt-8">
-			<p class="text-center text-white/40 text-sm">
-				&copy; {currentYear} Jelly Party. Free &amp; 
-				<a 
-					href={__JELLY_REPOSITORY_URL__}
-					class="text-white/60 hover:text-white transition-colors underline decoration-white/20 hover:decoration-white"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					open source
-				</a>.
-			</p>
-		</div>
+		<p class="m-0 border-t border-white/8 pt-6 text-xs text-slate-500">© {currentYear} Jelly Party. Free and open source.</p>
 	</div>
 </footer>

@@ -1,5 +1,4 @@
-/// <reference path="./vite-env.d.ts" />
-
+import type {} from "./vite-env.d.ts";
 import "virtual:uno.css";
 import "./style.css";
 import { parseMagicLink } from "jelly-party-lib";

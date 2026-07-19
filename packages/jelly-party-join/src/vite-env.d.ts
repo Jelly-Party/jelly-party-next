@@ -1,3 +1,7 @@
 /// <reference types="vite/client" />
 
-declare const __JELLY_WEBSITE_URL__: string;
+export {};
+
+declare global {
+  const __JELLY_WEBSITE_URL__: string;
+}
