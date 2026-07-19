@@ -45,8 +45,19 @@ export default defineConfig(({ mode }) => {
       UnoCSS(),
       webExtension({
         manifest: () => createExtensionManifest(urls, { firefox: isFirefox, test: isTest }),
+        disableAutoLaunch: Boolean(process.env.CI),
         watchFilePaths: ["../../config/extension-manifest.ts", "../../config/urls.ts"],
         additionalInputs: ["src/sidebar/sidebar.html", "src/content/video.ts"],
+        transformManifest(manifest) {
+          if (mode === "development" && manifest.manifest_version === 3) {
+            // The dev server adds this permission after every input build. Remove its previous
+            // injection so multi-input extension rebuilds keep a valid, duplicate-free manifest.
+            manifest.host_permissions = manifest.host_permissions?.filter(
+              (permission: string) => permission !== "http://localhost/*",
+            );
+          }
+          return manifest;
+        },
       }),
     ]),
   };

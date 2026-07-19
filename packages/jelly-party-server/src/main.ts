@@ -2,12 +2,8 @@ import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { Hono } from "hono";
 import type { WSContext } from "hono/ws";
-import {
-  createLogger,
-  parseClientMessage,
-  type PeerIdentity,
-  type ServerMessage,
-} from "jelly-party-lib";
+import { parseClientMessage, type PeerIdentity, type ServerMessage } from "jelly-party-lib";
+import { createLogger } from "./logger.js";
 
 interface Connection {
   ws: WSContext;

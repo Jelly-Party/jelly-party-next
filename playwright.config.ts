@@ -37,7 +37,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
 
-  // Projects - only Chromium for now (extensions support)
+  // Playwright loads the Chromium extension; Firefox uses the separate Selenium acceptance task.
   projects: [
     {
       name: "chromium",
@@ -46,11 +46,6 @@ export default defineConfig({
         // Note: Context is configured in fixtures.ts for extension loading
       },
     },
-    // Firefox extension support would need different approach
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
   ],
 
   // Output directories

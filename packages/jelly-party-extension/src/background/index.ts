@@ -3,6 +3,8 @@ import {
   getRandomEmoji,
   isPlaybackAction,
   MAX_CHAT_LENGTH,
+  MAX_EMOJI_LENGTH,
+  MAX_NAME_LENGTH,
   parsePartyId,
   type PeerIdentity,
   type ServerMessage,
@@ -89,8 +91,8 @@ async function handleMessage(
     const current = await ensureIdentity();
     const identity: PeerIdentity = {
       id: current.id,
-      name: bounded(message.name, 40) ?? current.name,
-      emoji: bounded(message.emoji, 16) ?? current.emoji,
+      name: bounded(message.name, MAX_NAME_LENGTH) ?? current.name,
+      emoji: bounded(message.emoji, MAX_EMOJI_LENGTH) ?? current.emoji,
     };
     await chrome.storage.local.set({ identity });
     return identity;

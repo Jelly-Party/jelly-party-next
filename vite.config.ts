@@ -4,12 +4,10 @@ export default defineConfig({
   run: {
     tasks: {
       dev: {
-        command: "vp exec node .dev/dev.js",
-        cache: false,
-      },
-      "dev:all": {
-        command:
-          'vp run jelly-party-lib#build && mkdir -p .dev && vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" "vp run jelly-party-extension#dev" "vp run jelly-party-website#dev" --names "server,join,ext,web" --prefix-colors "blue,green,magenta,cyan" | tee .dev/dev.log',
+        command: [
+          "vp run jelly-party-lib#build",
+          'vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" "vp run jelly-party-extension#dev" "vp run jelly-party-website#dev" --names "server,join,ext,web" --prefix-colors "blue,green,magenta,cyan"',
+        ],
         cache: false,
       },
       "dev:services": {
@@ -89,10 +87,6 @@ export default defineConfig({
           "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
           "JELLY_E2E_HEADED=1 vp exec playwright test --headed",
         ],
-        cache: false,
-      },
-      stop: {
-        command: "vp exec node .dev/stop.js",
         cache: false,
       },
     },

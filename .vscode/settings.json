@@ -1,7 +1,0 @@
-{
-  "editor.formatOnSave": false,
-  "files.associations": {
-    "*.css": "tailwindcss"
-  },
-  "svelte.language-server.runtime": "node"
-}

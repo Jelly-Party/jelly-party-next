@@ -68,11 +68,12 @@ port. See `deploy/README.md` for the complete clone, start, update, and health-c
 vp check          # format, lint, and type-check
 vp test --run     # Vitest
 vp run test:e2e   # Playwright two-peer flow
+vp run test:e2e:firefox # Firefox loaded-extension acceptance flow
 vp run build:all  # all deployable and store artifacts
 ```
 
 The Chromium Playwright flow is the main acceptance test: it loads two real extension profiles,
 creates a party, joins through the shared link, exchanges chat, and synchronizes play, pause, and seek
-in both directions. Firefox uses the same application sources and receives manifest/build validation,
-but Playwright does not support Firefox WebExtension loading; see the release research in `.scratch`
-for the native manual gate. Add focused Vitest coverage only for logic that can fail independently.
+in both directions. Because Playwright cannot load Firefox WebExtensions, the Firefox task runs the
+same high-value flow against a native Firefox sidebar through Selenium. Add focused Vitest coverage
+only for logic that can fail independently.

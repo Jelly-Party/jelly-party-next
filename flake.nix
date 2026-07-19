@@ -29,6 +29,11 @@
 
             PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
             PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = true;
+            CHROME_PATH =
+              if pkgs.stdenv.isDarwin then
+                "${pkgs.playwright-driver.browsers}/chromium-1200/chrome-mac/Chromium.app/Contents/MacOS/Chromium"
+              else
+                "${pkgs.playwright-driver.browsers}/chromium-1200/chrome-linux/chrome";
             FIREFOX_BIN = "${pkgs.firefox}/bin/firefox";
             GECKODRIVER_BIN = "${pkgs.geckodriver}/bin/geckodriver";
           };
