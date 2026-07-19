@@ -23,7 +23,7 @@ const steps = [
 <section id="how-it-works" class="bg-jelly-coral py-20 text-jelly-ink sm:py-24">
 	<div class="jp-container">
 		<p class="m-0 text-xs font-850 tracking-widest uppercase">Three steps</p>
-		<h2 class="mb-0 mt-3 max-w-2xl text-3xl leading-tight font-850 tracking-normal sm:text-5xl">From video to party in one link</h2>
+		<h2 class="mb-0 mt-3 max-w-2xl text-3xl leading-tight font-850 tracking-[-0.02em] sm:text-5xl">From video to party in one link</h2>
 
 		<ol class="m-0 mt-12 grid list-none gap-10 p-0 md:grid-cols-3 md:gap-8">
 			{#each steps as step}
@@ -35,6 +35,9 @@ const steps = [
 			{/each}
 		</ol>
 
-		<a href={getDownloadLink()} class="jp-button mt-12 bg-jelly-ink px-7 text-white hover:bg-[#171b32]">Get Jelly Party</a>
+		<div class="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+			<a href={getDownloadLink()} class="jp-button bg-jelly-ink px-7 text-white hover:bg-[#171b32]">Get Jelly Party</a>
+			<p class="m-0 text-sm font-650 text-jelly-ink/65">Each person uses their own access to the video service.</p>
+		</div>
 	</div>
 </section>
