@@ -1,4 +1,7 @@
+/// <reference path="./vite-env.d.ts" />
+
 import "virtual:uno.css";
+import "./style.css";
 import { parseMagicLink } from "jelly-party-lib";
 
 const invite = parseMagicLink(window.location.href);

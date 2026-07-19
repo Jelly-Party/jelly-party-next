@@ -7,32 +7,15 @@
     <title>Join a Jelly Party</title>
     <script type="module" src="/src/main.ts"></script>
   </head>
-  <body class="min-h-screen grid place-items-center bg-slate-950 p-4 text-slate-100">
-    <main
-      class="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900/90 p-8 text-center shadow-2xl"
-    >
-      <div
-        class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 text-4xl"
-        aria-hidden="true"
-      >
-        🪼
-      </div>
-      <h1 class="m-0 text-2xl font-bold">You’re invited</h1>
-      <p id="description" class="my-4 text-slate-300">Checking your Jelly Party invite…</p>
-      <button
-        id="join"
-        class="w-full cursor-pointer rounded-xl border-0 bg-violet-500 px-5 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-        disabled
-      >
-        Open video and join
-      </button>
-      <p
-        id="status"
-        class="mt-4 min-h-6 text-sm text-amber-200"
-        role="status"
-        aria-live="polite"
-      ></p>
-      <a id="install" class="hidden text-cyan-300 underline" href="/">Install Jelly Party</a>
+  <body>
+    <main class="join-panel">
+      <img class="logo" src="/favicon.ico" alt="Jelly Party" width="128" height="128" />
+      <p class="brand">Jelly Party</p>
+      <h1>You’re invited to watch together</h1>
+      <p id="description" class="description">Checking your Jelly Party invite…</p>
+      <button id="join" class="join-button" disabled>Open video and join</button>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <a id="install" class="install hidden" href="/">Install Jelly Party</a>
     </main>
   </body>
 </html>
