@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "vp run jelly-party-lib#build && vp build",
+  "buildCommand": "$HOME/.vite-plus/bin/vp run jelly-party-lib#build && $HOME/.vite-plus/bin/vp build",
   "framework": null,
+  "installCommand": "curl -fsSL https://vite.plus | VP_NODE_MANAGER=no bash && $HOME/.vite-plus/bin/vp install --frozen-lockfile",
   "outputDirectory": "dist"
 }
