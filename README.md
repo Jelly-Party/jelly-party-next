@@ -12,7 +12,7 @@ Jelly Party is a browser extension and small WebSocket backend. Open the sidebar
 - Magic-link joining with optional per-site permissions
 - Ephemeral peer list and text chat
 - Bidirectional HTML video play, pause, and seek synchronization
-- New protocol and backend at `wss://v2.jelly-party.com`; no old-client compatibility
+- New protocol and backend at `wss://v2-ws.jelly-party.com`; no old-client compatibility
 
 The implementation contract is the [Jelly Party 2.0 specification](.scratch/jelly-party/spec.md).
 
@@ -59,7 +59,7 @@ explicit localhost HTTP/WS overrides.
 ## Server deployment
 
 `deploy/docker-compose.yml` builds and runs only the stateless WebSocket relay, bound to
-`127.0.0.1:8080`. The VPS-wide Caddy instance should proxy `v2.jelly-party.com` to that loopback
+`127.0.0.1:8080`. The VPS-wide Caddy instance should proxy `v2-ws.jelly-party.com` to that loopback
 port. See `deploy/README.md` for the complete clone, start, update, and health-check procedure.
 
 ## Quality loop

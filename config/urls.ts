@@ -10,8 +10,8 @@ export interface BuildUrls {
 
 export const DEFAULT_BUILD_URLS: BuildUrls = {
   website: "https://www.jelly-party.com",
-  join: "https://join.jelly-party.com",
-  websocket: "wss://v2.jelly-party.com",
+  join: "https://v2-join.jelly-party.com",
+  websocket: "wss://v2-ws.jelly-party.com",
   repository: "https://github.com/Jelly-Party/jelly-party-next",
   chromeStore:
     "https://chromewebstore.google.com/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd",

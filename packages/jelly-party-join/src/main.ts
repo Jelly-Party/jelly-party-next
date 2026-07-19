@@ -1,6 +1,3 @@
-// oxlint-disable-next-line typescript/triple-slash-reference -- Staged-file checks need the virtual CSS declaration in scope.
-/// <reference path="./vite-env.d.ts" />
-
 import "virtual:uno.css";
 import { parseMagicLink } from "jelly-party-lib";
 

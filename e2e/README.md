@@ -34,7 +34,7 @@ vp run test:e2e        # Runs headless
 ## What is Tested
 
 - **Party Creation**: Creating a party from the extension sidebar.
-- **Magic Links**: Joining a party via the `join.jelly-party.com` (local) magic link flow.
+- **Magic Links**: Joining a party through the locally configured invitation flow.
 - **Auto-Join**: Automatic redirection and joining in an already-open sidebar.
 - **Chat**: Real-time chat messaging between peers.
 - **Video Selection**: Choosing the largest video across the top page and child frames.

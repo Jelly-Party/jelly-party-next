@@ -28,7 +28,7 @@ restarting it disconnects active parties.
 Add this route to the VPS-wide Caddy configuration; do not run a second Caddy container here:
 
 ```caddyfile
-v2.jelly-party.com {
+v2-ws.jelly-party.com {
 	reverse_proxy 127.0.0.1:8080
 }
 ```
@@ -37,7 +37,7 @@ Caddy forwards WebSocket upgrades automatically. After DNS points at the VPS and
 verify both endpoints:
 
 ```bash
-curl https://v2.jelly-party.com/health
+curl https://v2-ws.jelly-party.com/health
 ```
 
 Then run the two-peer extension smoke test against the production WebSocket before store submission.

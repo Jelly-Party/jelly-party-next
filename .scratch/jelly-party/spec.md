@@ -8,7 +8,7 @@ Jelly Party already has the right product: open the extension on a video, create
 
 ## Solution
 
-Rebuild the existing Jelly Party flow as a small TypeScript monorepo. Keep the familiar create, share, join, chat, play, pause, seek, and leave behavior. Move the extension UI from an injected iframe into the browser sidebar/side panel, keep page integration limited to finding and controlling the video, and connect only to the new backend at `wss://v2.jelly-party.com`.
+Rebuild the existing Jelly Party flow as a small TypeScript monorepo. Keep the familiar create, share, join, chat, play, pause, seek, and leave behavior. Move the extension UI from an injected iframe into the browser sidebar/side panel, keep page integration limited to finding and controlling the video, and connect only to the new backend configured in `config/urls.ts` (`wss://v2-ws.jelly-party.com` by default).
 
 Use Vite+ for the complete development loop, UnoCSS for the design, Playwright for the real two-peer flow, and Vitest only for logic that benefits from focused tests. Publish the result as in-place updates to the existing Chrome, Firefox, and Edge listings.
 
@@ -43,7 +43,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 - Keep the old, understandable event-shaped playback behavior. Synchronize finite videos with `timeFromEnd`, suppress echoes, tolerate small drift, and add site-specific handling only after a real site proves it necessary.
 - A party has a capability-style random ID, a set of connected peers, ephemeral chat, and no persistence. A peer has a generated ID, display name, and emoji. There are no avatars or avatar assets.
 - Magic links contain the party ID and destination video URL. The join site detects the extension, requests optional access to the destination origin from a user click when needed, navigates to the video, and hands the party ID to the extension. If a browser cannot open its sidebar automatically, the page tells the peer to click the toolbar action once.
-- Production clients connect only to `wss://v2.jelly-party.com`. The protocol may be changed freely; there is no compatibility code for the old backend or extension.
+- Production clients connect only to the secure WebSocket endpoint configured in `config/urls.ts` (`wss://v2-ws.jelly-party.com` by default). The protocol may be changed freely; there is no compatibility code for the old backend or extension.
 - The backend remains a small in-memory WebSocket relay. It validates incoming message shapes and sensible size limits, broadcasts party/chat/playback messages, and exposes a basic health endpoint. No database is required.
 - Build two extension variants from shared source: Chromium and Firefox. Produce three deterministic store archives: Chrome and Edge may use the same Chromium archive; Firefox gets its manifest/sidebar differences and source-review material. Preserve the existing store identities and publish Jelly Party 2.0 over the old listings.
 - The interface should feel intentional and compact, but design work must not grow the architecture. UnoCSS owns styling; accessible HTML, keyboard behavior, useful empty/error states, and a responsive sidebar are enough.

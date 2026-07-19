@@ -7,7 +7,7 @@ Jelly Party is a deliberately small browser extension: create a temporary watch 
 - Be pragmatic. Do not introduce frameworks, abstraction layers, compatibility systems, or infrastructure unless the spec requires them now.
 - Preserve user-visible behavior from the old extension, not its internal architecture.
 - The extension UI belongs in Chrome/Edge side panels and the Firefox sidebar. Page scripts only find/control video and communicate through extension runtime messaging.
-- Production uses `wss://v2.jelly-party.com` only. Do not implement compatibility with the old extension or backend.
+- Production uses the endpoints resolved from `config/urls.ts` (`wss://v2-ws.jelly-party.com` by default). Do not implement compatibility with the old extension or backend.
 - A peer has a display name and emoji. Do not add avatars.
 - Use TypeScript, Svelte, and UnoCSS. Prefer browser APIs and small local modules over dependencies.
 
