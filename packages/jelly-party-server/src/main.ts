@@ -1,143 +1,229 @@
-import { serve } from "@hono/node-server";
-import { createNodeWebSocket } from "@hono/node-ws";
-import { Hono } from "hono";
-import type { WSContext } from "hono/ws";
-import { parseClientMessage, type PeerIdentity, type ServerMessage } from "jelly-party-lib";
-import { createLogger } from "./logger.js";
+import {
+  HISTORY_PAGE_SIZE,
+  parseClientMessage,
+  parsePartyId,
+  type ChatEntry,
+  type ChatHistoryPage,
+  type PeerIdentity,
+  type ServerMessage,
+} from "jelly-party-lib";
 
-interface Connection {
-  ws: WSContext;
-  partyId?: string;
-  peer?: PeerIdentity;
+interface Env {
+  PARTY: DurableObjectNamespace;
 }
 
-const log = createLogger("server");
-const parties = new Map<string, Set<Connection>>();
-const app = new Hono();
-const nodeWebSocket = createNodeWebSocket({ app });
+const HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+const SCHEMA_VERSION = 1;
 
-app.get("/health", (context) =>
-  context.json({ status: "ok", parties: parties.size, version: "2.0.0" }),
-);
+interface ChatRow extends Record<string, string | number> {
+  id: number;
+  peerId: string;
+  peerName: string;
+  peerEmoji: string;
+  text: string;
+  sentAt: number;
+}
 
-app.get(
-  "/",
-  nodeWebSocket.upgradeWebSocket(() => {
-    const connection: Connection = { ws: null as unknown as WSContext };
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (request.method === "GET" && url.pathname === "/health") {
+      return Response.json({ status: "ok", version: "2.0.0" });
+    }
 
+    const partyId = /^\/party\/([^/]+)$/.exec(url.pathname)?.[1];
+    if (!partyId || !parsePartyId(partyId)) return new Response("Not found", { status: 404 });
+    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+      return new Response("WebSocket upgrade required", { status: 426 });
+    }
+    return env.PARTY.get(env.PARTY.idFromName(partyId)).fetch(request);
+  },
+};
+
+export class Party implements DurableObject {
+  constructor(
+    private readonly ctx: DurableObjectState,
+    _env: Env,
+  ) {
+    void this.ctx.blockConcurrencyWhile(async () => this.migrate());
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+      return new Response("WebSocket upgrade required", { status: 426 });
+    }
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+    this.ctx.acceptWebSocket(server);
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): Promise<void> {
+    const parsed = parseClientMessage(
+      typeof raw === "string" ? raw : new TextDecoder().decode(raw),
+    );
+    if (!parsed.ok)
+      return this.send(socket, { type: "error", code: "invalid-message", message: parsed.error });
+
+    const message = parsed.value;
+    const peer = this.peer(socket);
+    if (message.type === "join") {
+      if (peer)
+        return this.send(socket, {
+          type: "error",
+          code: "invalid-message",
+          message: "Already joined",
+        });
+      socket.serializeAttachment(message.peer);
+      await this.ctx.storage.deleteAlarm();
+      this.send(socket, {
+        type: "welcome",
+        peerId: message.peer.id,
+        history: this.history(),
+      });
+      this.broadcastPresence();
+      return;
+    }
+    if (!peer) {
+      return this.send(socket, {
+        type: "error",
+        code: "join-required",
+        message: "Join a party before sending messages",
+      });
+    }
+    if (message.type === "history")
+      return this.send(socket, { type: "history", history: this.history(message.beforeId) });
+    if (message.type === "chat") {
+      const entry = this.saveChat(peer, message.text);
+      this.broadcast({ type: "chat", entry });
+      return;
+    }
+    this.broadcast(
+      {
+        type: "playback",
+        peerId: peer.id,
+        action: message.action,
+        timeFromEnd: message.timeFromEnd,
+      },
+      socket,
+    );
+  }
+
+  async webSocketClose(socket: WebSocket): Promise<void> {
+    if (!this.peer(socket)) return;
+    this.broadcastPresence();
+    if (this.peers().length === 0)
+      await this.ctx.storage.setAlarm(Date.now() + HISTORY_RETENTION_MS);
+  }
+
+  async alarm(): Promise<void> {
+    if (this.peers().length === 0) await this.ctx.storage.deleteAll();
+  }
+
+  private saveChat(peer: PeerIdentity, text: string): ChatEntry {
+    const entry = this.ctx.storage.sql
+      .exec<ChatRow>(
+        `INSERT INTO chat (peer_id, peer_name, peer_emoji, text, sent_at)
+         VALUES (?, ?, ?, ?, ?)
+         RETURNING id, peer_id AS peerId, peer_name AS peerName, peer_emoji AS peerEmoji, text,
+                   sent_at AS sentAt`,
+        peer.id,
+        peer.name,
+        peer.emoji,
+        text,
+        Date.now(),
+      )
+      .one();
+    return toChatEntry(entry);
+  }
+
+  private history(beforeId = Number.MAX_SAFE_INTEGER): ChatHistoryPage {
+    const entries = this.ctx.storage.sql
+      .exec<ChatRow>(
+        `SELECT id, peer_id AS peerId, peer_name AS peerName, peer_emoji AS peerEmoji, text,
+                sent_at AS sentAt
+         FROM chat
+         WHERE id < ?
+         ORDER BY id DESC
+         LIMIT ?`,
+        beforeId,
+        HISTORY_PAGE_SIZE + 1,
+      )
+      .toArray();
     return {
-      onOpen(_event, ws) {
-        connection.ws = ws;
-      },
-      onMessage(event) {
-        const raw =
-          typeof event.data === "string"
-            ? event.data
-            : event.data instanceof ArrayBuffer
-              ? new TextDecoder().decode(event.data)
-              : "";
-        const parsed = parseClientMessage(raw);
-        if (!parsed.ok) {
-          send(connection, {
-            type: "error",
-            code: "invalid-message",
-            message: parsed.error,
-          });
-          return;
-        }
-
-        const message = parsed.value;
-        if (message.type === "ping") {
-          send(connection, { type: "pong" });
-          return;
-        }
-        if (message.type === "join") {
-          leave(connection);
-          connection.partyId = message.partyId;
-          connection.peer = message.peer;
-          const party = parties.get(message.partyId) ?? new Set<Connection>();
-          party.add(connection);
-          parties.set(message.partyId, party);
-          send(connection, { type: "welcome", peerId: message.peer.id });
-          broadcastPresence(message.partyId);
-          return;
-        }
-
-        if (!connection.partyId || !connection.peer) {
-          send(connection, {
-            type: "error",
-            code: "join-required",
-            message: "Join a party before sending messages",
-          });
-          return;
-        }
-
-        if (message.type === "chat") {
-          broadcast(connection.partyId, {
-            type: "chat",
-            peer: connection.peer,
-            text: message.text,
-            sentAt: Date.now(),
-          });
-          return;
-        }
-
-        broadcast(
-          connection.partyId,
-          {
-            type: "playback",
-            peerId: connection.peer.id,
-            action: message.action,
-            timeFromEnd: message.timeFromEnd,
-          },
-          connection,
-        );
-      },
-      onClose() {
-        leave(connection);
-      },
-      onError() {
-        log.warn("WebSocket connection failed");
-        leave(connection);
-      },
+      entries: entries.slice(0, HISTORY_PAGE_SIZE).reverse().map(toChatEntry),
+      hasMore: entries.length > HISTORY_PAGE_SIZE,
     };
-  }),
-);
+  }
 
-function leave(connection: Connection): void {
-  const partyId = connection.partyId;
-  if (!partyId) return;
-  const party = parties.get(partyId);
-  party?.delete(connection);
-  connection.partyId = undefined;
-  connection.peer = undefined;
-  if (!party || party.size === 0) parties.delete(partyId);
-  else broadcastPresence(partyId);
-}
+  private migrate(): void {
+    this.ctx.storage.sql.exec(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY CHECK (version > 0)
+      )
+    `);
+    const { version } = this.ctx.storage.sql
+      .exec<{ version: number }>(
+        "SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations",
+      )
+      .one();
+    if (version > SCHEMA_VERSION) throw new Error("Party storage uses a newer schema version");
+    if (version === 0) {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE chat (
+          id INTEGER PRIMARY KEY,
+          peer_id TEXT NOT NULL,
+          peer_name TEXT NOT NULL,
+          peer_emoji TEXT NOT NULL,
+          text TEXT NOT NULL,
+          sent_at INTEGER NOT NULL
+        );
+        INSERT INTO schema_migrations (version) VALUES (1);
+      `);
+    }
+  }
 
-function broadcastPresence(partyId: string): void {
-  const peers = [...(parties.get(partyId) ?? [])]
-    .map((connection) => connection.peer)
-    .filter((peer): peer is PeerIdentity => Boolean(peer));
-  broadcast(partyId, { type: "presence", peers });
-}
+  private peers(): PeerIdentity[] {
+    return this.ctx.getWebSockets().flatMap((socket) => {
+      const peer = this.peer(socket);
+      return peer && socket.readyState === WebSocket.OPEN ? [peer] : [];
+    });
+  }
 
-function broadcast(partyId: string, message: ServerMessage, exclude?: Connection): void {
-  for (const connection of parties.get(partyId) ?? []) {
-    if (connection !== exclude) send(connection, message);
+  private peer(socket: WebSocket): PeerIdentity | null {
+    const value = socket.deserializeAttachment();
+    return isPeer(value) ? value : null;
+  }
+
+  private broadcastPresence(): void {
+    this.broadcast({ type: "presence", peers: this.peers() });
+  }
+
+  private broadcast(message: ServerMessage, exclude?: WebSocket): void {
+    for (const socket of this.ctx.getWebSockets())
+      if (socket !== exclude) this.send(socket, message);
+  }
+
+  private send(socket: WebSocket, message: ServerMessage): void {
+    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
   }
 }
 
-function send(connection: Connection, message: ServerMessage): void {
-  try {
-    connection.ws.send(JSON.stringify(message));
-  } catch (error) {
-    log.warn("Could not send WebSocket message", { error: String(error) });
-  }
+function toChatEntry(row: ChatRow): ChatEntry {
+  return {
+    id: row.id,
+    peer: { id: row.peerId, name: row.peerName, emoji: row.peerEmoji },
+    text: row.text,
+    sentAt: row.sentAt,
+  };
 }
 
-const port = Number.parseInt(process.env.PORT ?? "8080", 10);
-const server = serve({ fetch: app.fetch, port }, (info) => {
-  log.info("Jelly Party 2.0 listening", { port: info.port });
-});
-nodeWebSocket.injectWebSocket(server);
+function isPeer(value: unknown): value is PeerIdentity {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "name" in value &&
+    "emoji" in value
+  );
+}

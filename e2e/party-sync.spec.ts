@@ -33,6 +33,9 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     const invite = (await sidebarA.getByTestId("invite-link").textContent()) ?? "";
     expect(invite).toContain("party=");
     expect(invite).toContain(encodeURIComponent(videoUrl));
+    await sidebarA.getByTestId("chat-input").fill("Mira got here first.");
+    await sidebarA.getByTestId("send-chat").click();
+    await expect(sidebarA.getByTestId("messages")).toContainText("Mira got here first.");
 
     const joinPage = await peerB.context.newPage();
     await joinPage.goto(invite);
@@ -44,6 +47,7 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await expect(joinPage.locator("video")).toHaveJSProperty("readyState", 4);
 
     await expect(sidebarB.getByTestId("connection-status")).toContainText("Connected");
+    await expect(sidebarB.getByTestId("messages")).toContainText("Mira got here first.");
     await expect(sidebarA.getByTestId("peer")).toHaveCount(2);
     await expect(sidebarB.getByTestId("peer")).toHaveCount(2);
 
@@ -60,7 +64,7 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     for (let index = 1; index <= 16; index += 1) {
       await sendChat(sidebarB, `Scroll check ${index}: keeping the conversation moving.`);
     }
-    await expect(sidebarA.getByTestId("chat-message")).toHaveCount(17);
+    await expect(sidebarA.getByTestId("chat-message")).toHaveCount(18);
     await expect.poll(() => chatDistanceFromBottom(sidebarA)).toBeLessThanOrEqual(1);
 
     await sidebarA.getByTestId("messages").evaluate((element) => {

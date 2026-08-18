@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jelly-party-relay-staging",
+  "main": "packages/jelly-party-server/src/main.ts",
+  "compatibility_date": "2026-08-18",
+  "workers_dev": true,
+  "preview_urls": false,
+  "durable_objects": {
+    "bindings": [{ "name": "PARTY", "class_name": "Party" }],
+  },
+  "exports": {
+    "Party": { "type": "durable-object", "storage": "sqlite" },
+  },
+}

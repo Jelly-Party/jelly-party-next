@@ -6,7 +6,10 @@ export {
 export { buildMagicLink, parseMagicLink, type MagicLink } from "./magic-link.js";
 export { RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
 export {
+  type ChatEntry,
+  type ChatHistoryPage,
   type ClientMessage,
+  HISTORY_PAGE_SIZE,
   isPeerIdentity,
   isPlaybackAction,
   MAX_CHAT_LENGTH,

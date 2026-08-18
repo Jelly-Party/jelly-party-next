@@ -25,7 +25,6 @@ describe("client protocol validation", () => {
   it("accepts a bounded join message", () => {
     const message: ClientMessage = {
       type: "join",
-      partyId,
       peer: { id: "11111111-1111-4111-8111-111111111111", name: "Mira", emoji: "🪼" },
     };
 
@@ -45,16 +44,17 @@ describe("client protocol validation", () => {
     });
   });
 
-  it("accepts the keepalive used while the party interface is hidden", () => {
-    expect(parseClientMessage(JSON.stringify({ type: "ping" }))).toEqual({
+  it("accepts a positive history cursor", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "history", beforeId: 42 }))).toEqual({
       ok: true,
-      value: { type: "ping" },
+      value: { type: "history", beforeId: 42 },
     });
   });
 
   it.each([
     "not json",
-    JSON.stringify({ type: "join", partyId: "bad", peer: { id: "x", name: "", emoji: "" } }),
+    JSON.stringify({ type: "join", peer: { id: "x", name: "", emoji: "" } }),
+    JSON.stringify({ type: "history", beforeId: 0 }),
     JSON.stringify({ type: "chat", text: "x".repeat(MAX_CHAT_LENGTH + 1) }),
     JSON.stringify({ type: "playback", action: "seek", timeFromEnd: Number.NaN }),
     JSON.stringify({ type: "playback", action: "rewind", timeFromEnd: 1 }),

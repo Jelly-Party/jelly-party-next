@@ -1,12 +1,6 @@
-import type { PeerIdentity } from "jelly-party-lib";
+import type { ChatEntry, PeerIdentity } from "jelly-party-lib";
 
 export type PartyConnectionStatus = "connecting" | "connected" | "disconnected";
-
-export interface ChatEntry {
-  peer: PeerIdentity;
-  text: string;
-  sentAt: number;
-}
 
 export interface ActiveParty {
   partyId: string;
@@ -16,6 +10,7 @@ export interface ActiveParty {
   status: PartyConnectionStatus;
   peers: PeerIdentity[];
   messages: ChatEntry[];
+  hasMoreHistory: boolean;
   hasVideo: boolean;
   notice: string;
 }
@@ -34,6 +29,7 @@ export type PartyStateEvent =
   | { type: "connection"; status: PartyConnectionStatus }
   | { type: "presence"; peers: PeerIdentity[] }
   | { type: "chat"; entry: ChatEntry }
+  | { type: "history"; entries: ChatEntry[]; hasMore: boolean }
   | { type: "video"; hasVideo: boolean }
   | { type: "notice"; notice: string }
   | { type: "tab-updated"; tabId: number; tabUrl: string; tabTitle: string }
@@ -47,8 +43,6 @@ export type PartyView =
 
 export const initialPartyState: PartyState = { kind: "idle" };
 
-const maximumMessages = 200;
-
 export function reducePartyState(state: PartyState, event: PartyStateEvent): PartyState {
   if (event.type === "started") {
     return {
@@ -61,6 +55,7 @@ export function reducePartyState(state: PartyState, event: PartyStateEvent): Par
         status: "connecting",
         peers: [],
         messages: [],
+        hasMoreHistory: false,
         hasVideo: event.hasVideo ?? true,
         notice: "",
       },
@@ -90,7 +85,17 @@ export function reducePartyState(state: PartyState, event: PartyStateEvent): Par
       kind: "active",
       party: {
         ...state.party,
-        messages: [...state.party.messages, event.entry].slice(-maximumMessages),
+        messages: [...state.party.messages, event.entry],
+      },
+    };
+  }
+  if (event.type === "history") {
+    return {
+      kind: "active",
+      party: {
+        ...state.party,
+        messages: [...event.entries, ...state.party.messages],
+        hasMoreHistory: event.hasMore,
       },
     };
   }

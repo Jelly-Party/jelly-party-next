@@ -23,8 +23,7 @@ export default defineConfig({
       "test:server": {
         command: [
           "vp run jelly-party-lib#build",
-          "vp run jelly-party-server#build",
-          "vp exec node packages/jelly-party-server/dist/main.js",
+          "vp exec wrangler dev --config wrangler.jsonc --local --port 16080",
         ],
         cache: false,
       },
@@ -68,10 +67,17 @@ export default defineConfig({
         ],
         cache: false,
       },
+      "test:e2e:staging": {
+        command: [
+          'VITE_JELLY_WS_URL="$JELLY_PARTY_STAGING_WS_URL" VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test',
+          "vp exec playwright test",
+        ],
+        cache: false,
+      },
       "test:e2e:firefox": {
         command: [
           "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test:firefox",
-          'vp exec concurrently --kill-others --success first "vp run test:services" "vp dev e2e/fixtures --port 16333 --strictPort" "vp exec node e2e/firefox-extension.ts"',
+          'vp exec concurrently --kill-others --success first "vp run test:services" "vp dev e2e/fixtures --port 16334 --strictPort" "vp exec node e2e/firefox-extension.ts"',
         ],
         cache: false,
       },

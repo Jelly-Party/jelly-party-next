@@ -9,7 +9,6 @@ export interface PartySocketHandlers {
 
 export class PartySocket {
   #socket: WebSocket | null = null;
-  #keepalive: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly url: string,
@@ -18,12 +17,11 @@ export class PartySocket {
 
   connect(partyId: string, peer: PeerIdentity): void {
     this.close();
-    const socket = new WebSocket(this.url);
+    const socket = new WebSocket(`${this.url}/party/${encodeURIComponent(partyId)}`);
     this.#socket = socket;
     socket.addEventListener("open", () => {
       if (this.#socket !== socket) return;
-      this.send({ type: "join", partyId, peer });
-      this.#keepalive = setInterval(() => this.send({ type: "ping" }), 20_000);
+      this.send({ type: "join", peer });
       this.handlers.onOpen();
     });
     socket.addEventListener("message", (event) => {
@@ -40,7 +38,6 @@ export class PartySocket {
     socket.addEventListener("close", () => {
       if (this.#socket !== socket) return;
       this.#socket = null;
-      this.stopKeepalive();
       this.handlers.onClose();
     });
   }
@@ -53,19 +50,17 @@ export class PartySocket {
     this.send({ type: "playback", action, timeFromEnd });
   }
 
+  history(beforeId: number): void {
+    this.send({ type: "history", beforeId });
+  }
+
   close(): void {
     const socket = this.#socket;
     this.#socket = null;
-    this.stopKeepalive();
     socket?.close();
   }
 
   private send(message: ClientMessage): void {
     if (this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(JSON.stringify(message));
-  }
-
-  private stopKeepalive(): void {
-    if (this.#keepalive !== null) clearInterval(this.#keepalive);
-    this.#keepalive = null;
   }
 }

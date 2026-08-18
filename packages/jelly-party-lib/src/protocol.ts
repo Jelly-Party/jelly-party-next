@@ -2,6 +2,7 @@ export const MAX_CHAT_LENGTH = 500;
 export const MAX_NAME_LENGTH = 40;
 export const MAX_EMOJI_LENGTH = 16;
 export const PARTY_ID_LENGTH = 22;
+export const HISTORY_PAGE_SIZE = 100;
 
 export type PlaybackAction = "play" | "pause" | "seek";
 
@@ -11,17 +12,29 @@ export interface PeerIdentity {
   emoji: string;
 }
 
+export interface ChatEntry {
+  id: number;
+  peer: PeerIdentity;
+  text: string;
+  sentAt: number;
+}
+
+export interface ChatHistoryPage {
+  entries: ChatEntry[];
+  hasMore: boolean;
+}
+
 export type ClientMessage =
-  | { type: "join"; partyId: string; peer: PeerIdentity }
+  | { type: "join"; peer: PeerIdentity }
   | { type: "chat"; text: string }
   | { type: "playback"; action: PlaybackAction; timeFromEnd: number }
-  | { type: "ping" };
+  | { type: "history"; beforeId: number };
 
 export type ServerMessage =
-  | { type: "pong" }
-  | { type: "welcome"; peerId: string }
+  | { type: "welcome"; peerId: string; history: ChatHistoryPage }
   | { type: "presence"; peers: PeerIdentity[] }
-  | { type: "chat"; peer: PeerIdentity; text: string; sentAt: number }
+  | { type: "chat"; entry: ChatEntry }
+  | { type: "history"; history: ChatHistoryPage }
   | {
       type: "playback";
       peerId: string;
@@ -61,9 +74,8 @@ export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
   if (!isRecord(value) || typeof value.type !== "string") return invalid("Missing message type");
 
   if (value.type === "join") {
-    const partyId = parsePartyId(value.partyId);
-    if (!partyId || !isPeerIdentity(value.peer)) return invalid("Invalid join message");
-    return { ok: true, value: { type: "join", partyId, peer: value.peer } };
+    if (!isPeerIdentity(value.peer)) return invalid("Invalid join message");
+    return { ok: true, value: { type: "join", peer: value.peer } };
   }
 
   if (value.type === "chat") {
@@ -87,7 +99,16 @@ export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
     };
   }
 
-  if (value.type === "ping") return { ok: true, value: { type: "ping" } };
+  if (value.type === "history") {
+    if (
+      typeof value.beforeId !== "number" ||
+      !Number.isSafeInteger(value.beforeId) ||
+      value.beforeId < 1
+    ) {
+      return invalid("Invalid history cursor");
+    }
+    return { ok: true, value: { type: "history", beforeId: value.beforeId } };
+  }
 
   return invalid("Unknown message type");
 }

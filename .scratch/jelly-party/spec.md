@@ -21,7 +21,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 5. As an invited viewer, I want to land on the shared video and join the party automatically where the browser permits it, so that joining is quick.
 6. As a peer, I want a display name and an emoji, so that other peers can identify me without an avatar system.
 7. As a peer, I want to see who is in the party, so that I know my friends connected.
-8. As a peer, I want to send and receive ephemeral text chat, so that we can talk while watching. The chat follows new messages only while I am at the bottom; scrolling up preserves my reading position and offers a clear return to the latest messages.
+8. As a peer, I want to send, receive, and revisit the complete party text chat for one year after the party ends, so that we can talk while watching and return to the conversation. The chat follows new messages only while I am at the bottom; scrolling up preserves my reading position and offers a clear return to the latest messages.
 9. As a peer, I want play, pause, and seek actions to propagate in both directions, so that everyone stays at roughly the same point.
 10. As a peer, I want synchronization to use position from the end of the video, so that differing pre-roll durations are less disruptive.
 11. As a peer, I want remote playback changes not to echo back into the party, so that one action does not loop.
@@ -33,7 +33,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 
 ## Implementation Decisions
 
-- Preserve the current monorepo responsibilities: a browser extension, an in-memory WebSocket backend, a static magic-link join site, a static marketing site, and a small shared protocol package. Remove packages or dependencies that do not earn their keep.
+- Preserve the current monorepo responsibilities: a browser extension, a Cloudflare Worker/party Durable Object relay, a static magic-link join site, a static marketing site, and a small shared protocol package. Remove packages or dependencies that do not earn their keep.
 - Write TypeScript throughout. Use Svelte for extension and website UI, UnoCSS for styling, and browser/platform APIs before adding dependencies.
 - Use Vite+ as the only JavaScript toolchain. `vp dev`, `vp check`, `vp test --run`, `vp build`, and Vite Task must cover the standard loop. Do not add another task runner or separate formatter/linter.
 - Provide a single Vite Task that hot-reloads the backend and sites and rebuilds/reloads the extension during development.
@@ -41,10 +41,10 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 - On an unrelated tab, Chromium hides the contextual party panel. Firefox shows a compact inactive state that identifies the active party and offers Return to party and Leave; it must never silently control a different tab.
 - Keep page code small: find the most relevant HTML video in each frame, report local play/pause/seek, and apply remote actions. Use extension runtime messaging between the page and sidebar/background; do not inject a visual iframe or maintain a public service-driver framework.
 - Keep the old, understandable event-shaped playback behavior. Synchronize finite videos with `timeFromEnd`, suppress echoes, tolerate small drift, and add site-specific handling only after a real site proves it necessary.
-- A party has a capability-style random ID, a set of connected peers, ephemeral chat, and no persistence. A peer has a generated ID, display name, and emoji. There are no avatars or avatar assets.
+- A party has a capability-style random ID, a set of connected peers, and full chat history. The party Durable Object retains chat for one year after the final peer disconnects, then deletes it. A peer has a generated ID, display name, and emoji. There are no avatars or avatar assets.
 - Magic links contain the party ID and destination video URL. The join site detects the extension, requests optional access to the destination origin from a user click when needed, navigates to the video, and hands the party ID to the extension. If a browser cannot open its sidebar automatically, the page tells the peer to click the toolbar action once.
 - Production clients connect only to the secure WebSocket endpoint configured in `config/urls.ts` (`wss://v2-ws.jelly-party.com` by default). The protocol may be changed freely; there is no compatibility code for the old backend or extension.
-- The backend remains a small in-memory WebSocket relay. It validates incoming message shapes and sensible size limits, broadcasts party/chat/playback messages, and exposes a basic health endpoint. No database is required.
+- The backend is a small Cloudflare Worker that routes each party to one Durable Object. The object validates incoming message shapes and sensible size limits, broadcasts party/chat/playback messages, persists paged chat history in its embedded SQLite `chat` table, and exposes a basic health endpoint. Its embedded storage is only used for party chat history and one-year expiry.
 - Build two extension variants from shared source: Chromium and Firefox. Produce three deterministic store archives: Chrome and Edge may use the same Chromium archive; Firefox gets its manifest/sidebar differences and source-review material. Preserve the existing store identities and publish Jelly Party 2.0 over the old listings.
 - The interface should feel intentional and compact, but design work must not grow the architecture. UnoCSS owns styling; accessible HTML, keyboard behavior, useful empty/error states, and a responsive sidebar are enough.
 
@@ -63,7 +63,7 @@ Use Vite+ for the complete development loop, UnoCSS for the design, Playwright f
 - Avatars, accounts, durable party/chat history, social discovery, voice/video chat, or live-stream synchronization.
 - Safari, mobile browsers, and browsers other than current Chrome, Firefox, and Edge.
 - Site-specific video adapters until generic HTML video behavior demonstrably fails on a site worth supporting.
-- A database, Kubernetes, multi-region deployment, elaborate observability, staged-rollout machinery, or a browser compatibility lab.
+- A separate database, Kubernetes, multi-region deployment, elaborate observability, staged-rollout machinery, or a browser compatibility lab.
 - Reproducing every old visual detail or retaining code solely because the old extension had it.
 
 ## Further Notes

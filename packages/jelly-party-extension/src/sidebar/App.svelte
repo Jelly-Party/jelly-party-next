@@ -191,6 +191,13 @@
     if (result?.ok) message = "";
   }
 
+  async function loadOlderChat(): Promise<void> {
+    if (view.mode !== "party") return;
+    const beforeId = view.party.messages[0]?.id;
+    if (!beforeId) return;
+    await chrome.runtime.sendMessage({ type: "party:history", beforeId });
+  }
+
   async function copyInvite(): Promise<void> {
     try {
       await navigator.clipboard.writeText(inviteLink);
@@ -306,6 +313,11 @@
           aria-relevant="additions"
           data-testid="messages"
         >
+          {#if view.party.hasMoreHistory}
+            <button class="jp-button-secondary mb-3 w-full" on:click={loadOlderChat} data-testid="load-history">
+              Load older messages
+            </button>
+          {/if}
           {#if view.party.messages.length === 0}<p class="empty">No messages yet. Say hello!</p>{/if}
           {#each view.party.messages as entry}
             <article class="message" data-testid="chat-message">

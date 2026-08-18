@@ -6,7 +6,8 @@ import firefox from "selenium-webdriver/firefox.js";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const extensionPath = path.join(root, "packages/jelly-party-extension/dist-firefox-test");
-const videoUrl = "http://localhost:16333/video-swap-test.html";
+const fixtureOrigin = process.env.JELLY_FIREFOX_FIXTURE_ORIGIN ?? "http://localhost:16334";
+const videoUrl = `${fixtureOrigin}/video-swap-test.html`;
 type FirefoxDriver = firefox.Driver;
 const extensionPages = new WeakMap<FirefoxDriver, string>();
 const videoHandles = new WeakMap<FirefoxDriver, string>();
@@ -132,7 +133,7 @@ try {
 
   await closeSidebarPage(peerA);
   await peerA.switchTo().newWindow("tab");
-  const unrelatedUrl = "http://localhost:16333/frame-video.html";
+  const unrelatedUrl = `${fixtureOrigin}/frame-video.html`;
   await peerA.get(unrelatedUrl);
   await openSidebarPage(peerA, unrelatedUrl);
   await waitForSidebarText(peerA, "[data-testid='away-view']", "Your party is still active");

@@ -33,6 +33,7 @@ describe("active party state", () => {
     state = reducePartyState(state, {
       type: "chat",
       entry: {
+        id: 1,
         peer: { id: "a", name: "Mira", emoji: "🩼" },
         text: "Ready?",
         sentAt: 123,
@@ -61,6 +62,39 @@ describe("active party state", () => {
     expect(partyViewForTab(navigated, 7)).toMatchObject({
       mode: "party",
       party: { tabUrl: "https://example.com/episode-2", tabTitle: "Episode two" },
+    });
+  });
+
+  it("prepends an older page of durable party chat", () => {
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, {
+      type: "history",
+      entries: [
+        {
+          id: 2,
+          peer: { id: "a", name: "Mira", emoji: "🪼" },
+          text: "Newer",
+          sentAt: 2,
+        },
+      ],
+      hasMore: true,
+    });
+    state = reducePartyState(state, {
+      type: "history",
+      entries: [
+        {
+          id: 1,
+          peer: { id: "b", name: "Noah", emoji: "🐳" },
+          text: "Older",
+          sentAt: 1,
+        },
+      ],
+      hasMore: false,
+    });
+
+    expect(partyViewForTab(state, 7)).toMatchObject({
+      mode: "party",
+      party: { hasMoreHistory: false, messages: [{ id: 1 }, { id: 2 }] },
     });
   });
 });

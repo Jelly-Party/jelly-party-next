@@ -130,6 +130,12 @@ async function handleMessage(
     return { ok: true };
   }
 
+  if (message.type === "party:history" && typeof message.beforeId === "number") {
+    if (partyState.kind === "idle") return { ok: false };
+    partySocket?.history(message.beforeId);
+    return { ok: true };
+  }
+
   if (message.type === "party:focus") {
     return focusParty();
   }
@@ -267,12 +273,26 @@ function connectParty(partyId: string, identity: PeerIdentity): void {
 
 function handlePartyMessage(partyId: string, message: ServerMessage): void {
   if (partyState.kind === "idle" || partyState.party.partyId !== partyId) return;
-  if (message.type === "pong" || message.type === "welcome") return;
+  if (message.type === "welcome") {
+    transition({
+      type: "history",
+      entries: message.history.entries,
+      hasMore: message.history.hasMore,
+    });
+    return;
+  }
   if (message.type === "presence") transition({ type: "presence", peers: message.peers });
   if (message.type === "chat") {
     transition({
       type: "chat",
-      entry: { peer: message.peer, text: message.text, sentAt: message.sentAt },
+      entry: message.entry,
+    });
+  }
+  if (message.type === "history") {
+    transition({
+      type: "history",
+      entries: message.history.entries,
+      hasMore: message.history.hasMore,
     });
   }
   if (message.type === "playback") {

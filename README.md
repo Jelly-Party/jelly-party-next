@@ -2,7 +2,7 @@
 
 Watch videos with friends, in sync.
 
-Jelly Party is a browser extension and small WebSocket backend. Open the sidebar on a video, create a party, share the magic link, and chat while play, pause, and seek stay synchronized. Parties and chat are temporary; there are no accounts or history.
+Jelly Party is a browser extension and small Cloudflare Durable Object relay. Open the sidebar on a video, create a party, share the magic link, and chat while play, pause, and seek stay synchronized. There are no accounts; party chat is retained for one year after the party becomes inactive.
 
 ## Product
 
@@ -10,7 +10,7 @@ Jelly Party is a browser extension and small WebSocket backend. Open the sidebar
 - Native browser sidebar/side-panel UI
 - Display name plus emoji—no avatars
 - Magic-link joining with optional per-site permissions
-- Ephemeral peer list and text chat
+- Ephemeral peer list and one-year party chat history
 - Bidirectional HTML video play, pause, and seek synchronization
 - New protocol and backend at `wss://v2-ws.jelly-party.com`; no old-client compatibility
 
@@ -21,12 +21,12 @@ The implementation contract is the [Jelly Party 2.0 specification](.scratch/jell
 | Package                 | Responsibility                                                   |
 | ----------------------- | ---------------------------------------------------------------- |
 | `jelly-party-extension` | Shared sidebar UI, browser adapters, and small page video driver |
-| `jelly-party-server`    | In-memory WebSocket party relay and health endpoint              |
+| `jelly-party-server`    | Cloudflare Worker and one Durable Object per party               |
 | `jelly-party-join`      | Static magic-link handoff and optional-origin permission flow    |
 | `jelly-party-lib`       | Shared validated protocol and small cross-package utilities      |
 | `jelly-party-website`   | Static project, install, support, and privacy pages              |
 
-The extension background process owns the party connection, presence, and chat so closing or navigating away from the sidebar does not leave the party. A small content script runs in relevant frames to discover and control an HTML video. The components communicate through extension runtime messages. The server only validates and relays messages; it stores nothing.
+The extension background process owns the party connection and presence so closing or navigating away from the sidebar does not leave the party. A small content script runs in relevant frames to discover and control an HTML video. The components communicate through extension runtime messages. A party-scoped Durable Object validates and relays messages, persists its chat history, and clears all party data one year after its final peer disconnects.
 
 ## Development
 
@@ -56,11 +56,36 @@ do not change the service origins after submitting an extension version.
 Production builds require HTTPS URLs and a WSS relay. Test builds are the only mode that permits
 explicit localhost HTTP/WS overrides.
 
-## Server deployment
+## Relay deployment
 
-`deploy/docker-compose.yml` builds and runs only the stateless WebSocket relay, bound to
-`127.0.0.1:8080`. The VPS-wide Caddy instance should proxy `v2-ws.jelly-party.com` to that loopback
-port. See `deploy/README.md` for the complete clone, start, update, and health-check procedure.
+The relay is a Cloudflare Worker with one Durable Object per party. Local development uses
+`wrangler dev --local`. Production remains on its existing VPS relay until the release cutover;
+the Vercel-hosted website and join site are independent of the relay. No Jelly Party process runs
+on the VPS after cutover.
+
+Test the Worker without touching production by deploying the isolated staging Worker:
+
+```bash
+vp exec wrangler deploy --config wrangler.staging.jsonc
+```
+
+Build an unpacked test extension against the URL Wrangler prints, then load it temporarily in two
+browser profiles:
+
+```bash
+VITE_JELLY_WS_URL=wss://jelly-party-relay-staging.<account>.workers.dev \
+  vp run jelly-party-extension#build
+```
+
+Do not publish that build. The release cutover adds the declarative `v2-ws.jelly-party.com` custom
+domain to `wrangler.jsonc`, deploys it, verifies `/health`, and only then retires the VPS relay.
+
+Run the full two-peer browser acceptance flow against staging with:
+
+```bash
+JELLY_PARTY_STAGING_WS_URL=wss://jelly-party-relay-staging.<account>.workers.dev \
+  vp run test:e2e:staging
+```
 
 ## Quality loop
 

@@ -6,14 +6,14 @@
 <article class="min-h-[calc(100svh-4.5rem)] bg-jelly-ink pb-20 pt-30">
 	<div class="jp-container max-w-3xl">
 		<p class="jp-kicker m-0">Privacy</p>
-		<h1 class="mb-0 mt-3 text-4xl leading-tight font-800 tracking-normal text-white sm:text-5xl">No account. No party history.</h1>
+		<h1 class="mb-0 mt-3 text-4xl leading-tight font-800 tracking-normal text-white sm:text-5xl">No account. Your party chat stays available.</h1>
 		<p class="mb-0 mt-5 text-lg leading-8 text-slate-300">Jelly Party does not sell personal data, serve advertising, or use tracking analytics.</p>
 
 		<div class="mt-12 space-y-10 text-slate-400">
 			<section>
 				<h2 class="m-0 text-xl font-750 text-white">Data used during a party</h2>
-				<p class="mb-0 mt-3 leading-7">While connected, the relay processes the temporary party identifier, your display name and emoji, chat messages, the shared video URL, and play, pause, and seek timing. This is necessary to connect peers and synchronize their browsers.</p>
-				<p class="mb-0 mt-3 leading-7">Party membership and chat exist in server memory only and are removed when participants disconnect. Infrastructure providers may process ordinary connection metadata and short-lived operational logs needed to run and secure the service.</p>
+				<p class="mb-0 mt-3 leading-7">While connected, the relay processes the party identifier, your display name and emoji, chat messages, the shared video URL, and play, pause, and seek timing. This is necessary to connect peers and synchronize their browsers.</p>
+				<p class="mb-0 mt-3 leading-7">Party membership is temporary. Chat messages, including the display name and emoji shown with them, are stored in the party's Cloudflare Durable Object so anyone with the party link can read the conversation. We delete the full party chat one year after its final peer disconnects. Infrastructure providers may process ordinary connection metadata and short-lived operational logs needed to run and secure the service.</p>
 			</section>
 
 			<section>
