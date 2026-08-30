@@ -59,9 +59,14 @@ try {
       { cause: error },
     );
   }
-  await peerB.executeScript(`
-    window.postMessage({ type: "jelly-party:join" }, "*");
-  `);
+  // Clicking the moment the button reports enabled races the join page's own
+  // setup, so retry until the page acknowledges the click in its status line.
+  await peerB.wait(async () => {
+    const button = await peerB.findElement(By.css("#join"));
+    if (!(await button.isEnabled())) return false;
+    await button.click();
+    return (await peerB.findElement(By.css("#status")).getText()) !== "";
+  }, 15_000);
   try {
     await peerB.wait(until.urlIs(videoUrl), 15_000);
   } catch (error) {
@@ -294,7 +299,9 @@ async function reopenNativeSidebar(driver: FirefoxDriver): Promise<void> {
   await driver.setContext(firefox.Context.CHROME);
   try {
     const opened = await driver.executeScript<boolean>(`
-      const item = document.getElementById("sidebarswitcher_menu_jelly-party_jelly-party_com-sidebar-action");
+      const item = document.querySelector(
+        '[id^="sidebarswitcher_menu_"][id$="-sidebar-action"]',
+      );
       if (!item) return false;
       item.click();
       return true;

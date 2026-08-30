@@ -53,7 +53,9 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
       },
       browser_specific_settings: {
         gecko: {
-          id: "jelly-party@jelly-party.com",
+          // Must match the published AMO add-on GUID or the upload becomes a new
+          // listing instead of an update for existing users.
+          id: "{1bce6a35-61f2-4477-9899-842359eadcef}",
           strict_min_version: "140.0",
           data_collection_permissions: {
             required: [

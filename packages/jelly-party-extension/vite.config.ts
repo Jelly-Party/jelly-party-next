@@ -47,7 +47,11 @@ export default defineConfig(({ mode }) => {
         manifest: () => createExtensionManifest(urls, { firefox: isFirefox, test: isTest }),
         disableAutoLaunch: Boolean(process.env.CI),
         watchFilePaths: ["../../config/extension-manifest.ts", "../../config/urls.ts"],
-        additionalInputs: ["src/sidebar/sidebar.html", "src/content/video.ts"],
+        additionalInputs: [
+          "src/sidebar/sidebar.html",
+          "src/grant/grant.html",
+          "src/content/video.ts",
+        ],
         transformManifest(manifest) {
           if (mode === "development" && manifest.manifest_version === 3) {
             // The dev server adds this permission after every input build. Remove its previous

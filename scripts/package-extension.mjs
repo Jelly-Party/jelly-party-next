@@ -3,6 +3,8 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 
+const FIREFOX_ADDON_GUID = "{1bce6a35-61f2-4477-9899-842359eadcef}";
+
 const root = process.cwd();
 const extensionRoot = path.join(root, "packages/jelly-party-extension");
 const artifacts = path.join(root, "artifacts");
@@ -82,14 +84,16 @@ async function validateManifest(directory, browser) {
     manifest.sidebar_action?.default_panel !== "src/sidebar/sidebar.html" ||
     manifest.side_panel ||
     manifest.permissions?.includes("sidePanel") ||
-    !manifest.browser_specific_settings?.gecko?.id ||
+    manifest.browser_specific_settings?.gecko?.id !== FIREFOX_ADDON_GUID ||
     manifest.browser_specific_settings.gecko.strict_min_version !== "140.0" ||
     manifest.browser_specific_settings.gecko.data_collection_permissions?.required?.length !== 4
   ) {
     throw new Error("firefox: invalid sidebar manifest");
   }
 
+  // The grant page is opened by URL, so no manifest entry would catch its loss.
   const referencedFiles = [
+    "src/grant/grant.html",
     manifest.side_panel?.default_path,
     manifest.sidebar_action?.default_panel,
     manifest.background?.service_worker,

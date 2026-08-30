@@ -3,23 +3,30 @@ import { parsePartyId } from "./protocol.js";
 
 export interface PermissionService {
   contains(originPattern: string): Promise<boolean>;
-  request(originPattern: string): Promise<boolean>;
 }
 
-export type JoinAuthorizationResult = { ok: true } | { ok: false; error: string };
+export type JoinAuthorizationResult =
+  | { status: "authorized" }
+  | { status: "needs-permission"; originPattern: string }
+  | { status: "unavailable" }
+  | { status: "invalid" };
 
+/**
+ * Only reports whether the destination origin is already granted. Requesting it
+ * has to happen inside a user gesture, which a background worker handling a
+ * message no longer has, so the caller drives that from a click on the grant page.
+ */
 export async function authorizeMagicJoin(
   invite: MagicLink,
   permissions: PermissionService,
 ): Promise<JoinAuthorizationResult> {
-  if (!validInvite(invite)) return { ok: false, error: "Invalid invite link" };
+  if (!validInvite(invite)) return { status: "invalid" };
 
   try {
-    if (await permissions.contains(invite.originPattern)) return { ok: true };
-    if (await permissions.request(invite.originPattern)) return { ok: true };
-    return { ok: false, error: "Site access was not granted" };
+    if (await permissions.contains(invite.originPattern)) return { status: "authorized" };
+    return { status: "needs-permission", originPattern: invite.originPattern };
   } catch {
-    return { ok: false, error: "Could not contact the browser permission service" };
+    return { status: "unavailable" };
   }
 }
 

@@ -5,6 +5,7 @@ import {
   MAX_CHAT_LENGTH,
   MAX_EMOJI_LENGTH,
   MAX_NAME_LENGTH,
+  parseMagicLink,
   parsePartyId,
   type PeerIdentity,
   type ServerMessage,
@@ -40,6 +41,10 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.action.onClicked.addListener((tab) => {
+  // sidePanel.open() and sidebarAction.open() are gesture-gated: they only work
+  // inside the click's own task, so they run before this listener awaits anything.
+  const sidebarTabId = partyState.kind === "active" ? partyState.party.tabId : tab.id;
+  if (sidebarTabId !== undefined) void openPartySidebar(sidebarTabId);
   void handleActionClick(tab);
 });
 
@@ -199,6 +204,15 @@ async function handleMessage(
   }
 
   if (
+    message.type === "join:granted" &&
+    parsePartyId(message.partyId) &&
+    typeof message.destination === "string" &&
+    typeof message.tabId === "number"
+  ) {
+    return completeGrantedJoin(parsePartyId(message.partyId)!, message.destination, message.tabId);
+  }
+
+  if (
     message.type === "join:request" &&
     sender.tab?.id &&
     parsePartyId(message.partyId) &&
@@ -215,12 +229,19 @@ async function handleMessage(
     const partyId = parsePartyId(message.partyId)!;
     const authorization = await authorizeMagicJoin(
       { partyId, destination: message.destination, originPattern: message.originPattern },
-      {
-        contains: (origin) => chrome.permissions.contains({ origins: [origin] }),
-        request: (origin) => chrome.permissions.request({ origins: [origin] }),
-      },
+      { contains: (origin) => chrome.permissions.contains({ origins: [origin] }) },
     );
-    if (!authorization.ok) return authorization;
+    if (authorization.status === "invalid") return { ok: false, error: "Invalid invite link" };
+    if (authorization.status === "unavailable") {
+      return { ok: false, error: "Could not contact the browser permission service" };
+    }
+    if (authorization.status === "needs-permission") {
+      await openGrantWindow({ partyId, destination: message.destination }, sender.tab.id);
+      return {
+        ok: false,
+        error: `Allow access to ${new URL(message.destination).hostname} in the Jelly Party window to join.`,
+      };
+    }
     const pendingJoin: PendingJoin = { partyId, destination: message.destination };
     await chrome.storage.local.set({ pendingJoin });
     const sidebarOpened = await openPartySidebar(sender.tab.id);
@@ -231,14 +252,58 @@ async function handleMessage(
   return undefined;
 }
 
+/**
+ * The grant page is the only Jelly Party context with both the permission API and
+ * a user gesture, so the missing origin permission is requested from a click there.
+ */
+async function openGrantWindow(pending: PendingJoin, tabId: number): Promise<void> {
+  const parameters = new URLSearchParams({
+    party: pending.partyId,
+    video: pending.destination,
+    tab: String(tabId),
+  });
+  await chrome.windows.create({
+    url: chrome.runtime.getURL(`src/grant/grant.html?${parameters.toString()}`),
+    type: "popup",
+    width: 460,
+    height: 340,
+  });
+}
+
+async function completeGrantedJoin(
+  partyId: string,
+  destination: string,
+  tabId: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const invite = parseMagicLink(
+    `${__JELLY_JOIN_URL__}/?party=${partyId}&video=${encodeURIComponent(destination)}`,
+  );
+  if (!invite) return { ok: false, error: "Invalid invite link" };
+  // Trust the browser, not the message: the page could only have been opened by us,
+  // but the permission still has to be real before we send anyone to the video.
+  if (!(await chrome.permissions.contains({ origins: [invite.originPattern] }))) {
+    return { ok: false, error: "Site access was not granted" };
+  }
+  const pendingJoin: PendingJoin = { partyId, destination: invite.destination };
+  await chrome.storage.local.set({ pendingJoin });
+  try {
+    const tab = await chrome.tabs.update(tabId, { url: invite.destination, active: true });
+    if (tab?.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    await chrome.tabs.create({ url: invite.destination });
+  }
+  return { ok: true };
+}
+
 async function handleActionClick(tab: chrome.tabs.Tab): Promise<void> {
   if (partyState.kind === "active") {
     await focusParty();
     return;
   }
   if (!tab.id) return;
+  // The sidebar was already opened from the click itself; this only refreshes
+  // what the sidebar reports about the tab.
   await scanTab(tab.id);
-  await openPartySidebar(tab.id);
 }
 
 function startParty(partyId: string, tab: chrome.tabs.Tab, identity: PeerIdentity): void {
@@ -425,17 +490,15 @@ async function markPartyActive(): Promise<void> {
 
 async function openPartySidebar(tabId: number): Promise<boolean> {
   if (chrome.sidePanel) {
-    try {
-      await chrome.sidePanel.setOptions({
-        tabId,
-        path: `src/sidebar/sidebar.html?tab=${tabId}`,
-        enabled: true,
-      });
-      await chrome.sidePanel.open({ tabId });
-      return true;
-    } catch {
-      return false;
-    }
+    // Deliberately not awaited: open() has to stay in the caller's task so that a
+    // user gesture still counts.
+    void chrome.sidePanel
+      .setOptions({ tabId, path: `src/sidebar/sidebar.html?tab=${tabId}`, enabled: true })
+      .catch(() => undefined);
+    return chrome.sidePanel.open({ tabId }).then(
+      () => true,
+      () => false,
+    );
   }
   const firefox = globalThis as typeof globalThis & {
     browser?: { sidebarAction?: { open(): Promise<void> } };

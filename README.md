@@ -94,8 +94,15 @@ vp check          # format, lint, and type-check
 vp test --run     # Vitest
 vp run test:e2e   # Playwright two-peer flow
 vp run test:e2e:firefox # Firefox loaded-extension acceptance flow
+vp run test:e2e:production # store build against the deployed join site
 vp run build:all  # all deployable and store artifacts
 ```
+
+Both acceptance flows build a test extension whose manifest pre-grants every origin, so they
+cannot see the optional site permission real users hit on their first join. `test:e2e:production`
+covers that gap by driving the store build against the deployed join site, through the grant page
+that asks for the destination origin. Accepting the browser's own permission dialog cannot be
+automated, so finish that step by hand before publishing.
 
 The Chromium Playwright flow is the main acceptance test: it loads two real extension profiles,
 creates a party, joins through the shared link, exchanges chat, and synchronizes play, pause, and seek
