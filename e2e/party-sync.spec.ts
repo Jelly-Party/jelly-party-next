@@ -3,6 +3,7 @@ import {
   extensionTabId,
   launchExtensionPeer,
   openSidebar,
+  sidePanelBehavior,
   sidePanelOptions,
   test,
 } from "./fixtures";
@@ -14,9 +15,19 @@ test("two peers create, join, chat, and synchronize playback in both directions"
   const peerB = await launchExtensionPeer();
 
   try {
+    await expect
+      .poll(() => sidePanelBehavior(peerA))
+      .toMatchObject({
+        openPanelOnActionClick: true,
+      });
     const videoA = await peerA.context.newPage();
     await videoA.goto(videoUrl);
     await expect(videoA.locator("video")).toHaveJSProperty("readyState", 4);
+    await videoA.locator("video").evaluate(async (video: HTMLVideoElement) => {
+      video.loop = true;
+      video.currentTime = 1;
+      await video.play();
+    });
     let sidebarA = await openSidebar(peerA, videoA);
 
     await expect(sidebarA.getByTestId("video-state")).toHaveText("Video ready");
@@ -50,6 +61,15 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await expect(sidebarB.getByTestId("messages")).toContainText("Mira got here first.");
     await expect(sidebarA.getByTestId("peer")).toHaveCount(2);
     await expect(sidebarB.getByTestId("peer")).toHaveCount(2);
+    await expect.poll(() => paused(joinPage)).toBe(false);
+    await expect
+      .poll(async () => Math.abs((await currentTime(videoA)) - (await currentTime(joinPage))))
+      .toBeLessThan(1);
+    await videoA.locator("video").evaluate((video: HTMLVideoElement) => {
+      video.pause();
+      video.loop = false;
+    });
+    await expect.poll(() => paused(joinPage)).toBe(true);
 
     const secondInvitePage = await peerA.context.newPage();
     await secondInvitePage.goto(invite);
@@ -106,11 +126,12 @@ test("two peers create, join, chat, and synchronize playback in both directions"
 
     const secondaryVideo = joinPage.frameLocator("iframe").locator("video");
     await expect(secondaryVideo).toHaveJSProperty("readyState", 4);
+    const primaryTime = await currentTime(videoA);
     await secondaryVideo.evaluate((video: HTMLVideoElement) => {
       video.currentTime = 2;
     });
     await joinPage.waitForTimeout(500);
-    expect(await currentTime(videoA)).toBeLessThan(0.5);
+    expect(await currentTime(videoA)).toBeCloseTo(primaryTime, 1);
 
     await seek(joinPage, 1);
     await expect.poll(() => currentTime(videoA)).toBeCloseTo(1, 0);
@@ -159,6 +180,7 @@ test("two peers create, join, chat, and synchronize playback in both directions"
 
     await videoA.close();
     await expect(sidebarA.getByTestId("setup-view")).toBeVisible();
+    await expect.poll(() => sidePanelOptions(peerA, unrelatedTab)).toMatchObject({ enabled: true });
 
     expect(await extensionTabId(peerA, unrelatedTab)).toBeGreaterThan(0);
   } finally {

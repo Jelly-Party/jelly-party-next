@@ -1,4 +1,4 @@
-import type { PlaybackAction } from "./protocol.js";
+import type { PlaybackAction, PlaybackSnapshot } from "./protocol.js";
 
 export function timeFromEnd(duration: number, currentTime: number): number | null {
   if (!finiteDuration(duration) || !Number.isFinite(currentTime)) return null;
@@ -8,6 +8,12 @@ export function timeFromEnd(duration: number, currentTime: number): number | nul
 export function targetTime(duration: number, positionFromEnd: number): number | null {
   if (!finiteDuration(duration) || !Number.isFinite(positionFromEnd)) return null;
   return Math.max(0, Math.min(duration, duration - Math.max(0, positionFromEnd)));
+}
+
+export function liveTimeFromEnd(snapshot: PlaybackSnapshot, now = Date.now()): number {
+  if (!snapshot.playing) return snapshot.timeFromEnd;
+  const elapsedSeconds = Math.max(0, now - snapshot.updatedAt) / 1000;
+  return Math.max(0, snapshot.timeFromEnd - elapsedSeconds);
 }
 
 export class RemoteEchoGuard {

@@ -4,7 +4,7 @@ export {
   type PermissionService,
 } from "./join-authorization.js";
 export { buildMagicLink, parseMagicLink, type MagicLink } from "./magic-link.js";
-export { RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
+export { liveTimeFromEnd, RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
 export {
   type ChatEntry,
   type ChatHistoryPage,
@@ -19,6 +19,7 @@ export {
   parsePartyId,
   type PeerIdentity,
   type PlaybackAction,
+  type PlaybackSnapshot,
   type ServerMessage,
 } from "./protocol.js";
 

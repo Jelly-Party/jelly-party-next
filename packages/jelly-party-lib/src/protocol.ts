@@ -6,6 +6,12 @@ export const HISTORY_PAGE_SIZE = 100;
 
 export type PlaybackAction = "play" | "pause" | "seek";
 
+export interface PlaybackSnapshot {
+  playing: boolean;
+  timeFromEnd: number;
+  updatedAt: number;
+}
+
 export interface PeerIdentity {
   id: string;
   name: string;
@@ -31,7 +37,13 @@ export type ClientMessage =
   | { type: "history"; beforeId: number };
 
 export type ServerMessage =
-  | { type: "welcome"; peerId: string; history: ChatHistoryPage }
+  | {
+      type: "welcome";
+      peerId: string;
+      history: ChatHistoryPage;
+      playback?: PlaybackSnapshot;
+      initializePlayback?: boolean;
+    }
   | { type: "presence"; peers: PeerIdentity[] }
   | { type: "chat"; entry: ChatEntry }
   | { type: "history"; history: ChatHistoryPage }

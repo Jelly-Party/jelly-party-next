@@ -2,6 +2,7 @@ import {
   authorizeMagicJoin,
   getRandomEmoji,
   isPlaybackAction,
+  liveTimeFromEnd,
   MAX_CHAT_LENGTH,
   MAX_EMOJI_LENGTH,
   MAX_NAME_LENGTH,
@@ -36,15 +37,18 @@ const animals = ["Fox", "Jellyfish", "Otter", "Owl", "Panda", "Whale"];
 let partyState: PartyState = initialPartyState;
 let partySocket: PartySocket | null = null;
 
+if (chrome.sidePanel) {
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => undefined);
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   void ensureIdentity();
 });
 
 chrome.action.onClicked.addListener((tab) => {
-  // sidePanel.open() and sidebarAction.open() are gesture-gated: they only work
-  // inside the click's own task, so they run before this listener awaits anything.
-  const sidebarTabId = partyState.kind === "active" ? partyState.party.tabId : tab.id;
-  if (sidebarTabId !== undefined) void openPartySidebar(sidebarTabId);
+  // Chrome handles action clicks natively through setPanelBehavior. Firefox's
+  // sidebar toggle is gesture-gated, so it must run before this listener awaits.
+  if (!chrome.sidePanel) void toggleFirefoxSidebar();
   void handleActionClick(tab);
 });
 
@@ -236,10 +240,10 @@ async function handleMessage(
       return { ok: false, error: "Could not contact the browser permission service" };
     }
     if (authorization.status === "needs-permission") {
-      await openGrantWindow({ partyId, destination: message.destination }, sender.tab.id);
+      await openGrantPage({ partyId, destination: message.destination }, sender.tab.id);
       return {
         ok: false,
-        error: `Allow access to ${new URL(message.destination).hostname} in the Jelly Party window to join.`,
+        error: `Opening Jelly Party’s permission request for ${new URL(message.destination).hostname}…`,
       };
     }
     const pendingJoin: PendingJoin = { partyId, destination: message.destination };
@@ -253,20 +257,17 @@ async function handleMessage(
 }
 
 /**
- * The grant page is the only Jelly Party context with both the permission API and
- * a user gesture, so the missing origin permission is requested from a click there.
+ * Keep the permission hand-off in the invite's tab. The extension page has the
+ * permission API, and its button supplies the user gesture both browsers require.
  */
-async function openGrantWindow(pending: PendingJoin, tabId: number): Promise<void> {
+async function openGrantPage(pending: PendingJoin, tabId: number): Promise<void> {
   const parameters = new URLSearchParams({
     party: pending.partyId,
     video: pending.destination,
     tab: String(tabId),
   });
-  await chrome.windows.create({
+  await chrome.tabs.update(tabId, {
     url: chrome.runtime.getURL(`src/grant/grant.html?${parameters.toString()}`),
-    type: "popup",
-    width: 460,
-    height: 340,
   });
 }
 
@@ -297,11 +298,11 @@ async function completeGrantedJoin(
 
 async function handleActionClick(tab: chrome.tabs.Tab): Promise<void> {
   if (partyState.kind === "active") {
-    await focusParty();
+    if (tab.id !== partyState.party.tabId) await focusParty(false);
     return;
   }
   if (!tab.id) return;
-  // The sidebar was already opened from the click itself; this only refreshes
+  // The browser toggled the sidebar from the click itself; this only refreshes
   // what the sidebar reports about the tab.
   await scanTab(tab.id);
 }
@@ -344,6 +345,16 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
       entries: message.history.entries,
       hasMore: message.history.hasMore,
     });
+    if (message.playback) {
+      const action = message.playback.playing ? "play" : "pause";
+      void applyPlayback(partyState.party.tabId, action, liveTimeFromEnd(message.playback)).then(
+        (result) => {
+          if (!result.ok) transitionIfCurrent(partyId, { type: "notice", notice: result.error });
+        },
+      );
+    } else if (message.initializePlayback !== false) {
+      void publishPlaybackSnapshot(partyId);
+    }
     return;
   }
   if (message.type === "presence") transition({ type: "presence", peers: message.peers });
@@ -368,6 +379,33 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
     );
   }
   if (message.type === "error") transition({ type: "notice", notice: message.message });
+}
+
+async function publishPlaybackSnapshot(partyId: string): Promise<void> {
+  if (partyState.kind === "idle" || partyState.party.partyId !== partyId) return;
+  const { tabId } = partyState.party;
+  const best = bestCandidate(tabId);
+  if (!best) return;
+  try {
+    const result = await chrome.tabs.sendMessage(
+      tabId,
+      { type: "video:snapshot" },
+      { frameId: best.frameId },
+    );
+    if (
+      partyState.kind === "active" &&
+      partyState.party.partyId === partyId &&
+      result?.ok === true &&
+      isPlaybackAction(result.action) &&
+      typeof result.timeFromEnd === "number" &&
+      Number.isFinite(result.timeFromEnd)
+    ) {
+      partySocket?.playback(result.action, result.timeFromEnd);
+    }
+  } catch {
+    // A later local playback event can still establish state if the page changes
+    // while the initial snapshot is being collected.
+  }
 }
 
 async function applyPlayback(
@@ -401,16 +439,17 @@ function stopParty(event: Extract<PartyStateEvent, { type: "left" | "tab-removed
   transition(event);
   void chrome.action.setBadgeText({ text: "" });
   void chrome.action.setTitle({ title: "Open Jelly Party" });
+  void restorePartyPanels();
 }
 
-async function focusParty(): Promise<{ ok: boolean; error?: string }> {
+async function focusParty(openSidebar = true): Promise<{ ok: boolean; error?: string }> {
   if (partyState.kind === "idle") return { ok: false, error: "There is no active party." };
   try {
     const tab = await chrome.tabs.get(partyState.party.tabId);
     if (!tab.id) return { ok: false, error: "The party tab is no longer open." };
     await chrome.windows.update(tab.windowId, { focused: true });
     await chrome.tabs.update(tab.id, { active: true });
-    await openPartySidebar(tab.id);
+    if (openSidebar) await openPartySidebar(tab.id);
     return { ok: true };
   } catch {
     leaveParty();
@@ -511,6 +550,18 @@ async function openPartySidebar(tabId: number): Promise<boolean> {
   );
 }
 
+async function toggleFirefoxSidebar(): Promise<boolean> {
+  const firefox = globalThis as typeof globalThis & {
+    browser?: { sidebarAction?: { toggle(): Promise<void> } };
+  };
+  return (
+    firefox.browser?.sidebarAction
+      ?.toggle()
+      .then(() => true)
+      .catch(() => false) ?? false
+  );
+}
+
 async function constrainPartyPanelTo(partyTabId: number): Promise<void> {
   if (!chrome.sidePanel) return;
   const tabs = await chrome.tabs.query({});
@@ -521,6 +572,22 @@ async function constrainPartyPanelTo(partyTabId: number): Promise<void> {
 
 async function disablePartyPanel(tabId: number): Promise<void> {
   await chrome.sidePanel?.setOptions({ tabId, enabled: false }).catch(() => undefined);
+}
+
+async function restorePartyPanels(): Promise<void> {
+  if (!chrome.sidePanel) return;
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(
+    tabs
+      .filter((tab) => tab.id)
+      .map((tab) =>
+        chrome.sidePanel.setOptions({
+          tabId: tab.id!,
+          path: "src/sidebar/sidebar.html",
+          enabled: true,
+        }),
+      ),
+  ).catch(() => undefined);
 }
 
 function sameDestination(current: string | undefined, expected: string): boolean {

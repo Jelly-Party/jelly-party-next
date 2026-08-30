@@ -6,17 +6,19 @@
     <title>Jelly Party</title>
   </head>
   <body>
-    <main class="flex min-h-screen flex-col justify-center gap-4 p-5">
-      <div class="jp-brand">
-        <img class="jp-logo h-10 w-10" src="/128x128.png" alt="" width="128" height="128" />
-        <span class="text-lg font-800">Jelly Party</span>
+    <main class="grid min-h-screen place-items-center p-5">
+      <div class="flex w-full max-w-lg flex-col gap-4">
+        <div class="jp-brand">
+          <img class="jp-logo h-10 w-10" src="/128x128.png" alt="" width="128" height="128" />
+          <span class="text-lg font-800">Jelly Party</span>
+        </div>
+        <section class="jp-panel flex flex-col gap-3 p-4">
+          <p class="jp-kicker m-0">Join a party</p>
+          <p class="m-0 text-slate-200" id="description">Preparing your invite…</p>
+          <button class="jp-button-primary" id="allow" disabled>Allow and join</button>
+          <p class="m-0 text-sm text-slate-400" id="status" role="status" aria-live="polite"></p>
+        </section>
       </div>
-      <section class="jp-panel flex flex-col gap-3 p-4">
-        <p class="jp-kicker m-0">Join a party</p>
-        <p class="m-0 text-slate-200" id="description">Preparing your invite…</p>
-        <button class="jp-button-primary" id="allow" disabled>Allow and join</button>
-        <p class="m-0 text-sm text-slate-400" id="status" role="status" aria-live="polite"></p>
-      </section>
     </main>
     <script type="module" src="./grant.ts"></script>
   </body>

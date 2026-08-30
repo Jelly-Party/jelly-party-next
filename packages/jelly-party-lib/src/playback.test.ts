@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
+import { liveTimeFromEnd, RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
 
 describe("finite playback positions", () => {
   it("translates positions through distance from the end", () => {
@@ -11,6 +11,17 @@ describe("finite playback positions", () => {
     expect(timeFromEnd(120, 140)).toBe(0);
     expect(targetTime(120, 500)).toBe(0);
     expect(targetTime(Number.POSITIVE_INFINITY, 10)).toBeNull();
+  });
+});
+
+describe("live playback snapshots", () => {
+  it("advances a playing snapshot by its elapsed wall-clock time", () => {
+    expect(liveTimeFromEnd({ playing: true, timeFromEnd: 90, updatedAt: 1_000 }, 3_500)).toBe(87.5);
+  });
+
+  it("keeps paused snapshots fixed and ignores future timestamps", () => {
+    expect(liveTimeFromEnd({ playing: false, timeFromEnd: 90, updatedAt: 1_000 }, 3_500)).toBe(90);
+    expect(liveTimeFromEnd({ playing: true, timeFromEnd: 90, updatedAt: 3_500 }, 1_000)).toBe(90);
   });
 });
 

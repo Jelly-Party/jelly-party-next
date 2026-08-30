@@ -4,15 +4,8 @@ export default defineConfig({
   run: {
     tasks: {
       dev: {
-        command: [
-          "vp run jelly-party-lib#build",
-          'vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" "vp run jelly-party-extension#dev" "vp run jelly-party-website#dev" --names "server,join,ext,web" --prefix-colors "blue,green,magenta,cyan"',
-        ],
-        cache: false,
-      },
-      "dev:services": {
         command:
-          'vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" --names "server,join" --prefix-colors "blue,green"',
+          'vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" "vp run jelly-party-extension#dev" --names "server,join,extensions" --prefix-colors "blue,green,magenta"',
         cache: false,
       },
       "test:services": {
@@ -21,10 +14,7 @@ export default defineConfig({
         cache: false,
       },
       "test:server": {
-        command: [
-          "vp run jelly-party-lib#build",
-          "vp exec wrangler dev --config wrangler.jsonc --local --port 16080",
-        ],
+        command: "vp exec wrangler dev --config wrangler.jsonc --local --port 16080",
         cache: false,
       },
       "test:join": {
@@ -32,28 +22,18 @@ export default defineConfig({
         cwd: "packages/jelly-party-join",
         cache: false,
       },
-      "dev:extension": {
-        command: "vp run jelly-party-extension#dev",
-        cache: false,
-      },
-      "dev:server": {
-        command: "vp run jelly-party-server#dev",
-        cache: false,
-      },
-      "dev:website": {
-        command: "vp run jelly-party-website#dev",
-        cache: false,
-      },
-      "build:artifacts": {
-        command: [
-          "vp run jelly-party-extension#build",
-          "vp run jelly-party-extension#build:firefox",
-          "vp exec node scripts/package-extension.mjs",
-        ],
+      build: {
+        command: "vp exec node scripts/package-extension.mjs",
+        dependsOn: ["jelly-party-extension#build"],
         cache: false,
       },
       "build:all": {
-        command: ['vp run --filter "./packages/*" build', "vp run build:artifacts"],
+        command: [
+          "vp run jelly-party-server#build",
+          "vp run jelly-party-join#build",
+          "vp run jelly-party-website#build",
+          "vp run build",
+        ],
         cache: false,
       },
       "test:all": {
@@ -68,7 +48,7 @@ export default defineConfig({
         cache: false,
       },
       "test:e2e:production": {
-        command: ["vp run jelly-party-extension#build", "vp exec node e2e/production-join.ts"],
+        command: ["vp run build", "vp exec node e2e/production-join.ts"],
         cache: false,
       },
       "test:e2e:staging": {

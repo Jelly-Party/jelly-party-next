@@ -32,7 +32,6 @@ allow.addEventListener("click", () => {
       }
       status.textContent = "Opening the shared video…";
       await chrome.runtime.sendMessage({ type: "join:granted", ...invite, tabId });
-      window.close();
     })
     .catch(() => {
       allow.disabled = false;

@@ -61,6 +61,24 @@ function start(): void {
   }
 
   chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+    if (isSnapshotMessage(message)) {
+      report();
+      if (!video) {
+        sendResponse({ ok: false, error: "No video found" });
+        return undefined;
+      }
+      const position = timeFromEnd(video.duration, video.currentTime);
+      sendResponse(
+        position === null
+          ? { ok: false, error: "Video duration is unavailable" }
+          : {
+              ok: true,
+              action: video.paused ? "pause" : "play",
+              timeFromEnd: position,
+            },
+      );
+      return undefined;
+    }
     if (!isApplyMessage(message)) return undefined;
     void apply(message.action, message.timeFromEnd).then(sendResponse);
     return true;
@@ -96,6 +114,15 @@ function start(): void {
   });
   window.addEventListener("resize", report);
   report();
+}
+
+function isSnapshotMessage(value: unknown): value is { type: "video:snapshot" } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    value.type === "video:snapshot"
+  );
 }
 
 function findBestVideo(): HTMLVideoElement | null {

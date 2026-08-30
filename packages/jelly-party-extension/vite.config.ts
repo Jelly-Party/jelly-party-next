@@ -9,7 +9,8 @@ import { resolveBuildUrls } from "../../config/urls";
 export default defineConfig(({ mode }) => {
   const isTest = mode.endsWith("test");
   const isFirefox = mode.startsWith("firefox");
-  const isDevelopment = mode === "development";
+  const isDevelopment = mode.endsWith("development");
+  const browser = isFirefox ? "firefox" : "chrome";
   const buildEnvironment = loadBuildEnvironment(mode);
   const environment = isDevelopment
     ? {
@@ -24,15 +25,35 @@ export default defineConfig(({ mode }) => {
 
   return {
     publicDir: "icons",
-    server: { port: 5174, strictPort: true },
+    run: {
+      tasks: {
+        dev: {
+          command:
+            'vp exec concurrently --kill-others "vp build --watch --mode development" "vp build --watch --mode firefox-development" --names "chrome,firefox" --prefix-colors "magenta,cyan"',
+          cache: false,
+        },
+        build: {
+          command: ["vp build --mode production", "vp build --mode firefox"],
+          cache: false,
+        },
+        "build:test": {
+          command: "vp build --mode test",
+          cache: false,
+        },
+        "build:test:firefox": {
+          command: "vp build --mode firefox-test",
+          cache: false,
+        },
+      },
+    },
     build: {
-      outDir: isFirefox
-        ? isTest
+      outDir: isTest
+        ? isFirefox
           ? "dist-firefox-test"
-          : "dist-firefox"
-        : isTest
-          ? "dist-test"
-          : "dist-chromium",
+          : "dist-test"
+        : isDevelopment
+          ? `../../latest/dev/${browser}`
+          : `../../artifacts/${browser}`,
       emptyOutDir: true,
     },
     define: {
@@ -45,23 +66,13 @@ export default defineConfig(({ mode }) => {
       UnoCSS(),
       webExtension({
         manifest: () => createExtensionManifest(urls, { firefox: isFirefox, test: isTest }),
-        disableAutoLaunch: Boolean(process.env.CI),
+        disableAutoLaunch: true,
         watchFilePaths: ["../../config/extension-manifest.ts", "../../config/urls.ts"],
         additionalInputs: [
           "src/sidebar/sidebar.html",
           "src/grant/grant.html",
           "src/content/video.ts",
         ],
-        transformManifest(manifest) {
-          if (mode === "development" && manifest.manifest_version === 3) {
-            // The dev server adds this permission after every input build. Remove its previous
-            // injection so multi-input extension rebuilds keep a valid, duplicate-free manifest.
-            manifest.host_permissions = manifest.host_permissions?.filter(
-              (permission: string) => permission !== "http://localhost/*",
-            );
-          }
-          return manifest;
-        },
       }),
     ]),
   };

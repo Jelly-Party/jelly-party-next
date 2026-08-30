@@ -13,13 +13,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
-const extensionPath = path.join(
-  directory,
-  "..",
-  "packages",
-  "jelly-party-extension",
-  "dist-chromium",
-);
+const extensionPath = path.join(directory, "..", "artifacts", "chrome");
 const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://v2-join.jelly-party.com";
 const destination = "https://example.com/watch";
 // Matches PARTY_ID_LENGTH in the protocol; a shorter id makes the invite unparseable.
@@ -67,12 +61,16 @@ try {
     undefined,
     { timeout: 20000 },
   );
-  await join.click();
+  const pagesBeforeGrant = context.pages().length;
+  await Promise.all([
+    page.waitForURL(/\/src\/grant\/grant\.html\?/, { timeout: 20000 }),
+    join.click(),
+  ]);
 
-  // The hand-off is a Jelly Party extension page, not a toolbar hint.
-  const grant = await context.waitForEvent("page", { timeout: 20000 });
-  await grant.waitForLoadState("domcontentloaded");
-  assert.match(grant.url(), /\/src\/grant\/grant\.html\?/, "The grant page did not open");
+  // The hand-off stays in the invite tab, like Jelly Party 1.x. A separate
+  // popup competes with the browser permission prompt and obscures the flow.
+  const grant = page;
+  assert.equal(context.pages().length, pagesBeforeGrant, "The grant flow opened another window");
   assert.match(
     (await grant.locator("#description").textContent()) ?? "",
     /example\.com/,

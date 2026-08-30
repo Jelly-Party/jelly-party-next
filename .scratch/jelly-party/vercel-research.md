@@ -18,7 +18,7 @@ The build commands likewise invoke the installed CLI by its absolute path, for
 example:
 
 ```sh
-$HOME/.vite-plus/bin/vp run jelly-party-lib#build && $HOME/.vite-plus/bin/vp build
+$HOME/.vite-plus/bin/vp build
 ```
 
 This deliberately avoids relying on Vercel to parse the pnpm 11 lockfile or to
@@ -252,7 +252,7 @@ roots:
 
 ```sh
 # packages/jelly-party-join
-$HOME/.vite-plus/bin/vp run jelly-party-lib#build && $HOME/.vite-plus/bin/vp build
+$HOME/.vite-plus/bin/vp build
 
 # packages/jelly-party-website
 $HOME/.vite-plus/bin/vp build
@@ -261,5 +261,5 @@ $HOME/.vite-plus/bin/vp build
 This verifies the important clean-deployment properties together: the global
 Vite+ bootstrap works without shell initialization, Vite+ selects pnpm 11, the
 frozen multi-document lockfile installs unchanged, the reviewed build-script
-policy passes, the shared library is available to the join package, and both
-static outputs build successfully.
+policy passes, the shared library is consumed directly from its TypeScript
+workspace source, and both static outputs build successfully.

@@ -16,12 +16,9 @@ packages/*/.svelte-kit/
 packages/*/build/
 
 # Extension build
-packages/jelly-party-extension/dist/
-packages/jelly-party-extension/dist-chromium/
-packages/jelly-party-extension/dist-firefox/
 packages/jelly-party-extension/dist-firefox-test/
-packages/jelly-party-extension/.dev-chrome-profile/
 artifacts/
+/latest/
 
 # OS
 .DS_Store

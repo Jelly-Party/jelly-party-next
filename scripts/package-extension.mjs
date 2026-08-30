@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 
@@ -9,12 +9,17 @@ const root = process.cwd();
 const extensionRoot = path.join(root, "packages/jelly-party-extension");
 const artifacts = path.join(root, "artifacts");
 const fixedDate = new Date("2000-01-01T00:00:00.000Z");
+const archiveNames = [
+  "jelly-party-2.0.0-chrome.zip",
+  "jelly-party-2.0.0-edge.zip",
+  "jelly-party-2.0.0-firefox.zip",
+  "jelly-party-2.0.0-firefox-source.zip",
+];
 
-await rm(artifacts, { recursive: true, force: true });
 await mkdir(artifacts, { recursive: true });
 
-const chromiumDirectory = path.join(extensionRoot, "dist-chromium");
-const firefoxDirectory = path.join(extensionRoot, "dist-firefox");
+const chromiumDirectory = path.join(artifacts, "chrome");
+const firefoxDirectory = path.join(artifacts, "firefox");
 await validateManifest(chromiumDirectory, "chromium");
 await validateManifest(firefoxDirectory, "firefox");
 
@@ -59,7 +64,7 @@ await writeFile(
   await zipFiles(sourceFiles),
 );
 
-for (const filename of (await readdir(artifacts)).sort()) {
+for (const filename of archiveNames.sort()) {
   const contents = await readFile(path.join(artifacts, filename));
   console.log(`${createHash("sha256").update(contents).digest("hex")}  ${filename}`);
 }

@@ -5,6 +5,7 @@ import {
   type ChatEntry,
   type ChatHistoryPage,
   type PeerIdentity,
+  type PlaybackSnapshot,
   type ServerMessage,
 } from "jelly-party-lib";
 
@@ -22,6 +23,11 @@ interface ChatRow extends Record<string, string | number> {
   peerEmoji: string;
   text: string;
   sentAt: number;
+}
+
+interface ConnectionAttachment {
+  peer: PeerIdentity;
+  playback?: PlaybackSnapshot;
 }
 
 export default {
@@ -74,12 +80,16 @@ export class Party implements DurableObject {
           code: "invalid-message",
           message: "Already joined",
         });
-      socket.serializeAttachment(message.peer);
+      const initializePlayback = this.peers().length === 0;
+      const playback = this.playback();
+      socket.serializeAttachment({ peer: message.peer, playback });
       await this.ctx.storage.deleteAlarm();
       this.send(socket, {
         type: "welcome",
         peerId: message.peer.id,
         history: this.history(),
+        playback,
+        initializePlayback,
       });
       this.broadcastPresence();
       return;
@@ -98,6 +108,18 @@ export class Party implements DurableObject {
       this.broadcast({ type: "chat", entry });
       return;
     }
+    const current = this.playback();
+    const playback: PlaybackSnapshot = {
+      playing:
+        message.action === "play"
+          ? true
+          : message.action === "pause"
+            ? false
+            : (current?.playing ?? false),
+      timeFromEnd: message.timeFromEnd,
+      updatedAt: Date.now(),
+    };
+    this.rememberPlayback(playback);
     this.broadcast(
       {
         type: "playback",
@@ -191,8 +213,34 @@ export class Party implements DurableObject {
   }
 
   private peer(socket: WebSocket): PeerIdentity | null {
+    return this.attachment(socket)?.peer ?? null;
+  }
+
+  private attachment(socket: WebSocket): ConnectionAttachment | null {
     const value = socket.deserializeAttachment();
-    return isPeer(value) ? value : null;
+    // Accept the previous attachment shape during a rolling deployment.
+    if (isPeer(value)) return { peer: value };
+    if (!isRecord(value) || !isPeer(value.peer)) return null;
+    return {
+      peer: value.peer,
+      playback: isPlaybackSnapshot(value.playback) ? value.playback : undefined,
+    };
+  }
+
+  private playback(): PlaybackSnapshot | undefined {
+    let latest: PlaybackSnapshot | undefined;
+    for (const socket of this.ctx.getWebSockets()) {
+      const playback = this.attachment(socket)?.playback;
+      if (playback && (!latest || playback.updatedAt > latest.updatedAt)) latest = playback;
+    }
+    return latest;
+  }
+
+  private rememberPlayback(playback: PlaybackSnapshot): void {
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = this.attachment(socket);
+      if (attachment) socket.serializeAttachment({ ...attachment, playback });
+    }
   }
 
   private broadcastPresence(): void {
@@ -226,4 +274,19 @@ function isPeer(value: unknown): value is PeerIdentity {
     "name" in value &&
     "emoji" in value
   );
+}
+
+function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.playing === "boolean" &&
+    typeof value.timeFromEnd === "number" &&
+    Number.isFinite(value.timeFromEnd) &&
+    typeof value.updatedAt === "number" &&
+    Number.isFinite(value.updatedAt)
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

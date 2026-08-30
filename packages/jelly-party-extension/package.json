@@ -4,11 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
-    "build": "vp build --mode production",
-    "build:firefox": "vp build --mode firefox",
-    "build:test:firefox": "vp build --mode firefox-test",
-    "build:test": "vp build --mode test",
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {

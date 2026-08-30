@@ -73,6 +73,22 @@ export async function sidePanelOptions(
   }, tabId);
 }
 
+export async function sidePanelBehavior(
+  peer: ExtensionPeer,
+): Promise<{ openPanelOnActionClick?: boolean }> {
+  const worker = peer.context.serviceWorkers()[0];
+  return worker.evaluate(async () => {
+    const extension = globalThis as typeof globalThis & {
+      chrome: {
+        sidePanel: {
+          getPanelBehavior(): Promise<{ openPanelOnActionClick?: boolean }>;
+        };
+      };
+    };
+    return extension.chrome.sidePanel.getPanelBehavior();
+  });
+}
+
 export async function openSidebar(peer: ExtensionPeer, videoPage: Page): Promise<Page> {
   const tabId = await extensionTabId(peer, videoPage);
   const sidebar = await peer.context.newPage();
