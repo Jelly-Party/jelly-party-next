@@ -3,31 +3,19 @@ import { parseMagicLink } from "jelly-party-lib";
 document.documentElement.dataset.jellyPartyExtension = "installed";
 window.postMessage({ type: "jelly-party:available" }, "*");
 
-window.addEventListener("message", (event) => {
-  if (event.source !== window || event.data?.type !== "jelly-party:join") return;
-  const parsed = parseMagicLink(window.location.href);
-  if (!parsed) {
-    window.postMessage(
-      { type: "jelly-party:result", ok: false, error: "Invalid invite link" },
-      "*",
-    );
-    return;
-  }
+const invite = parseMagicLink(window.location.href);
+if (!invite) {
+  reportFailure("Invalid invite link");
+} else {
   void chrome.runtime
-    .sendMessage({ type: "join:request", ...parsed })
+    .sendMessage({ type: "join:prepare", ...invite })
     .then((result) => {
-      window.postMessage({ type: "jelly-party:result", ...result }, "*");
-      if (result?.ok && typeof result.destination === "string") {
-        setTimeout(
-          () => window.location.assign(result.destination),
-          result.sidebarOpened ? 50 : 1500,
-        );
-      }
+      if (!result?.ok) reportFailure(result?.error ?? "Could not join");
     })
-    .catch(() =>
-      window.postMessage(
-        { type: "jelly-party:result", ok: false, error: "The extension could not open the video" },
-        "*",
-      ),
-    );
-});
+    .catch(() => reportFailure("The extension could not prepare this invite"));
+}
+
+function reportFailure(error: string): void {
+  document.documentElement.dataset.jellyPartyError = error;
+  window.postMessage({ type: "jelly-party:result", ok: false, error }, "*");
+}

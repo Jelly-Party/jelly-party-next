@@ -4,25 +4,37 @@
   import {
     initialPartyState,
     partyViewForTab,
-    type PartyConnectionStatus,
     type PartyState,
   } from "../background/party-state";
   import { isChatAttached } from "./chat-scroll";
-  import { shouldFollowTabActivation } from "./view-context";
-
+  import PartyView from "./PartyView.svelte";
   let identity: PeerIdentity = { id: "", name: "", emoji: "🍿" };
   let viewTabId: number | null = null;
   let viewWindowId: number | null = null;
   let tabTitle = "";
   let hasVideo = false;
+  let cannotAccessTab = false;
   let loading = true;
   let notice = "";
   let message = "";
   let copied = false;
   let messagesElement: HTMLDivElement | null = null;
+  let composerElement: HTMLTextAreaElement | null = null;
   let chatAttached = true;
   let unseenMessages = 0;
   let partyState: PartyState = initialPartyState;
+  const emojiOptions = [
+    { id: "jellyfish", value: "🪼" },
+    { id: "popcorn", value: "🍿" },
+    { id: "party", value: "🥳" },
+    { id: "cinema", value: "🎬" },
+    { id: "sparkles", value: "✨" },
+    { id: "unicorn", value: "🦄" },
+    { id: "whale", value: "🐳" },
+    { id: "fox", value: "🦊" },
+    { id: "panda", value: "🐼" },
+    { id: "celebrate", value: "🎉" },
+  ];
   const requestedTabId = Number.parseInt(
     new URLSearchParams(location.search).get("tab") ?? "",
     10,
@@ -45,7 +57,8 @@
         incoming.type === "tab:activated" &&
         typeof incoming.tabId === "number" &&
         typeof incoming.windowId === "number" &&
-        shouldFollowTabActivation(isContextualPanel, viewWindowId, incoming.windowId)
+        !isContextualPanel &&
+        viewWindowId === incoming.windowId
       ) {
         viewTabId = incoming.tabId;
         if (partyState.kind === "active" && partyState.party.tabId === incoming.tabId) {
@@ -61,28 +74,36 @@
         partyState.kind === "idle"
       ) {
         hasVideo = incoming.hasVideo === true;
+        if (incoming.accessRequired === true) {
+          cannotAccessTab = true;
+        }
+        if (incoming.hasVideo === true || incoming.accessRequired === false) {
+          cannotAccessTab = false;
+        }
       }
       if (incoming.type === "tab:navigated" && incoming.tabId === viewTabId) {
-        void refreshTab(viewTabId);
+        tabTitle = typeof incoming.title === "string" ? incoming.title : "Current video";
+        applyVideoScan(incoming.video);
       }
     };
     chrome.runtime.onMessage.addListener(listener);
     void initialize();
-    return () => chrome.runtime.onMessage.removeListener(listener);
+    return () => {
+      chrome.runtime.onMessage.removeListener(listener);
+    };
   });
 
   async function initialize(): Promise<void> {
     identity = await chrome.runtime.sendMessage({ type: "identity:get" });
     const tab = await chrome.runtime.sendMessage({
-      type: "tab:active",
+      type: "tab:snapshot",
       ...(isContextualPanel ? { tabId: requestedTabId } : {}),
     });
     if (tab?.tabId) {
       viewTabId = tab.tabId;
       viewWindowId = tab.windowId;
       tabTitle = tab.title ?? "Current video";
-      const candidate = await chrome.runtime.sendMessage({ type: "video:scan", tabId: tab.tabId });
-      hasVideo = candidate?.hasVideo === true;
+      applyVideoScan(tab.video);
       await chrome.runtime.sendMessage({ type: "pending:consume", tabId: tab.tabId });
     } else {
       notice = tab?.error ?? "Open a web page containing a video, then try again.";
@@ -144,13 +165,18 @@
 
   async function refreshTab(tabId: number | null): Promise<void> {
     if (tabId === null) return;
-    const tab = await chrome.runtime.sendMessage({ type: "tab:active", tabId });
+    const tab = await chrome.runtime.sendMessage({ type: "tab:snapshot", tabId });
     if (tab?.tabId) {
       tabTitle = tab.title ?? "Current video";
-      const candidate = await chrome.runtime.sendMessage({ type: "video:scan", tabId });
-      hasVideo = candidate?.hasVideo === true;
+      applyVideoScan(tab.video);
       notice = "";
     }
+  }
+
+  function applyVideoScan(candidate: unknown): void {
+    const scan = isRecord(candidate) ? candidate : {};
+    hasVideo = scan.hasVideo === true;
+    cannotAccessTab = scan.accessRequired === true;
   }
 
   async function saveIdentity(): Promise<void> {
@@ -176,6 +202,7 @@
   }
 
   async function retry(): Promise<void> {
+    notice = "";
     await chrome.runtime.sendMessage({ type: "party:retry" });
   }
 
@@ -184,11 +211,35 @@
     if (!result?.ok) notice = result?.error ?? "Could not return to the party tab.";
   }
 
+  async function returnToPartyVideo(): Promise<void> {
+    const result = await chrome.runtime.sendMessage({ type: "party:return-video" });
+    if (!result?.ok) notice = result?.error ?? "Could not return to the party video.";
+  }
+
   async function sendChat(): Promise<void> {
     const text = message.trim();
     if (!text || text.length > MAX_CHAT_LENGTH) return;
     const result = await chrome.runtime.sendMessage({ type: "party:chat", text });
-    if (result?.ok) message = "";
+    if (result?.ok) {
+      notice = "";
+      message = "";
+      await tick();
+      resizeComposer();
+    } else {
+      notice = result?.error ?? "Message not sent. Reconnect and try again.";
+    }
+  }
+
+  function handleComposerKeydown(event: KeyboardEvent): void {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    void sendChat();
+  }
+
+  function resizeComposer(): void {
+    if (!composerElement) return;
+    composerElement.style.height = "auto";
+    composerElement.style.height = `${Math.min(composerElement.scrollHeight, 120)}px`;
   }
 
   async function loadOlderChat(): Promise<void> {
@@ -201,17 +252,12 @@
   async function copyInvite(): Promise<void> {
     try {
       await navigator.clipboard.writeText(inviteLink);
+      notice = "";
       copied = true;
       setTimeout(() => (copied = false), 1500);
     } catch {
       notice = "Could not copy the invite. Please try again.";
     }
-  }
-
-  function connectionLabel(status: PartyConnectionStatus): string {
-    if (status === "connected") return "Connected";
-    if (status === "connecting") return "Connecting…";
-    return "Connection lost";
   }
 
   function isPartyState(value: unknown): value is PartyState {
@@ -225,16 +271,16 @@
 
 <svelte:head><title>Jelly Party</title></svelte:head>
 
-<main class="h-screen min-h-0 flex flex-col gap-4 overflow-y-auto bg-jelly-ink p-4 text-slate-100" data-testid="sidebar">
-  <header class="flex items-center gap-3">
-    <img class="jp-logo h-11 w-11" src="/128x128.png" alt="" width="128" height="128" />
-    <div class="min-w-0">
-      <h1 class="m-0 text-xl font-700">Jelly Party</h1>
-      <p class="m-0 truncate text-sm text-slate-400">
-        {view.mode === "party" ? view.party.tabTitle : "Watch together, right beside the video."}
-      </p>
-    </div>
-  </header>
+<main class:party-active={!loading && view.mode === "party"} class="sidebar-root" data-testid="sidebar">
+  {#if loading || view.mode !== "party"}
+    <header class="brand-header">
+      <img class="jp-logo h-11 w-11" src="/128x128.png" alt="" width="128" height="128" />
+      <div class="min-w-0">
+        <h1 class="m-0 text-xl font-700">Jelly Party</h1>
+        <p class="m-0 truncate text-sm text-slate-400">Watch together, right beside the video.</p>
+      </div>
+    </header>
+  {/if}
 
   {#if loading}
     <section class="jp-panel p-4" aria-live="polite">Finding your video…</section>
@@ -245,9 +291,27 @@
         <p class="m-0 mt-1 text-sm leading-5 text-slate-400">Choose how friends will see you in the party.</p>
       </div>
       <label>Display name <input class="jp-field mt-1" bind:value={identity.name} maxlength="40" data-testid="name-input" /></label>
-      <label>Emoji <input class="jp-field mt-1" bind:value={identity.emoji} maxlength="16" data-testid="emoji-input" /></label>
+      <fieldset class="emoji-picker">
+        <legend>Choose your emoji</legend>
+        <div class="emoji-grid">
+          {#each emojiOptions as option}
+            <button
+              type="button"
+              class:selected={identity.emoji === option.value}
+              aria-label={`Use ${option.value}`}
+              aria-pressed={identity.emoji === option.value}
+              on:click={() => (identity.emoji = option.value)}
+              data-testid={`emoji-option-${option.id}`}
+            >{option.value}</button>
+          {/each}
+        </div>
+      </fieldset>
       <div class:ok={hasVideo} class="video-state" data-testid="video-state">
-        {hasVideo ? "Video ready" : "No video found in this tab"}
+        {hasVideo
+          ? "Video ready"
+          : cannotAccessTab
+            ? "Click the Jelly Party toolbar button to activate this tab"
+            : "No video found in this tab"}
       </div>
       <p class="m-0 truncate text-sm text-slate-400" title={tabTitle}>{tabTitle || "No supported tab"}</p>
       <button
@@ -273,88 +337,26 @@
       {#if notice}<p class="jp-notice m-0" role="alert">{notice}</p>{/if}
     </section>
   {:else}
-    <section class="jp-panel flex items-start justify-between gap-3 p-4">
-      <div class="min-w-0">
-        <div class="mb-1 text-xs font-700 tracking-widest text-indigo-300 uppercase">Watching together</div>
-        <h2 class="m-0 truncate text-base leading-5" title={view.party.tabTitle}>{view.party.tabTitle}</h2>
-        <div class="mt-2 text-xs text-slate-400" data-testid="connection-status">
-          <span class="status-dot" class:online={view.party.status === "connected"}></span>
-          {connectionLabel(view.party.status)} · {view.party.peers.length} {view.party.peers.length === 1 ? "person" : "people"}
-        </div>
-      </div>
-      <button class="jp-button-danger min-h-9 px-3 py-1.5" on:click={leaveParty} data-testid="leave-party">Leave</button>
-    </section>
-
-    <section class="jp-panel flex flex-col gap-3 p-4">
-      <div>
-        <h2 class="section-title">Invite friends</h2>
-        <p class="m-0 mt-1 text-sm leading-5 text-slate-400">One link opens this video and joins the party.</p>
-      </div>
-      <span class="sr-only" data-testid="invite-link">{inviteLink}</span>
-      <button class="jp-button-primary" on:click={copyInvite} data-testid="copy-invite">
-        {copied ? "Invite copied!" : "Copy invite link"}
-      </button>
-      <ul class="peer-list" aria-label="People in this party" data-testid="peer-list">
-        {#each view.party.peers as peer (peer.id)}
-          <li data-testid="peer">{peer.emoji} {peer.name}{peer.id === identity.id ? " (you)" : ""}</li>
-        {/each}
-      </ul>
-    </section>
-
-    <section class="jp-panel min-h-0 flex flex-1 flex-col gap-3 overflow-hidden p-4">
-      <h2 class="section-title">Chat</h2>
-      <div class="relative min-h-0 flex-1">
-        <div
-          class="messages h-full overscroll-contain [scrollbar-gutter:stable]"
-          bind:this={messagesElement}
-          on:scroll={handleChatScroll}
-          role="log"
-          aria-live="polite"
-          aria-relevant="additions"
-          data-testid="messages"
-        >
-          {#if view.party.hasMoreHistory}
-            <button class="jp-button-secondary mb-3 w-full" on:click={loadOlderChat} data-testid="load-history">
-              Load older messages
-            </button>
-          {/if}
-          {#if view.party.messages.length === 0}<p class="empty">No messages yet. Say hello!</p>{/if}
-          {#each view.party.messages as entry}
-            <article class="message" data-testid="chat-message">
-              <strong>{entry.peer.emoji} {entry.peer.name}</strong><p>{entry.text}</p>
-            </article>
-          {/each}
-        </div>
-        {#if unseenMessages > 0}
-          <button
-            class="absolute bottom-2 left-1/2 z-1 -translate-x-1/2 whitespace-nowrap border-violet-400/30 bg-violet-950/95 px-3 py-2 text-xs font-700 text-violet-100 shadow-lg hover:bg-violet-900"
-            on:click={() => scrollChatToBottom("smooth")}
-            data-testid="new-messages"
-          >
-            ↓ {unseenMessages} new {unseenMessages === 1 ? "message" : "messages"}
-          </button>
-        {/if}
-      </div>
-      <form class="flex gap-2" on:submit|preventDefault={sendChat}>
-        <label class="sr-only" for="message">Message</label>
-        <input
-          id="message"
-          class="jp-field min-w-0 flex-1"
-          bind:value={message}
-          maxlength={MAX_CHAT_LENGTH}
-          placeholder="Message the party"
-          data-testid="chat-input"
-        />
-        <button class="jp-button-primary px-4" type="submit" disabled={!message.trim()} data-testid="send-chat">Send</button>
-      </form>
-      {#if view.party.status === "disconnected"}
-        <div class="jp-notice flex items-center justify-between gap-3" role="alert">
-          <span>Connection lost. Your party is still here.</span>
-          <button class="jp-button-secondary min-h-9 px-3 py-1.5" on:click={retry} data-testid="retry">Retry</button>
-        </div>
-      {/if}
-      {#if !view.party.hasVideo}<p class="jp-notice m-0" role="alert">The video is unavailable. Return to the page or reload it.</p>{/if}
-      {#if view.party.notice}<p class="jp-notice m-0" role="alert">{view.party.notice}</p>{/if}
-    </section>
+    <PartyView
+      party={view.party}
+      {identity}
+      {inviteLink}
+      {notice}
+      {copied}
+      {unseenMessages}
+      bind:message
+      bind:messagesElement
+      bind:composerElement
+      onCopyInvite={copyInvite}
+      onLeave={leaveParty}
+      onRetry={retry}
+      onReturnToVideo={returnToPartyVideo}
+      onSend={sendChat}
+      onLoadOlder={loadOlderChat}
+      onChatScroll={handleChatScroll}
+      onScrollToBottom={scrollChatToBottom}
+      onComposerInput={resizeComposer}
+      onComposerKeydown={handleComposerKeydown}
+    />
   {/if}
 </main>

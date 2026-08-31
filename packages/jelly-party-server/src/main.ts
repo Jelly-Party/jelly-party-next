@@ -1,5 +1,6 @@
 import {
   HISTORY_PAGE_SIZE,
+  MAX_CHAT_MESSAGES,
   parseClientMessage,
   parsePartyId,
   type ChatEntry,
@@ -47,14 +48,23 @@ export default {
 };
 
 export class Party implements DurableObject {
+  private schemaReady = false;
+
   constructor(
     private readonly ctx: DurableObjectState,
     _env: Env,
   ) {
-    void this.ctx.blockConcurrencyWhile(async () => this.migrate());
+    void this.ctx.blockConcurrencyWhile(async () => {
+      this.migrate();
+      this.schemaReady = true;
+    });
   }
 
   async fetch(request: Request): Promise<Response> {
+    if (!this.schemaReady) {
+      this.migrate();
+      this.schemaReady = true;
+    }
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("WebSocket upgrade required", { status: 426 });
     }
@@ -139,7 +149,10 @@ export class Party implements DurableObject {
   }
 
   async alarm(): Promise<void> {
-    if (this.peers().length === 0) await this.ctx.storage.deleteAll();
+    if (this.peers().length === 0) {
+      await this.ctx.storage.deleteAll();
+      this.schemaReady = false;
+    }
   }
 
   private saveChat(peer: PeerIdentity, text: string): ChatEntry {
@@ -156,6 +169,10 @@ export class Party implements DurableObject {
         Date.now(),
       )
       .one();
+    const pruneThroughId = entry.id - MAX_CHAT_MESSAGES;
+    if (pruneThroughId > 0) {
+      this.ctx.storage.sql.exec("DELETE FROM chat WHERE id <= ?", pruneThroughId);
+    }
     return toChatEntry(entry);
   }
 

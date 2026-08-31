@@ -42,8 +42,8 @@ export class PartySocket {
     });
   }
 
-  chat(text: string): void {
-    this.send({ type: "chat", text });
+  chat(text: string): boolean {
+    return this.send({ type: "chat", text });
   }
 
   playback(action: PlaybackAction, timeFromEnd: number): void {
@@ -60,7 +60,9 @@ export class PartySocket {
     socket?.close();
   }
 
-  private send(message: ClientMessage): void {
-    if (this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(JSON.stringify(message));
+  private send(message: ClientMessage): boolean {
+    if (this.#socket?.readyState !== WebSocket.OPEN) return false;
+    this.#socket.send(JSON.stringify(message));
+    return true;
   }
 }

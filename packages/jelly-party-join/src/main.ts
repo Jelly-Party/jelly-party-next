@@ -10,38 +10,31 @@ const status = document.querySelector<HTMLElement>("#status")!;
 const install = document.querySelector<HTMLElement>("#install")!;
 install.setAttribute("href", __JELLY_WEBSITE_URL__);
 let extensionAvailable = document.documentElement.dataset.jellyPartyExtension === "installed";
+const startupError = document.documentElement.dataset.jellyPartyError;
 
 if (!invite) {
   description.textContent = "This invite is incomplete or unsafe. Ask your friend for a new link.";
   status.textContent = "Invalid invite link";
 } else {
   description.textContent = `Jelly Party will request access to ${new URL(invite.destination).hostname}, then open the shared video.`;
-  button.disabled = !extensionAvailable;
+  button.disabled = true;
+  if (extensionAvailable) status.textContent = "Opening Jelly Party…";
 }
 
 window.addEventListener("message", (event) => {
   if (event.source !== window || !event.data) return;
   if (event.data.type === "jelly-party:available") {
     extensionAvailable = true;
-    button.disabled = !invite;
-    status.textContent = "Jelly Party is ready.";
+    button.disabled = true;
+    if (invite) status.textContent = "Opening Jelly Party…";
   }
   if (event.data.type === "jelly-party:result" && event.data.ok === false) {
-    button.disabled = false;
+    button.disabled = true;
     status.textContent = event.data.error ?? "Could not join. Please try again.";
-  }
-  if (event.data.type === "jelly-party:result" && event.data.ok === true) {
-    status.textContent = event.data.sidebarOpened
-      ? "Opening the shared video…"
-      : "When the video opens, click the Jelly Party toolbar button once.";
   }
 });
 
-button.addEventListener("click", () => {
-  button.disabled = true;
-  status.textContent = "Opening the shared video…";
-  window.postMessage({ type: "jelly-party:join" }, "*");
-});
+if (startupError) status.textContent = startupError;
 
 setTimeout(() => {
   if (!extensionAvailable && invite) {

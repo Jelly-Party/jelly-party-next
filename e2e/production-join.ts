@@ -18,7 +18,7 @@ const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://v2-join.jelly-party
 const destination = "https://example.com/watch";
 // Matches PARTY_ID_LENGTH in the protocol; a shorter id makes the invite unparseable.
 const partyId = "ProductionSmokeTest".padEnd(22, "0");
-const invite = `${joinUrl}/?party=${partyId}&video=${encodeURIComponent(destination)}`;
+const invite = `${joinUrl.replace(/\/$/, "")}/#${partyId}@${destination.slice("https://".length)}`;
 
 const userDataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "jelly-party-production-"));
 const context = await chromium.launchPersistentContext(userDataDirectory, {
@@ -30,7 +30,6 @@ const context = await chromium.launchPersistentContext(userDataDirectory, {
 try {
   let worker = context.serviceWorkers()[0];
   if (!worker) worker = await context.waitForEvent("serviceworker");
-
   // A permission request from the worker always fails: it has no user gesture.
   await worker.evaluate(() => {
     const extension = globalThis as typeof globalThis & {
@@ -46,29 +45,12 @@ try {
   });
 
   const page = await context.newPage();
-  await page.goto(invite, { waitUntil: "domcontentloaded" });
-
-  const detected = await page.evaluate(
-    () => document.documentElement.dataset.jellyPartyExtension ?? "",
-  );
-  assert.equal(detected, "installed", "The join site did not detect the production build");
-
-  // The join site only enables the button once the extension announces itself.
-  const join = page.locator("#join");
-  await join.waitFor({ state: "visible", timeout: 20000 });
-  await page.waitForFunction(
-    () => document.querySelector<HTMLButtonElement>("#join")?.disabled === false,
-    undefined,
-    { timeout: 20000 },
-  );
   const pagesBeforeGrant = context.pages().length;
-  await Promise.all([
-    page.waitForURL(/\/src\/grant\/grant\.html\?/, { timeout: 20000 }),
-    join.click(),
-  ]);
+  await page.goto(invite, { waitUntil: "domcontentloaded" });
+  await page.waitForURL(/\/src\/grant\/grant\.html\?/, { timeout: 20000 });
 
-  // The hand-off stays in the invite tab, like Jelly Party 1.x. A separate
-  // popup competes with the browser permission prompt and obscures the flow.
+  // Installed users hand off automatically in the invite tab. The one button
+  // they click belongs to the extension and can open browser-gated UI.
   const grant = page;
   assert.equal(context.pages().length, pagesBeforeGrant, "The grant flow opened another window");
   assert.match(

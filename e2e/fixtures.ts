@@ -37,6 +37,36 @@ export async function launchExtensionPeer(): Promise<ExtensionPeer> {
   };
 }
 
+export async function blockNextExtensionVideoPlay(peer: ExtensionPeer, page: Page): Promise<void> {
+  const tabId = await extensionTabId(peer, page);
+  const worker = peer.context.serviceWorkers()[0];
+  await worker.evaluate(async (targetTabId) => {
+    const extension = globalThis as typeof globalThis & {
+      chrome: {
+        scripting: {
+          executeScript(options: { target: { tabId: number }; func: () => void }): Promise<unknown>;
+        };
+      };
+    };
+    await extension.chrome.scripting.executeScript({
+      target: { tabId: targetTabId },
+      func: () => {
+        const video = document.querySelector("video");
+        if (!video) throw new Error("No video to instrument");
+        const play = video.play.bind(video);
+        let blocked = true;
+        video.play = () => {
+          if (!blocked) return play();
+          blocked = false;
+          return Promise.reject(
+            new DOMException("Playback requires interaction", "NotAllowedError"),
+          );
+        };
+      },
+    });
+  }, tabId);
+}
+
 export async function extensionTabId(peer: ExtensionPeer, page: Page): Promise<number> {
   const worker = peer.context.serviceWorkers()[0];
   const url = page.url();

@@ -103,8 +103,17 @@ function start(): void {
         video.pause();
       }
       return { ok: true };
-    } catch {
-      return { ok: false, error: "The page blocked playback" };
+    } catch (error) {
+      // A rejected play() emits no play event, so remove the echo marker before
+      // the user's eventual manual click produces one.
+      if (action === "play") echo.consume("play");
+      return isAutoplayBlock(error)
+        ? {
+            ok: false,
+            reason: "interaction-required",
+            error: "Press Play on the video once to resume synchronization.",
+          }
+        : { ok: false, error: "The page could not start playback." };
     }
   }
 
@@ -114,6 +123,15 @@ function start(): void {
   });
   window.addEventListener("resize", report);
   report();
+}
+
+function isAutoplayBlock(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "NotAllowedError"
+  );
 }
 
 function isSnapshotMessage(value: unknown): value is { type: "video:snapshot" } {

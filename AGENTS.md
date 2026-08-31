@@ -20,6 +20,11 @@ Jelly Party is a deliberately small browser extension: create a temporary watch 
 - Use `vp node` for a Node.js script from the shell and `vp exec node` inside a Vite Task.
 - Vite+ owns formatting, linting, type-checking, Vitest, builds, and tasks. Do not add Biome, ESLint, Prettier, or `just`.
 
+## Deployment
+
+- Deployments are done live from a developer machine with the `wrangler` CLI, through the Vite Tasks that wrap it (`vp run deploy:sites`, `vp run deploy:join`, `vp run deploy:website`). There is no CI pipeline: nothing builds, tests, or deploys on push.
+- Validation is therefore entirely local: run the checks, tests, and builds below yourself before deploying, and treat a successful deploy as the last step of that same local pass.
+
 ## Validation
 
 - Prefer one high-value Playwright flow over many brittle tests: create, share, join, chat, play, pause, and seek with two peers.

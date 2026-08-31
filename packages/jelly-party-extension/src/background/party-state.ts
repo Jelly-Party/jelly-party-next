@@ -1,4 +1,4 @@
-import type { ChatEntry, PeerIdentity } from "jelly-party-lib";
+import { MAX_CHAT_MESSAGES, type ChatEntry, type PeerIdentity } from "jelly-party-lib";
 
 export type PartyConnectionStatus = "connecting" | "connected" | "disconnected";
 
@@ -11,7 +11,9 @@ export interface ActiveParty {
   peers: PeerIdentity[];
   messages: ChatEntry[];
   hasMoreHistory: boolean;
+  atDestination: boolean;
   hasVideo: boolean;
+  playbackBlocked: boolean;
   notice: string;
 }
 
@@ -31,8 +33,9 @@ export type PartyStateEvent =
   | { type: "chat"; entry: ChatEntry }
   | { type: "history"; entries: ChatEntry[]; hasMore: boolean }
   | { type: "video"; hasVideo: boolean }
+  | { type: "playback-blocked"; blocked: boolean }
   | { type: "notice"; notice: string }
-  | { type: "tab-updated"; tabId: number; tabUrl: string; tabTitle: string }
+  | { type: "tab-destination"; tabId: number; atDestination: boolean }
   | { type: "tab-removed"; tabId: number }
   | { type: "left" };
 
@@ -56,7 +59,9 @@ export function reducePartyState(state: PartyState, event: PartyStateEvent): Par
         peers: [],
         messages: [],
         hasMoreHistory: false,
+        atDestination: true,
         hasVideo: event.hasVideo ?? true,
+        playbackBlocked: false,
         notice: "",
       },
     };
@@ -67,15 +72,27 @@ export function reducePartyState(state: PartyState, event: PartyStateEvent): Par
   if (event.type === "tab-removed") {
     return event.tabId === state.party.tabId ? initialPartyState : state;
   }
-  if (event.type === "tab-updated") {
+  if (event.type === "tab-destination") {
     if (event.tabId !== state.party.tabId) return state;
     return {
       kind: "active",
-      party: { ...state.party, tabUrl: event.tabUrl, tabTitle: event.tabTitle },
+      party: {
+        ...state.party,
+        atDestination: event.atDestination,
+        hasVideo: event.atDestination ? state.party.hasVideo : false,
+        playbackBlocked: event.atDestination ? state.party.playbackBlocked : false,
+      },
     };
   }
   if (event.type === "connection") {
-    return { kind: "active", party: { ...state.party, status: event.status } };
+    return {
+      kind: "active",
+      party: {
+        ...state.party,
+        status: event.status,
+        notice: event.status === "connected" ? "" : state.party.notice,
+      },
+    };
   }
   if (event.type === "presence") {
     return { kind: "active", party: { ...state.party, peers: event.peers } };
@@ -85,7 +102,7 @@ export function reducePartyState(state: PartyState, event: PartyStateEvent): Par
       kind: "active",
       party: {
         ...state.party,
-        messages: [...state.party.messages, event.entry],
+        messages: [...state.party.messages, event.entry].slice(-MAX_CHAT_MESSAGES),
       },
     };
   }
@@ -94,13 +111,26 @@ export function reducePartyState(state: PartyState, event: PartyStateEvent): Par
       kind: "active",
       party: {
         ...state.party,
-        messages: [...event.entries, ...state.party.messages],
+        messages: [...event.entries, ...state.party.messages].slice(-MAX_CHAT_MESSAGES),
         hasMoreHistory: event.hasMore,
       },
     };
   }
   if (event.type === "video") {
-    return { kind: "active", party: { ...state.party, hasVideo: event.hasVideo } };
+    return {
+      kind: "active",
+      party: {
+        ...state.party,
+        hasVideo: event.hasVideo,
+        playbackBlocked: event.hasVideo ? state.party.playbackBlocked : false,
+      },
+    };
+  }
+  if (event.type === "playback-blocked") {
+    return {
+      kind: "active",
+      party: { ...state.party, playbackBlocked: event.blocked },
+    };
   }
   return { kind: "active", party: { ...state.party, notice: event.notice } };
 }

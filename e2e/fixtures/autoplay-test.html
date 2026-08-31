@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jelly Party audible video fixture</title>
+  </head>
+  <body>
+    <video src="flower.webm" controls aria-label="Test video"></video>
+    <button id="play" type="button">Play video</button>
+    <script>
+      document.querySelector("#play").addEventListener("click", () => {
+        void document.querySelector("video").play();
+      });
+    </script>
+  </body>
+</html>

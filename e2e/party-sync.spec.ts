@@ -18,7 +18,7 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await expect
       .poll(() => sidePanelBehavior(peerA))
       .toMatchObject({
-        openPanelOnActionClick: true,
+        openPanelOnActionClick: false,
       });
     const videoA = await peerA.context.newPage();
     await videoA.goto(videoUrl);
@@ -32,7 +32,7 @@ test("two peers create, join, chat, and synchronize playback in both directions"
 
     await expect(sidebarA.getByTestId("video-state")).toHaveText("Video ready");
     await sidebarA.getByTestId("name-input").fill("Mira");
-    await sidebarA.getByTestId("emoji-input").fill("🪼");
+    await sidebarA.getByTestId("emoji-option-jellyfish").click();
     await sidebarA.getByTestId("create-party").click();
     await expect(sidebarA.getByTestId("connection-status")).toContainText("Connected");
     await expect
@@ -42,21 +42,22 @@ test("two peers create, join, chat, and synchronize playback in both directions"
         path: expect.stringContaining(`sidebar.html?tab=${await extensionTabId(peerA, videoA)}`),
       });
     const invite = (await sidebarA.getByTestId("invite-link").textContent()) ?? "";
-    expect(invite).toContain("party=");
-    expect(invite).toContain(encodeURIComponent(videoUrl));
+    const inviteUrl = new URL(invite);
+    expect(inviteUrl.search).toBe("");
+    expect(inviteUrl.hash).toContain(`@${videoUrl}`);
     await sidebarA.getByTestId("chat-input").fill("Mira got here first.");
     await sidebarA.getByTestId("send-chat").click();
     await expect(sidebarA.getByTestId("messages")).toContainText("Mira got here first.");
 
     const joinPage = await peerB.context.newPage();
     await joinPage.goto(invite);
-    const sidebarB = await openSidebar(peerB, joinPage);
-    await expect(sidebarB.getByTestId("video-state")).toHaveText("No video found in this tab");
+    await joinPage.waitForURL(/\/src\/grant\/grant\.html\?/);
     await expect(joinPage.getByRole("button", { name: "Open video and join" })).toBeEnabled();
     await joinPage.getByRole("button", { name: "Open video and join" }).click();
     await joinPage.waitForURL(videoUrl);
     await expect(joinPage.locator("video")).toHaveJSProperty("readyState", 4);
 
+    const sidebarB = await openSidebar(peerB, joinPage);
     await expect(sidebarB.getByTestId("connection-status")).toContainText("Connected");
     await expect(sidebarB.getByTestId("messages")).toContainText("Mira got here first.");
     await expect(sidebarA.getByTestId("peer")).toHaveCount(2);
@@ -73,7 +74,6 @@ test("two peers create, join, chat, and synchronize playback in both directions"
 
     const secondInvitePage = await peerA.context.newPage();
     await secondInvitePage.goto(invite);
-    await secondInvitePage.getByRole("button", { name: "Open video and join" }).click();
     await expect(secondInvitePage.locator("#status")).toContainText("already in a party");
     await expect(sidebarB.getByTestId("peer")).toHaveCount(2);
 
@@ -153,6 +153,24 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await expect.poll(() => paused(videoA)).toBe(false);
     await joinPage.locator("video").evaluate((video: HTMLVideoElement) => video.pause());
     await expect.poll(() => paused(videoA)).toBe(true);
+
+    await videoA.goto("http://localhost:16333/frame-video.html");
+    await expect(videoA.locator("video")).toHaveJSProperty("readyState", 4);
+    sidebarA = await openSidebar(peerA, videoA);
+    await expect(sidebarA.getByTestId("return-to-video-notice")).toContainText(
+      "Playback sync paused",
+    );
+    const unrelatedVideoTime = await currentTime(videoA);
+    await seek(joinPage, 2);
+    await joinPage.waitForTimeout(500);
+    expect(await currentTime(videoA)).toBeCloseTo(unrelatedVideoTime, 1);
+
+    await sidebarA.getByTestId("return-to-video").click();
+    await videoA.waitForURL(videoUrl);
+    await expect(videoA.locator("video")).toHaveJSProperty("readyState", 4);
+    await expect(sidebarA.getByTestId("return-to-video-notice")).toBeHidden();
+    await expect.poll(() => currentTime(videoA)).toBeCloseTo(2, 0);
+    await sidebarA.close();
 
     const unrelatedTab = await peerA.context.newPage();
     await unrelatedTab.goto("http://localhost:16333/frame-video.html");

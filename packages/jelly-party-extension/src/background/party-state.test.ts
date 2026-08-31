@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { MAX_CHAT_MESSAGES } from "jelly-party-lib";
 import { initialPartyState, partyViewForTab, reducePartyState } from "./party-state";
 
 const party = {
@@ -50,18 +51,77 @@ describe("active party state", () => {
     });
   });
 
-  it("updates the destination while keeping the party attached to the same tab", () => {
+  it("clears stale connection errors after reconnecting", () => {
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, { type: "notice", notice: "Could not connect" });
+    state = reducePartyState(state, { type: "connection", status: "connected" });
+
+    expect(state).toMatchObject({
+      kind: "active",
+      party: { status: "connected", notice: "" },
+    });
+  });
+
+  it("keeps at most the latest chat message limit in memory", () => {
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, {
+      type: "history",
+      entries: Array.from({ length: MAX_CHAT_MESSAGES }, (_, index) => ({
+        id: index + 1,
+        peer: { id: "a", name: "Mira", emoji: "🪼" },
+        text: `Message ${index + 1}`,
+        sentAt: index + 1,
+      })),
+      hasMore: false,
+    });
+    state = reducePartyState(state, {
+      type: "chat",
+      entry: {
+        id: MAX_CHAT_MESSAGES + 1,
+        peer: { id: "b", name: "Noah", emoji: "🐳" },
+        text: "Newest",
+        sentAt: MAX_CHAT_MESSAGES + 1,
+      },
+    });
+
+    expect(state.kind).toBe("active");
+    if (state.kind === "active") {
+      expect(state.party.messages).toHaveLength(MAX_CHAT_MESSAGES);
+      expect(state.party.messages[0]?.id).toBe(2);
+      expect(state.party.messages.at(-1)?.text).toBe("Newest");
+    }
+  });
+
+  it("keeps the destination fixed and pauses sync when its tab navigates away", () => {
     const active = reducePartyState(initialPartyState, { type: "started", ...party });
     const navigated = reducePartyState(active, {
-      type: "tab-updated",
+      type: "tab-destination",
       tabId: 7,
-      tabUrl: "https://example.com/episode-2",
-      tabTitle: "Episode two",
+      atDestination: false,
     });
 
     expect(partyViewForTab(navigated, 7)).toMatchObject({
       mode: "party",
-      party: { tabUrl: "https://example.com/episode-2", tabTitle: "Episode two" },
+      party: {
+        tabUrl: party.tabUrl,
+        tabTitle: party.tabTitle,
+        atDestination: false,
+        hasVideo: false,
+      },
+    });
+  });
+
+  it("tracks an actionable local playback block", () => {
+    const active = reducePartyState(initialPartyState, { type: "started", ...party });
+    const blocked = reducePartyState(active, { type: "playback-blocked", blocked: true });
+
+    expect(blocked).toMatchObject({
+      kind: "active",
+      party: { playbackBlocked: true },
+    });
+    expect(reducePartyState(blocked, { type: "playback-blocked", blocked: false })).toMatchObject({
+      kind: "active",
+      party: { playbackBlocked: false },
     });
   });
 

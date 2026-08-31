@@ -20,14 +20,14 @@ const features = [
 		description: "Create a temporary party and send the invite. Friends arrive at the same video without profiles or room codes.",
 	},
 	{
-		title: "Playback moves together",
+		title: "Everyone stays at the same moment",
 		icon: SyncIcon,
-		description: "Play, pause, and seek travel both ways, so anyone can stop for snacks and nobody has to count down from three.",
+		description: "Anyone can press play, pause for snacks, or skip back to a favourite scene. Everyone else's video follows, so nobody has to count down from three.",
 	},
 	{
 		title: "Chat stays out of the way",
 		icon: MessageIcon,
-		description: "See who joined and talk in the browser sidebar. The video page stays intact and the party disappears when everyone leaves.",
+		description: "See who joined and talk in the browser sidebar. The video page itself is left alone, and the party disappears when everyone leaves.",
 	},
 ];
 </script>

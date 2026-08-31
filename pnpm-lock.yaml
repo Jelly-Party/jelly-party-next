@@ -330,6 +330,10 @@ importers:
         version: 5.9.3
 
   packages/jelly-party-website:
+    dependencies:
+      jelly-party-lib:
+        specifier: workspace:*
+        version: link:../jelly-party-lib
     devDependencies:
       '@sveltejs/adapter-static':
         specifier: ^3.0.10

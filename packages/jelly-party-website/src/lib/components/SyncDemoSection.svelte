@@ -102,8 +102,8 @@ onMount(() => {
 		<div class="grid items-end gap-6 lg:grid-cols-[1fr_auto]">
 			<div class="max-w-3xl">
 				<p class="jp-kicker m-0">See the sync</p>
-				<h2 class="mb-0 mt-3 text-3xl leading-tight font-800 tracking-[-0.02em] text-white sm:text-5xl">Two screens. One moment.</h2>
-				<p class="mb-0 mt-5 max-w-2xl text-lg leading-8 text-slate-300">Both videos below are real. Pause either one, scrub its timeline, or use the shared control and watch the other follow.</p>
+				<h2 class="mb-0 mt-3 text-3xl leading-tight font-800 tracking-[-0.02em] text-white sm:text-5xl">Many screens. One moment.</h2>
+				<p class="mb-0 mt-5 max-w-2xl text-lg leading-8 text-slate-300">Both videos below are real. Pause one, jump ahead in the other, or use the shared button, and watch them stay together.</p>
 			</div>
 			<button type="button" class="jp-button-secondary gap-3 px-5" onclick={togglePlayback} aria-label={playing ? "Pause both demo videos" : "Play both demo videos"}>
 				<span class="grid h-7 w-7 place-items-center rounded-full bg-white text-sm text-jelly-ink" aria-hidden="true">{playing ? "Ⅱ" : "▶"}</span>
@@ -162,8 +162,8 @@ onMount(() => {
 		</div>
 
 		<div class="mt-8 flex flex-col justify-between gap-4 border-t border-white/8 pt-6 text-sm leading-6 text-slate-400 sm:flex-row">
-			<p class="m-0 max-w-2xl">The extension does the same thing with accessible HTML video on the page: play, pause, and seek events travel to everyone in the party.</p>
-			<a class="jp-link shrink-0" href="/supported-services">Check video compatibility</a>
+			<p class="m-0 max-w-2xl">The extension does the same for the video on the page you are watching: when one person plays, pauses, or jumps to another moment, everyone else follows.</p>
+			<a class="jp-link shrink-0" href="/supported-services">See where it works</a>
 		</div>
 	</div>
 </section>

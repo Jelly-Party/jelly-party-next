@@ -36,6 +36,22 @@ export default defineConfig({
         ],
         cache: false,
       },
+      "deploy:join": {
+        command: "vp exec wrangler pages deploy --branch main",
+        dependsOn: ["jelly-party-join#build"],
+        cwd: "packages/jelly-party-join",
+        cache: false,
+      },
+      "deploy:website": {
+        command: "vp exec wrangler pages deploy --branch main",
+        dependsOn: ["jelly-party-website#build"],
+        cwd: "packages/jelly-party-website",
+        cache: false,
+      },
+      "deploy:sites": {
+        command: ["vp run deploy:join", "vp run deploy:website"],
+        cache: false,
+      },
       "test:all": {
         command: ["vp test --run", "vp run test:e2e", "vp run test:e2e:firefox"],
         cache: false,

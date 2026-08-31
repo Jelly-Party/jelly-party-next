@@ -12,12 +12,12 @@ const currentYear = new Date().getFullYear();
 					<img class="jp-logo h-11 w-11" src="/favicon.ico" alt="" width="128" height="128" />
 					<span class="text-xl font-800">Jelly Party</span>
 				</a>
-				<p class="mb-0 mt-4 text-sm leading-6 text-slate-400">Temporary watch parties with text chat and synchronized HTML video playback. No accounts, ads, or tracking analytics.</p>
+				<p class="mb-0 mt-4 text-sm leading-6 text-slate-400">Temporary watch parties with chat, keeping everyone's video at the same moment. No accounts, ads, or tracking.</p>
 			</div>
 
 			<nav class="grid grid-cols-2 gap-x-10 gap-y-3 text-sm" aria-label="Footer navigation">
 				<a class="text-slate-300 no-underline hover:text-white" href={getDownloadLink()}>Install</a>
-				<a class="text-slate-300 no-underline hover:text-white" href="/supported-services">Compatibility</a>
+				<a class="text-slate-300 no-underline hover:text-white" href="/supported-services">Where it works</a>
 				<a class="text-slate-300 no-underline hover:text-white" href="/privacy-policy">Privacy</a>
 				<a class="text-slate-300 no-underline hover:text-white" href={__JELLY_REPOSITORY_URL__} target="_blank" rel="noopener noreferrer">GitHub</a>
 				<a class="text-slate-300 no-underline hover:text-white" href="mailto:hi@jelly-party.com">Email us</a>

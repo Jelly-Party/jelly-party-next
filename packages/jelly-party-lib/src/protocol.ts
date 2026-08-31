@@ -1,4 +1,5 @@
 export const MAX_CHAT_LENGTH = 500;
+export const MAX_CHAT_MESSAGES = 10_000;
 export const MAX_NAME_LENGTH = 40;
 export const MAX_EMOJI_LENGTH = 16;
 export const PARTY_ID_LENGTH = 22;

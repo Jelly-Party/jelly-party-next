@@ -2,7 +2,7 @@
 import { getDownloadLink } from "$lib/download-link";
 </script>
 
-<nav class="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-jelly-ink/92 backdrop-blur-lg" aria-label="Primary navigation">
+<nav class="sticky top-0 z-50 border-b border-white/10 bg-jelly-ink/92 backdrop-blur-lg" aria-label="Primary navigation">
 	<div class="jp-container h-18 flex items-center justify-between gap-4">
 		<a href="/" class="jp-brand">
 			<img class="jp-logo h-10 w-10" src="/favicon.ico" alt="" width="128" height="128" />

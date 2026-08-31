@@ -1,8 +1,3 @@
-export {
-  authorizeMagicJoin,
-  type JoinAuthorizationResult,
-  type PermissionService,
-} from "./join-authorization.js";
 export { buildMagicLink, parseMagicLink, type MagicLink } from "./magic-link.js";
 export { liveTimeFromEnd, RemoteEchoGuard, targetTime, timeFromEnd } from "./playback.js";
 export {
@@ -13,6 +8,7 @@ export {
   isPeerIdentity,
   isPlaybackAction,
   MAX_CHAT_LENGTH,
+  MAX_CHAT_MESSAGES,
   MAX_EMOJI_LENGTH,
   MAX_NAME_LENGTH,
   parseClientMessage,

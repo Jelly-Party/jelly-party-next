@@ -1,8 +1,9 @@
 import {
-  authorizeMagicJoin,
+  buildMagicLink,
   getRandomEmoji,
   isPlaybackAction,
   liveTimeFromEnd,
+  type MagicLink,
   MAX_CHAT_LENGTH,
   MAX_EMOJI_LENGTH,
   MAX_NAME_LENGTH,
@@ -18,6 +19,7 @@ import {
   type PartyState,
   type PartyStateEvent,
 } from "./party-state";
+import { injectVideoController } from "./video-injection";
 
 interface VideoCandidate {
   frameId: number;
@@ -30,15 +32,41 @@ interface PendingJoin {
   destination: string;
 }
 
+interface RemotePlaybackTarget {
+  action: "play" | "pause" | "seek";
+  timeFromEnd: number;
+  updatedAt: number;
+}
+
+interface PlaybackResult {
+  ok: boolean;
+  error: string;
+  reason?: "interaction-required" | "video-unavailable";
+}
+
 const candidates = new Map<number, Map<number, VideoCandidate>>();
+const activatedTabs = new Set<number>();
+const openSidePanelTabs = new Set<number>();
+const openSidePanelWindows = new Set<number>();
 const adjectives = ["Bright", "Calm", "Happy", "Kind", "Lucky", "Swift"];
 const animals = ["Fox", "Jellyfish", "Otter", "Owl", "Panda", "Whale"];
 
 let partyState: PartyState = initialPartyState;
 let partySocket: PartySocket | null = null;
+let playbackTarget: RemotePlaybackTarget | null = null;
 
 if (chrome.sidePanel) {
-  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => undefined);
+  // Own the toolbar click so Chrome grants activeTab before we scan the page.
+  // Native side-panel toggling consumes that click without dispatching action.onClicked.
+  void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => undefined);
+  chrome.sidePanel.onOpened.addListener(({ tabId, windowId }) => {
+    if (tabId === undefined) openSidePanelWindows.add(windowId);
+    else openSidePanelTabs.add(tabId);
+  });
+  chromeSidePanel().onClosed?.addListener(({ tabId, windowId }) => {
+    if (tabId === undefined) openSidePanelWindows.delete(windowId);
+    else openSidePanelTabs.delete(tabId);
+  });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -46,10 +74,12 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.action.onClicked.addListener((tab) => {
-  // Chrome handles action clicks natively through setPanelBehavior. Firefox's
-  // sidebar toggle is gesture-gated, so it must run before this listener awaits.
-  if (!chrome.sidePanel) void toggleFirefoxSidebar();
-  void handleActionClick(tab);
+  // Both APIs are gesture-gated, so invoke them directly in the click handler.
+  if (chrome.sidePanel) handleChromeActionClick(tab);
+  else {
+    void toggleFirefoxSidebar();
+    void handleActionClick(tab);
+  }
 });
 
 chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
@@ -62,25 +92,15 @@ chrome.tabs.onCreated.addListener((tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   candidates.delete(tabId);
+  activatedTabs.delete(tabId);
+  openSidePanelTabs.delete(tabId);
   if (partyState.kind === "active" && partyState.party.tabId === tabId) {
     stopParty({ type: "tab-removed", tabId });
   }
 });
 
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
-  if (change.status === "loading") candidates.delete(tabId);
-  if (change.status !== "complete") return;
-  if (partyState.kind === "active" && partyState.party.tabId === tabId && tab.url) {
-    transition({
-      type: "tab-updated",
-      tabId,
-      tabUrl: tab.url,
-      tabTitle: tab.title ?? "Current video",
-    });
-  }
-  void scanTab(tabId);
-  void consumePendingJoin(tabId);
-  void notifyViews({ type: "tab:navigated", tabId, url: tab.url });
+  void handleTabUpdate(tabId, change, tab);
 });
 
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
@@ -135,8 +155,9 @@ async function handleMessage(
   if (message.type === "party:chat") {
     const text = bounded(message.text, MAX_CHAT_LENGTH);
     if (!text || partyState.kind === "idle") return { ok: false };
-    partySocket?.chat(text);
-    return { ok: true };
+    return partySocket?.chat(text)
+      ? { ok: true }
+      : { ok: false, error: "Reconnect before sending your message." };
   }
 
   if (message.type === "party:history" && typeof message.beforeId === "number") {
@@ -149,19 +170,23 @@ async function handleMessage(
     return focusParty();
   }
 
-  if (message.type === "tab:active") {
+  if (message.type === "party:return-video") {
+    return returnToPartyVideo();
+  }
+
+  if (message.type === "tab:snapshot") {
     const tab =
       typeof message.tabId === "number"
         ? await chrome.tabs.get(message.tabId)
         : (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
     if (!tab?.id) return { error: "Open a video tab first" };
-    await scanTab(tab.id);
-    return { tabId: tab.id, windowId: tab.windowId, url: tab.url, title: tab.title };
-  }
-
-  if (message.type === "video:scan" && typeof message.tabId === "number") {
-    await scanTab(message.tabId);
-    return bestCandidate(message.tabId) ?? { hasVideo: false };
+    const accessGranted = await scanTab(tab.id);
+    return {
+      tabId: tab.id,
+      windowId: tab.windowId,
+      title: tab.title,
+      video: videoScan(tab.id, accessGranted),
+    };
   }
 
   if (message.type === "video:frame-status" && sender.tab?.id && sender.frameId !== undefined) {
@@ -174,7 +199,11 @@ async function handleMessage(
     candidates.set(sender.tab.id, frames);
     const hasVideo = Boolean(bestCandidate(sender.tab.id)?.hasVideo);
     if (partyState.kind === "active" && partyState.party.tabId === sender.tab.id) {
-      transition({ type: "video", hasVideo });
+      const becameAvailable =
+        partyState.party.atDestination && hasVideo && !partyState.party.hasVideo;
+      const partyId = partyState.party.partyId;
+      transition({ type: "video", hasVideo: partyState.party.atDestination && hasVideo });
+      if (becameAvailable && playbackTarget) void applyLatestRemotePlayback(partyId);
     }
     await notifyViews({ type: "video:status", tabId: sender.tab.id, hasVideo });
     return undefined;
@@ -186,10 +215,17 @@ async function handleMessage(
       best?.frameId === sender.frameId &&
       partyState.kind === "active" &&
       partyState.party.tabId === sender.tab.id &&
+      partyState.party.atDestination &&
       isPlaybackAction(message.action) &&
       typeof message.timeFromEnd === "number"
     ) {
-      partySocket?.playback(message.action, message.timeFromEnd);
+      if (message.action === "play" && partyState.party.playbackBlocked && playbackTarget) {
+        transition({ type: "playback-blocked", blocked: false });
+        void applyLatestRemotePlayback(partyState.party.partyId);
+      } else {
+        rememberPlaybackTarget(message.action, message.timeFromEnd);
+        partySocket?.playback(message.action, message.timeFromEnd);
+      }
     }
     return undefined;
   }
@@ -213,11 +249,16 @@ async function handleMessage(
     typeof message.destination === "string" &&
     typeof message.tabId === "number"
   ) {
-    return completeGrantedJoin(parsePartyId(message.partyId)!, message.destination, message.tabId);
+    return completeGrantedJoin(
+      parsePartyId(message.partyId)!,
+      message.destination,
+      message.tabId,
+      message.sidebarOpened === true,
+    );
   }
 
   if (
-    message.type === "join:request" &&
+    message.type === "join:prepare" &&
     sender.tab?.id &&
     parsePartyId(message.partyId) &&
     typeof message.destination === "string" &&
@@ -231,26 +272,13 @@ async function handleMessage(
       };
     }
     const partyId = parsePartyId(message.partyId)!;
-    const authorization = await authorizeMagicJoin(
-      { partyId, destination: message.destination, originPattern: message.originPattern },
-      { contains: (origin) => chrome.permissions.contains({ origins: [origin] }) },
-    );
-    if (authorization.status === "invalid") return { ok: false, error: "Invalid invite link" };
-    if (authorization.status === "unavailable") {
-      return { ok: false, error: "Could not contact the browser permission service" };
+    const invite = inviteFromParts(__JELLY_JOIN_URL__, partyId, message.destination);
+    if (!invite || invite.originPattern !== message.originPattern) {
+      return { ok: false, error: "Invalid invite link" };
     }
-    if (authorization.status === "needs-permission") {
-      await openGrantPage({ partyId, destination: message.destination }, sender.tab.id);
-      return {
-        ok: false,
-        error: `Opening Jelly Party’s permission request for ${new URL(message.destination).hostname}…`,
-      };
-    }
-    const pendingJoin: PendingJoin = { partyId, destination: message.destination };
-    await chrome.storage.local.set({ pendingJoin });
-    const sidebarOpened = await openPartySidebar(sender.tab.id);
-    if (!sidebarOpened) await markToolbarJoin(sender.tab.id);
-    return { ok: true, destination: message.destination, sidebarOpened };
+    await preparePartySidebar(sender.tab.id);
+    await openGrantPage({ partyId, destination: invite.destination }, sender.tab.id);
+    return { ok: true };
   }
 
   return undefined;
@@ -261,24 +289,28 @@ async function handleMessage(
  * permission API, and its button supplies the user gesture both browsers require.
  */
 async function openGrantPage(pending: PendingJoin, tabId: number): Promise<void> {
-  const parameters = new URLSearchParams({
-    party: pending.partyId,
-    video: pending.destination,
-    tab: String(tabId),
-  });
-  await chrome.tabs.update(tabId, {
-    url: chrome.runtime.getURL(`src/grant/grant.html?${parameters.toString()}`),
-  });
+  const grantPage = chrome.runtime.getURL("src/grant/grant.html");
+  const link = new URL(buildMagicLink(grantPage, pending.partyId, pending.destination));
+  link.searchParams.set("tab", String(tabId));
+  await chrome.tabs.update(tabId, { url: link.toString() });
+}
+
+/** Re-validates a destination a content script sent by round-tripping it through an invite. */
+function inviteFromParts(joinUrl: string, partyId: string, destination: string): MagicLink | null {
+  try {
+    return parseMagicLink(buildMagicLink(joinUrl, partyId, destination));
+  } catch {
+    return null;
+  }
 }
 
 async function completeGrantedJoin(
   partyId: string,
   destination: string,
   tabId: number,
+  sidebarOpened: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
-  const invite = parseMagicLink(
-    `${__JELLY_JOIN_URL__}/?party=${partyId}&video=${encodeURIComponent(destination)}`,
-  );
+  const invite = inviteFromParts(__JELLY_JOIN_URL__, partyId, destination);
   if (!invite) return { ok: false, error: "Invalid invite link" };
   // Trust the browser, not the message: the page could only have been opened by us,
   // but the permission still has to be real before we send anyone to the video.
@@ -287,6 +319,7 @@ async function completeGrantedJoin(
   }
   const pendingJoin: PendingJoin = { partyId, destination: invite.destination };
   await chrome.storage.local.set({ pendingJoin });
+  if (!sidebarOpened) await markToolbarJoin(tabId);
   try {
     const tab = await chrome.tabs.update(tabId, { url: invite.destination, active: true });
     if (tab?.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
@@ -302,14 +335,47 @@ async function handleActionClick(tab: chrome.tabs.Tab): Promise<void> {
     return;
   }
   if (!tab.id) return;
-  // The browser toggled the sidebar from the click itself; this only refreshes
-  // what the sidebar reports about the tab.
   await scanTab(tab.id);
+}
+
+function handleChromeActionClick(tab: chrome.tabs.Tab): void {
+  if (!tab.id) return;
+
+  if (partyState.kind === "active" && tab.id !== partyState.party.tabId) {
+    // open() must run before focusParty awaits anything or Chrome drops the gesture.
+    void chrome.sidePanel.open({ tabId: partyState.party.tabId }).catch(() => undefined);
+    void focusParty(false);
+    return;
+  }
+
+  const panelOpen = openSidePanelTabs.has(tab.id) || openSidePanelWindows.has(tab.windowId);
+  if (panelOpen && activatedTabs.has(tab.id)) {
+    void closeChromeSidePanel(tab);
+    return;
+  }
+
+  if (!panelOpen) void chrome.sidePanel.open({ tabId: tab.id }).catch(() => undefined);
+  // The action click has now granted activeTab. Inject immediately, exactly as
+  // the original extension did, and let the open sidebar receive video status.
+  void handleActionClick(tab);
+}
+
+async function closeChromeSidePanel(tab: chrome.tabs.Tab): Promise<void> {
+  const sidePanel = chromeSidePanel();
+  if (!sidePanel.close || !tab.id) return;
+
+  const options: chrome.sidePanel.CloseOptions = openSidePanelTabs.has(tab.id)
+    ? { tabId: tab.id }
+    : { windowId: tab.windowId };
+  openSidePanelTabs.delete(tab.id);
+  openSidePanelWindows.delete(tab.windowId);
+  await sidePanel.close(options).catch(() => undefined);
 }
 
 function startParty(partyId: string, tab: chrome.tabs.Tab, identity: PeerIdentity): void {
   if (!tab.id || !tab.url) return;
   partySocket?.close();
+  playbackTarget = null;
   transition({
     type: "started",
     partyId,
@@ -347,11 +413,12 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
     });
     if (message.playback) {
       const action = message.playback.playing ? "play" : "pause";
-      void applyPlayback(partyState.party.tabId, action, liveTimeFromEnd(message.playback)).then(
-        (result) => {
-          if (!result.ok) transitionIfCurrent(partyId, { type: "notice", notice: result.error });
-        },
-      );
+      playbackTarget = {
+        action,
+        timeFromEnd: message.playback.timeFromEnd,
+        updatedAt: message.playback.updatedAt,
+      };
+      void applyLatestRemotePlayback(partyId);
     } else if (message.initializePlayback !== false) {
       void publishPlaybackSnapshot(partyId);
     }
@@ -372,11 +439,16 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
     });
   }
   if (message.type === "playback") {
-    void applyPlayback(partyState.party.tabId, message.action, message.timeFromEnd).then(
-      (result) => {
-        if (!result.ok) transitionIfCurrent(partyId, { type: "notice", notice: result.error });
-      },
-    );
+    const previousAction = playbackTarget?.action;
+    playbackTarget = {
+      action:
+        message.action === "seek" && previousAction && previousAction !== "seek"
+          ? previousAction
+          : message.action,
+      timeFromEnd: message.timeFromEnd,
+      updatedAt: Date.now(),
+    };
+    void applyLatestRemotePlayback(partyId);
   }
   if (message.type === "error") transition({ type: "notice", notice: message.message });
 }
@@ -400,6 +472,7 @@ async function publishPlaybackSnapshot(partyId: string): Promise<void> {
       typeof result.timeFromEnd === "number" &&
       Number.isFinite(result.timeFromEnd)
     ) {
+      rememberPlaybackTarget(result.action, result.timeFromEnd);
       partySocket?.playback(result.action, result.timeFromEnd);
     }
   } catch {
@@ -412,9 +485,25 @@ async function applyPlayback(
   tabId: number,
   action: "play" | "pause" | "seek",
   timeFromEnd: number,
-): Promise<{ ok: boolean; error: string }> {
+): Promise<PlaybackResult> {
+  if (
+    partyState.kind === "active" &&
+    partyState.party.tabId === tabId &&
+    !partyState.party.atDestination
+  ) {
+    return {
+      ok: false,
+      error: "Return to the party video to resume synchronization.",
+      reason: "video-unavailable",
+    };
+  }
   const best = bestCandidate(tabId);
-  if (!best) return { ok: false, error: "The video is no longer available." };
+  if (!best)
+    return {
+      ok: false,
+      error: "The video is no longer available.",
+      reason: "video-unavailable",
+    };
   try {
     const result = await chrome.tabs.sendMessage(
       tabId,
@@ -422,7 +511,11 @@ async function applyPlayback(
       { frameId: best.frameId },
     );
     return result?.ok === false
-      ? { ok: false, error: result.error ?? "Could not control the video." }
+      ? {
+          ok: false,
+          error: result.error ?? "Could not control the video.",
+          reason: result.reason,
+        }
       : { ok: true, error: "" };
   } catch {
     return { ok: false, error: "Could not control the video." };
@@ -436,10 +529,24 @@ function leaveParty(): void {
 function stopParty(event: Extract<PartyStateEvent, { type: "left" | "tab-removed" }>): void {
   partySocket?.close();
   partySocket = null;
+  playbackTarget = null;
   transition(event);
   void chrome.action.setBadgeText({ text: "" });
   void chrome.action.setTitle({ title: "Open Jelly Party" });
   void restorePartyPanels();
+}
+
+async function returnToPartyVideo(): Promise<{ ok: boolean; error?: string }> {
+  if (partyState.kind === "idle") return { ok: false, error: "There is no active party." };
+  const { tabId, tabUrl } = partyState.party;
+  try {
+    const tab = await chrome.tabs.update(tabId, { url: tabUrl, active: true });
+    if (tab?.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+    return { ok: true };
+  } catch {
+    leaveParty();
+    return { ok: false, error: "The party tab is no longer open." };
+  }
 }
 
 async function focusParty(openSidebar = true): Promise<{ ok: boolean; error?: string }> {
@@ -479,24 +586,129 @@ function transitionIfCurrent(partyId: string, event: PartyStateEvent): void {
   if (partyState.kind === "active" && partyState.party.partyId === partyId) transition(event);
 }
 
-async function scanTab(tabId: number): Promise<void> {
-  try {
+async function scanTab(tabId: number): Promise<boolean> {
+  const accessGranted = await injectVideoController(async (allFrames) => {
     await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
+      target: { tabId, allFrames },
       files: ["src/content/video.js"],
     });
-  } catch {
+  });
+  if (accessGranted) activatedTabs.add(tabId);
+  if (!accessGranted) {
+    activatedTabs.delete(tabId);
+    candidates.delete(tabId);
     if (partyState.kind === "active" && partyState.party.tabId === tabId) {
       transition({ type: "video", hasVideo: false });
     }
-    await notifyViews({ type: "video:status", tabId, hasVideo: false });
+    await notifyViews({ type: "video:status", tabId, hasVideo: false, accessRequired: true });
   }
+  return accessGranted;
+}
+
+async function handleTabUpdate(
+  tabId: number,
+  change: chrome.tabs.OnUpdatedInfo,
+  tab: chrome.tabs.Tab,
+): Promise<void> {
+  if (change.url && partyState.kind === "active" && partyState.party.tabId === tabId) {
+    transition({
+      type: "tab-destination",
+      tabId,
+      atDestination: samePartyDestination(change.url, partyState.party.tabUrl),
+    });
+  }
+  if (change.status === "loading") {
+    candidates.delete(tabId);
+    activatedTabs.delete(tabId);
+    if (partyState.kind === "active" && partyState.party.tabId === tabId) {
+      transition({ type: "video", hasVideo: false });
+    }
+  }
+  if (change.status !== "complete") return;
+
+  if (partyState.kind === "active" && partyState.party.tabId === tabId) {
+    const destination = partyState.party.tabUrl;
+    transition({
+      type: "tab-destination",
+      tabId,
+      atDestination: Boolean(tab.url && samePartyDestination(tab.url, destination)),
+    });
+  }
+  const accessGranted = await scanTab(tabId);
+  await consumePendingJoin(tabId);
+  if (
+    partyState.kind === "active" &&
+    partyState.party.tabId === tabId &&
+    partyState.party.atDestination &&
+    bestCandidate(tabId) &&
+    playbackTarget
+  ) {
+    await applyLatestRemotePlayback(partyState.party.partyId);
+  }
+  await notifyViews({
+    type: "tab:navigated",
+    tabId,
+    title: tab.title,
+    video: videoScan(tabId, accessGranted),
+  });
+}
+
+async function applyLatestRemotePlayback(partyId: string): Promise<void> {
+  if (
+    !playbackTarget ||
+    partyState.kind === "idle" ||
+    partyState.party.partyId !== partyId ||
+    !partyState.party.atDestination
+  ) {
+    return;
+  }
+  const target = playbackTarget;
+  const position =
+    target.action === "play"
+      ? liveTimeFromEnd({
+          playing: true,
+          timeFromEnd: target.timeFromEnd,
+          updatedAt: target.updatedAt,
+        })
+      : target.timeFromEnd;
+  const result = await applyPlayback(partyState.party.tabId, target.action, position);
+  if (result.ok) {
+    transitionIfCurrent(partyId, { type: "playback-blocked", blocked: false });
+    return;
+  }
+  if (result.reason === "interaction-required") {
+    transitionIfCurrent(partyId, { type: "playback-blocked", blocked: true });
+    return;
+  }
+  if (result.reason !== "video-unavailable") {
+    transitionIfCurrent(partyId, { type: "notice", notice: result.error });
+  }
+}
+
+function rememberPlaybackTarget(action: "play" | "pause" | "seek", timeFromEnd: number): void {
+  const previousAction = playbackTarget?.action;
+  playbackTarget = {
+    action:
+      action === "seek" && previousAction && previousAction !== "seek" ? previousAction : action,
+    timeFromEnd,
+    updatedAt: Date.now(),
+  };
 }
 
 function bestCandidate(tabId: number): VideoCandidate | undefined {
   return [...(candidates.get(tabId)?.values() ?? [])]
     .filter((candidate) => candidate.hasVideo)
     .sort((left, right) => right.area - left.area)[0];
+}
+
+function videoScan(
+  tabId: number,
+  accessGranted: boolean,
+): { hasVideo: boolean; accessRequired: boolean } {
+  return {
+    hasVideo: Boolean(bestCandidate(tabId)),
+    accessRequired: !accessGranted,
+  };
 }
 
 async function ensureIdentity(): Promise<PeerIdentity> {
@@ -527,13 +739,17 @@ async function markPartyActive(): Promise<void> {
   await chrome.action.setTitle({ title: "Return to your Jelly Party" });
 }
 
+async function preparePartySidebar(tabId: number): Promise<void> {
+  await chrome.sidePanel
+    ?.setOptions({ tabId, path: `src/sidebar/sidebar.html?tab=${tabId}`, enabled: true })
+    .catch(() => undefined);
+}
+
 async function openPartySidebar(tabId: number): Promise<boolean> {
   if (chrome.sidePanel) {
     // Deliberately not awaited: open() has to stay in the caller's task so that a
     // user gesture still counts.
-    void chrome.sidePanel
-      .setOptions({ tabId, path: `src/sidebar/sidebar.html?tab=${tabId}`, enabled: true })
-      .catch(() => undefined);
+    void preparePartySidebar(tabId);
     return chrome.sidePanel.open({ tabId }).then(
       () => true,
       () => false,
@@ -548,6 +764,16 @@ async function openPartySidebar(tabId: number): Promise<boolean> {
       .then(() => true)
       .catch(() => false) ?? false
   );
+}
+
+function chromeSidePanel(): typeof chrome.sidePanel & {
+  close?: (options: chrome.sidePanel.CloseOptions) => Promise<void>;
+  onClosed?: chrome.events.Event<(info: chrome.sidePanel.PanelClosedInfo) => void>;
+} {
+  return chrome.sidePanel as typeof chrome.sidePanel & {
+    close?: (options: chrome.sidePanel.CloseOptions) => Promise<void>;
+    onClosed?: chrome.events.Event<(info: chrome.sidePanel.PanelClosedInfo) => void>;
+  };
 }
 
 async function toggleFirefoxSidebar(): Promise<boolean> {
@@ -596,6 +822,20 @@ function sameDestination(current: string | undefined, expected: string): boolean
     const currentUrl = new URL(current);
     const expectedUrl = new URL(expected);
     return currentUrl.origin === expectedUrl.origin && currentUrl.pathname === expectedUrl.pathname;
+  } catch {
+    return false;
+  }
+}
+
+function samePartyDestination(current: string, expected: string): boolean {
+  try {
+    const currentUrl = new URL(current);
+    const expectedUrl = new URL(expected);
+    currentUrl.hash = "";
+    expectedUrl.hash = "";
+    currentUrl.searchParams.sort();
+    expectedUrl.searchParams.sort();
+    return currentUrl.href === expectedUrl.href;
   } catch {
     return false;
   }

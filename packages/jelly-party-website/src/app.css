@@ -22,6 +22,11 @@ html {
   scroll-behavior: smooth;
 }
 
+/* The navigation bar sticks to the top, so anchored sections keep clear of it. */
+section[id] {
+  scroll-margin-top: 5.5rem;
+}
+
 body {
   margin: 0;
   min-width: 280px;

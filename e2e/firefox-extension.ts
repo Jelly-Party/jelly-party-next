@@ -30,43 +30,36 @@ try {
   console.log("Firefox peer A sidebar ready");
   await waitForSidebarText(peerA, "[data-testid='video-state']", "Video ready");
   await sidebarFill(peerA, "[data-testid='name-input']", "Mira");
-  await sidebarFill(peerA, "[data-testid='emoji-input']", "🪼");
+  await sidebarClick(peerA, "[data-testid='emoji-option-jellyfish']");
   await sidebarClick(peerA, "[data-testid='create-party']");
   await waitForSidebarText(peerA, "[data-testid='connection-status']", "Connected");
   console.log("Firefox peer A party connected");
   const invite = await sidebarText(peerA, "[data-testid='invite-link']");
-  assert.match(invite, /party=/);
-  assert.ok(invite.includes(encodeURIComponent(videoUrl)));
+  assert.equal(new URL(invite).search, "");
+  assert.ok(new URL(invite).hash.endsWith(`@${videoUrl}`));
 
+  if (await nativeSidebarOpen(peerB)) {
+    await closeNativeSidebar(peerB);
+    await waitForSidebarClosed(peerB);
+  }
   await peerB.get(invite);
   console.log("Firefox peer B invite loaded");
   try {
     await peerB.wait(async () => {
-      try {
-        return await peerB.findElement(By.css("#join")).isEnabled();
-      } catch {
-        return false;
-      }
+      const extensionPage = extensionPages.get(peerB);
+      if (!extensionPage) return false;
+      const extensionRoot = extensionPage.split("/src/")[0];
+      return (await peerB.getCurrentUrl()).startsWith(`${extensionRoot}/src/grant/grant.html?`);
     }, 10_000);
   } catch (error) {
     throw new Error(
-      `Firefox join button stayed disabled: ${JSON.stringify({
-        status: await peerB.findElement(By.css("#status")).getText(),
-        extension: await peerB.executeScript(
-          "return document.documentElement.dataset.jellyPartyExtension",
-        ),
-      })}`,
+      `Firefox invite did not hand off to the extension: ${await peerB.getCurrentUrl()}`,
       { cause: error },
     );
   }
-  // Clicking the moment the button reports enabled races the join page's own
-  // setup, so retry until the page acknowledges the click in its status line.
-  await peerB.wait(async () => {
-    const button = await peerB.findElement(By.css("#join"));
-    if (!(await button.isEnabled())) return false;
-    await button.click();
-    return (await peerB.findElement(By.css("#status")).getText()) !== "";
-  }, 15_000);
+  const join = await peerB.findElement(By.css("#allow"));
+  await peerB.wait(async () => join.isEnabled(), 10_000);
+  await join.click();
   try {
     await peerB.wait(until.urlIs(videoUrl), 15_000);
   } catch (error) {
@@ -84,9 +77,9 @@ try {
   console.log("Firefox peer B joined destination");
   await waitForVideo(peerB);
   videoHandles.set(peerB, await peerB.getWindowHandle());
-  await openSidebar(peerB);
+  await waitForNativeSidebar(peerB);
   await openSidebarPage(peerB);
-  console.log("Firefox peer B sidebar ready");
+  console.log("Firefox peer B sidebar opened automatically");
   await waitForSidebarText(peerB, "[data-testid='connection-status']", "Connected");
   await waitForSidebarCount(peerA, "[data-testid='peer']", 2);
   await waitForSidebarCount(peerB, "[data-testid='peer']", 2);
@@ -341,7 +334,10 @@ async function sidebarFill(driver: FirefoxDriver, selector: string, value: strin
     `
       const element = document.querySelector(arguments[0]);
       if (!element) return false;
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      const prototype = element instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, "value").set;
       setter.call(element, arguments[1]);
       element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: arguments[1] }));
       return true;

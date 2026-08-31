@@ -7,7 +7,7 @@ import SyncDemoSection from "$lib/components/SyncDemoSection.svelte";
 
 <svelte:head>
 	<title>Jelly Party - Watch anything together</title>
-	<meta name="description" content="Jelly Party synchronizes videos in your browser so you and your friends can watch together. Free, open source, no registration required." />
+	<meta name="description" content="Jelly Party keeps videos at the same moment for you and your friends, right in your browser. Free, open source, no sign-up required." />
 </svelte:head>
 
 <HeroSection />
