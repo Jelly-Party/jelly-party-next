@@ -5,21 +5,21 @@ export default defineConfig({
     tasks: {
       dev: {
         command:
-          'vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-join#dev" "vp run jelly-party-extension#dev" --names "server,join,extensions" --prefix-colors "blue,green,magenta"',
+          'vp exec concurrently --kill-others "vp run jelly-party-server#dev" "vp run jelly-party-website#dev" "vp run jelly-party-extension#dev" --names "server,web,extensions" --prefix-colors "blue,green,magenta"',
         cache: false,
       },
       "test:services": {
         command:
-          'vp exec concurrently --kill-others "PORT=16080 vp run test:server" "vp run test:join" --names "server,join" --prefix-colors "blue,green"',
+          'vp exec concurrently --kill-others "vp run test:server" "vp run test:web" --names "server,web" --prefix-colors "blue,green"',
         cache: false,
       },
       "test:server": {
         command: "vp exec wrangler dev --config wrangler.jsonc --local --port 16080",
         cache: false,
       },
-      "test:join": {
-        command: "vp dev --port 16180 --strictPort",
-        cwd: "packages/jelly-party-join",
+      "test:web": {
+        command: "vp dev --host 127.0.0.1 --port 16180 --strictPort",
+        cwd: "packages/jelly-party-website",
         cache: false,
       },
       build: {
@@ -28,28 +28,22 @@ export default defineConfig({
         cache: false,
       },
       "build:all": {
-        command: [
-          "vp run jelly-party-server#build",
-          "vp run jelly-party-join#build",
-          "vp run jelly-party-website#build",
-          "vp run build",
-        ],
+        command: ["vp run build:cloudflare", "vp run build"],
         cache: false,
       },
-      "deploy:join": {
-        command: "vp exec wrangler pages deploy --branch main",
-        dependsOn: ["jelly-party-join#build"],
-        cwd: "packages/jelly-party-join",
-        cache: false,
-      },
-      "deploy:website": {
-        command: "vp exec wrangler pages deploy --branch main",
+      "build:cloudflare": {
+        command: 'vp exec wrangler deploy --env="" --dry-run',
         dependsOn: ["jelly-party-website#build"],
-        cwd: "packages/jelly-party-website",
         cache: false,
       },
-      "deploy:sites": {
-        command: ["vp run deploy:join", "vp run deploy:website"],
+      deploy: {
+        command: 'vp exec wrangler deploy --env=""',
+        dependsOn: ["jelly-party-website#build"],
+        cache: false,
+      },
+      "deploy:staging": {
+        command: "vp exec wrangler deploy --env staging",
+        dependsOn: ["jelly-party-website#build"],
         cache: false,
       },
       "test:all": {
@@ -58,7 +52,7 @@ export default defineConfig({
       },
       "test:e2e": {
         command: [
-          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
+          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
           "vp exec playwright test",
         ],
         cache: false,
@@ -69,28 +63,28 @@ export default defineConfig({
       },
       "test:e2e:staging": {
         command: [
-          'VITE_JELLY_WS_URL="$JELLY_PARTY_STAGING_WS_URL" VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test',
+          'VITE_JELLY_WS_URL="$JELLY_PARTY_STAGING_WS_URL" VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test',
           "vp exec playwright test",
         ],
         cache: false,
       },
       "test:e2e:firefox": {
         command: [
-          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test:firefox",
+          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test:firefox",
           'vp exec concurrently --kill-others --success first "vp run test:services" "vp dev e2e/fixtures --port 16334 --strictPort" "vp exec node e2e/firefox-extension.ts"',
         ],
         cache: false,
       },
       "test:e2e:ui": {
         command: [
-          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
+          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
           "vp exec playwright test --ui",
         ],
         cache: false,
       },
       "test:e2e:headed": {
         command: [
-          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_JOIN_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
+          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
           "JELLY_E2E_HEADED=1 vp exec playwright test --headed",
         ],
         cache: false,
@@ -100,7 +94,7 @@ export default defineConfig({
   staged: {
     "*": "vp check --fix",
   },
-  fmt: {},
+  fmt: { ignorePatterns: ["packages/jelly-party-server/src/worker-configuration.d.ts"] },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },

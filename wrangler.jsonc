@@ -2,13 +2,32 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "jelly-party-relay",
   "main": "packages/jelly-party-server/src/main.ts",
-  "compatibility_date": "2026-08-18",
+  "compatibility_date": "2026-09-01",
   "workers_dev": false,
   "preview_urls": false,
+  "routes": [
+    { "pattern": "jelly-party.com", "custom_domain": true },
+    { "pattern": "www.jelly-party.com", "custom_domain": true },
+  ],
+  "assets": {
+    "directory": "packages/jelly-party-website/build",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/health", "/party/*"],
+  },
   "durable_objects": {
     "bindings": [{ "name": "PARTY", "class_name": "Party" }],
   },
   "exports": {
     "Party": { "type": "durable-object", "storage": "sqlite" },
+  },
+  "env": {
+    "staging": {
+      "workers_dev": true,
+      "preview_urls": false,
+      "routes": [],
+      "durable_objects": {
+        "bindings": [{ "name": "PARTY", "class_name": "Party" }],
+      },
+    },
   },
 }

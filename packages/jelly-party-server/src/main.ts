@@ -9,10 +9,7 @@ import {
   type PlaybackSnapshot,
   type ServerMessage,
 } from "jelly-party-lib";
-
-interface Env {
-  PARTY: DurableObjectNamespace;
-}
+import { DurableObject } from "cloudflare:workers";
 
 const HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const SCHEMA_VERSION = 1;
@@ -43,17 +40,15 @@ export default {
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("WebSocket upgrade required", { status: 426 });
     }
-    return env.PARTY.get(env.PARTY.idFromName(partyId)).fetch(request);
+    return env.PARTY.getByName(partyId).fetch(request);
   },
-};
+} satisfies ExportedHandler<Env>;
 
-export class Party implements DurableObject {
+export class Party extends DurableObject<Env> {
   private schemaReady = false;
 
-  constructor(
-    private readonly ctx: DurableObjectState,
-    _env: Env,
-  ) {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
     void this.ctx.blockConcurrencyWhile(async () => {
       this.migrate();
       this.schemaReady = true;

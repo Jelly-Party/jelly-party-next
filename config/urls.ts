@@ -1,6 +1,5 @@
 export interface BuildUrls {
   website: string;
-  join: string;
   websocket: string;
   repository: string;
   chromeStore: string;
@@ -9,9 +8,8 @@ export interface BuildUrls {
 }
 
 export const DEFAULT_BUILD_URLS: BuildUrls = {
-  website: "https://v2.jelly-party.com",
-  join: "https://v2-join.jelly-party.com",
-  websocket: "wss://v2-ws.jelly-party.com",
+  website: "https://www.jelly-party.com",
+  websocket: "wss://www.jelly-party.com",
   repository: "https://github.com/Jelly-Party/jelly-party-next",
   chromeStore:
     "https://chromewebstore.google.com/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd",
@@ -22,7 +20,6 @@ export const DEFAULT_BUILD_URLS: BuildUrls = {
 
 const BUILD_VARIABLES: Record<keyof BuildUrls, string> = {
   website: "VITE_JELLY_WEBSITE_URL",
-  join: "VITE_JELLY_JOIN_URL",
   websocket: "VITE_JELLY_WS_URL",
   repository: "VITE_JELLY_REPOSITORY_URL",
   chromeStore: "VITE_JELLY_CHROME_STORE_URL",
@@ -48,6 +45,15 @@ export function resolveBuildUrls(
 export function toWebExtensionMatchPattern(value: string): string {
   const parsed = new URL(value);
   return `${parsed.protocol}//${parsed.hostname}/*`;
+}
+
+export function joinUrl(website: string): string {
+  return new URL("/join", `${website}/`).toString().replace(/\/$/, "");
+}
+
+export function toWebExtensionPagePattern(value: string): string {
+  const parsed = new URL(value);
+  return `${parsed.protocol}//${parsed.hostname}${parsed.pathname}*`;
 }
 
 function validateBuildUrl(

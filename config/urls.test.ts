@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
-import { DEFAULT_BUILD_URLS, resolveBuildUrls, toWebExtensionMatchPattern } from "./urls";
+import {
+  DEFAULT_BUILD_URLS,
+  joinUrl,
+  resolveBuildUrls,
+  toWebExtensionMatchPattern,
+  toWebExtensionPagePattern,
+} from "./urls";
 
 describe("build URL configuration", () => {
   it("provides the production endpoints and public project links by default", () => {
@@ -10,7 +16,6 @@ describe("build URL configuration", () => {
     expect(
       resolveBuildUrls({
         VITE_JELLY_WEBSITE_URL: "https://site.example",
-        VITE_JELLY_JOIN_URL: "https://join.example",
         VITE_JELLY_WS_URL: "wss://socket.example/ws",
         VITE_JELLY_REPOSITORY_URL: "https://code.example/jelly-party",
         VITE_JELLY_CHROME_STORE_URL: "https://store.example/chrome",
@@ -19,7 +24,6 @@ describe("build URL configuration", () => {
       }),
     ).toEqual({
       website: "https://site.example",
-      join: "https://join.example",
       websocket: "wss://socket.example/ws",
       repository: "https://code.example/jelly-party",
       chromeStore: "https://store.example/chrome",
@@ -36,21 +40,21 @@ describe("build URL configuration", () => {
       "VITE_JELLY_WS_URL",
     );
     expect(() =>
-      resolveBuildUrls({ VITE_JELLY_JOIN_URL: "https://user:secret@join.example" }),
-    ).toThrow("VITE_JELLY_JOIN_URL");
+      resolveBuildUrls({ VITE_JELLY_WEBSITE_URL: "https://user:secret@site.example" }),
+    ).toThrow("VITE_JELLY_WEBSITE_URL");
   });
 
   it("allows local HTTP and WebSocket endpoints only when explicitly enabled for tests", () => {
     expect(
       resolveBuildUrls(
         {
-          VITE_JELLY_JOIN_URL: "http://localhost:16180",
+          VITE_JELLY_WEBSITE_URL: "http://localhost:16180",
           VITE_JELLY_WS_URL: "ws://localhost:16080",
         },
         { allowInsecureLocalhost: true },
       ),
     ).toMatchObject({
-      join: "http://localhost:16180",
+      website: "http://localhost:16180",
       websocket: "ws://localhost:16080",
     });
   });
@@ -58,5 +62,12 @@ describe("build URL configuration", () => {
   it("converts configured origins to portable extension match patterns without ports", () => {
     expect(toWebExtensionMatchPattern("http://localhost:16180")).toBe("http://localhost/*");
     expect(toWebExtensionMatchPattern("https://join.example/path")).toBe("https://join.example/*");
+  });
+
+  it("derives the invite route and its exact extension page pattern from the website", () => {
+    expect(joinUrl("https://www.example.com")).toBe("https://www.example.com/join");
+    expect(toWebExtensionPagePattern("https://www.example.com/join")).toBe(
+      "https://www.example.com/join*",
+    );
   });
 });

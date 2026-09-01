@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const environment = loadBuildEnvironment(mode);
   const urls = resolveBuildUrls(environment);
   return {
+    server: { host: "0.0.0.0", port: 5180, strictPort: true },
     define: {
       __JELLY_CHROME_STORE_URL__: JSON.stringify(urls.chromeStore),
       __JELLY_EDGE_STORE_URL__: JSON.stringify(urls.edgeStore),

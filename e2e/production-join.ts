@@ -3,7 +3,7 @@
  * test manifest pre-grants every origin, so it never exercises the optional
  * host permission that real users hit on first join.
  *
- * Runs against the deployed join site and the production extension build.
+ * Runs against the deployed /join route and the production extension build.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -11,14 +11,15 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { buildMagicLink } from "jelly-party-lib";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const extensionPath = path.join(directory, "..", "artifacts", "chrome");
-const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://v2-join.jelly-party.com";
+const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://www.jelly-party.com/join";
 const destination = "https://example.com/watch";
 // Matches PARTY_ID_LENGTH in the protocol; a shorter id makes the invite unparseable.
 const partyId = "ProductionSmokeTest".padEnd(22, "0");
-const invite = `${joinUrl.replace(/\/$/, "")}/#${partyId}@${destination.slice("https://".length)}`;
+const invite = buildMagicLink(joinUrl, partyId, destination);
 
 const userDataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "jelly-party-production-"));
 const context = await chromium.launchPersistentContext(userDataDirectory, {

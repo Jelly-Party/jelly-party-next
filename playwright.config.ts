@@ -55,9 +55,9 @@ export default defineConfig({
   webServer: [
     {
       command: "vp run test:services",
-      // Wait for both backend and join site (Playwright waits for 2xx response)
+      // Wait for both backend and website (Playwright waits for 2xx response)
       // Since we can only specify one URL, the Vite+ task starts both services.
-      // Waiting for the join page is safer as it means Vite processed the static site.
+      // Waiting for the website is safer as it means Vite processed the SvelteKit app.
       url: "http://localhost:16180",
       reuseExistingServer: !process.env.CI,
       stdout: "pipe",

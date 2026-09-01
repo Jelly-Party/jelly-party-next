@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --local --port 8080",
-    "build": "wrangler deploy --dry-run"
+    "dev": "vp exec wrangler dev --config ../../wrangler.jsonc --local --port 8080",
+    "build": "vp exec wrangler deploy --config ../../wrangler.jsonc --env=\"\" --dry-run"
   },
   "dependencies": {
     "jelly-party-lib": "workspace:*"

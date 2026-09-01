@@ -4,7 +4,7 @@ import UnoCSS from "unocss/vite";
 import webExtension from "vite-plugin-web-extension";
 import { loadBuildEnvironment } from "../../config/build-environment";
 import { createExtensionManifest } from "../../config/extension-manifest";
-import { resolveBuildUrls } from "../../config/urls";
+import { joinUrl, resolveBuildUrls } from "../../config/urls";
 
 export default defineConfig(({ mode }) => {
   const isTest = mode.endsWith("test");
@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
   const environment = isDevelopment
     ? {
         ...buildEnvironment,
-        VITE_JELLY_JOIN_URL: buildEnvironment.VITE_JELLY_JOIN_URL || "http://localhost:5180",
+        VITE_JELLY_WEBSITE_URL: buildEnvironment.VITE_JELLY_WEBSITE_URL || "http://localhost:5180",
         VITE_JELLY_WS_URL: buildEnvironment.VITE_JELLY_WS_URL || "ws://localhost:8080",
       }
     : buildEnvironment;
@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __JELLY_WS_URL__: JSON.stringify(urls.websocket),
-      __JELLY_JOIN_URL__: JSON.stringify(urls.join),
+      __JELLY_JOIN_URL__: JSON.stringify(joinUrl(urls.website)),
       __JELLY_WEBSITE_URL__: JSON.stringify(urls.website),
     },
     plugins: lazyPlugins(() => [
