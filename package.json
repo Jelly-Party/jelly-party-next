@@ -12,7 +12,6 @@
     "@types/node": "^22.15.32",
     "@types/selenium-webdriver": "^4.35.6",
     "concurrently": "^9.2.1",
-    "jelly-party-lib": "workspace:*",
     "jszip": "^3.10.1",
     "selenium-webdriver": "^4.46.0",
     "typescript": "^5.9.3",

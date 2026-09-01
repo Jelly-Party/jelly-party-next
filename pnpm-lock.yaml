@@ -232,9 +232,6 @@ importers:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
-      jelly-party-lib:
-        specifier: workspace:*
-        version: link:packages/jelly-party-lib
       jszip:
         specifier: ^3.10.1
         version: 3.10.1

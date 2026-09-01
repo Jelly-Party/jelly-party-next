@@ -11,7 +11,6 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
-import { buildMagicLink } from "jelly-party-lib";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const extensionPath = path.join(directory, "..", "artifacts", "chrome");
@@ -19,7 +18,8 @@ const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://www.jelly-party.com
 const destination = "https://example.com/watch";
 // Matches PARTY_ID_LENGTH in the protocol; a shorter id makes the invite unparseable.
 const partyId = "ProductionSmokeTest".padEnd(22, "0");
-const invite = buildMagicLink(joinUrl, partyId, destination);
+const invite = new URL(joinUrl);
+invite.hash = `${partyId}@${destination.slice("https://".length)}`;
 
 const userDataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "jelly-party-production-"));
 const context = await chromium.launchPersistentContext(userDataDirectory, {
@@ -47,7 +47,7 @@ try {
 
   const page = await context.newPage();
   const pagesBeforeGrant = context.pages().length;
-  await page.goto(invite, { waitUntil: "domcontentloaded" });
+  await page.goto(invite.toString(), { waitUntil: "domcontentloaded" });
   await page.waitForURL(/\/src\/grant\/grant\.html\?/, { timeout: 20000 });
 
   // Installed users hand off automatically in the invite tab. The one button
