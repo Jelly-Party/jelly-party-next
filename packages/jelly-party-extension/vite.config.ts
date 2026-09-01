@@ -7,7 +7,9 @@ import { createExtensionManifest } from "../../config/extension-manifest";
 import { joinUrl, resolveBuildUrls } from "../../config/urls";
 
 const DEVELOPMENT_START_URL = "https://video.blender.org/w/dmhvQNzwBnrWy1iYzVv5g7";
-const CHROME_DEVELOPMENT_PORT = 5181;
+// vite-plugin-web-extension 4.5 emits extension-page and HMR URLs on port 5173.
+// Chrome owns that shared UI server; Firefox keeps a separate manifest/background reload server.
+const DEVELOPMENT_UI_PORT = 5173;
 const FIREFOX_DEVELOPMENT_PORT = 5182;
 
 export default defineConfig(({ mode }) => {
@@ -15,7 +17,6 @@ export default defineConfig(({ mode }) => {
   const isFirefox = mode.startsWith("firefox");
   const isDevelopment = mode.endsWith("development");
   const browser = isFirefox ? "firefox" : "chrome";
-  let developmentOrigin: string | undefined;
   const buildEnvironment = loadBuildEnvironment(mode);
   const developmentWebsite =
     buildEnvironment.VITE_JELLY_WEBSITE_URL ||
@@ -41,7 +42,7 @@ export default defineConfig(({ mode }) => {
       tasks: {
         dev: {
           command:
-            `vp exec concurrently --kill-others "vp dev --mode development --port ${CHROME_DEVELOPMENT_PORT} --strictPort" "vp dev --mode firefox-development --port ${FIREFOX_DEVELOPMENT_PORT} --strictPort" --names "chrome,firefox" --prefix-colors "magenta,cyan"`,
+            `vp exec concurrently --kill-others "vp dev --mode development --port ${DEVELOPMENT_UI_PORT} --strictPort" "vp dev --mode firefox-development --port ${FIREFOX_DEVELOPMENT_PORT} --strictPort" --names "chrome,firefox" --prefix-colors "magenta,cyan"`,
           cache: false,
         },
         build: {
@@ -76,47 +77,10 @@ export default defineConfig(({ mode }) => {
     plugins: lazyPlugins(() => [
       svelte(),
       UnoCSS(),
-      {
-        name: "jelly-party:capture-development-origin",
-        configureServer: (server) => {
-          server.httpServer?.once("listening", () => {
-            const address = server.httpServer?.address();
-            if (address && typeof address !== "string") {
-              developmentOrigin = `http://localhost:${address.port}`;
-            }
-          });
-        },
-      },
       webExtension({
         manifest: () => createExtensionManifest(urls, { firefox: isFirefox, test: isTest }),
         browser,
         disableAutoLaunch: !isDevelopment,
-        htmlViteConfig: isDevelopment
-          ? {
-              plugins: [
-                {
-                  name: "jelly-party:development-html-origin",
-                  generateBundle: (_, bundle) => {
-                    if (!developmentOrigin) {
-                      throw new Error("Could not resolve the extension development server port");
-                    }
-                    for (const output of Object.values(bundle)) {
-                      if (
-                        output.type === "asset" &&
-                        output.fileName.endsWith(".html") &&
-                        typeof output.source === "string"
-                      ) {
-                        output.source = output.source.replaceAll(
-                          "http://localhost:5173",
-                          developmentOrigin,
-                        );
-                      }
-                    }
-                  },
-                },
-              ],
-            }
-          : undefined,
         ...(isDevelopment && {
           webExtConfig: {
             target: isFirefox ? "firefox-desktop" : "chromium",
