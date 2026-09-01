@@ -20,14 +20,4 @@
   "exports": {
     "Party": { "type": "durable-object", "storage": "sqlite" },
   },
-  "env": {
-    "staging": {
-      "workers_dev": true,
-      "preview_urls": false,
-      "routes": [],
-      "durable_objects": {
-        "bindings": [{ "name": "PARTY", "class_name": "Party" }],
-      },
-    },
-  },
 }

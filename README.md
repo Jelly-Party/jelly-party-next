@@ -74,13 +74,7 @@ One Cloudflare Worker deploys the website, `/join` handoff, health endpoint, Web
 party Durable Object together. Static files bypass Worker execution; `/health` and `/party/*` run
 Worker-first. Local development uses `wrangler dev --local` plus the website dev server.
 
-Deploy the isolated staging Worker and assets with:
-
-```bash
-vp run deploy:staging
-```
-
-Deploy the same application to production after validation:
+Deploy the application to production after validation:
 
 ```bash
 vp run deploy
@@ -89,13 +83,6 @@ vp run deploy
 Production is served at `https://www.jelly-party.com` and `https://jelly-party.com`; invite links use
 `/join` and the extension connects to the same origin. The browser extension remains a separately
 packaged store artifact and is never published by these deploy tasks.
-
-Run the full two-peer browser acceptance flow against staging with:
-
-```bash
-JELLY_PARTY_STAGING_WS_URL=wss://jelly-party-relay-staging.<account>.workers.dev \
-  vp run test:e2e:staging
-```
 
 ## Quality loop
 

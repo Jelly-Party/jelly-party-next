@@ -41,11 +41,6 @@ export default defineConfig({
         dependsOn: ["jelly-party-website#build"],
         cache: false,
       },
-      "deploy:staging": {
-        command: "vp exec wrangler deploy --env staging",
-        dependsOn: ["jelly-party-website#build"],
-        cache: false,
-      },
       "test:all": {
         command: ["vp test --run", "vp run test:e2e", "vp run test:e2e:firefox"],
         cache: false,
@@ -59,13 +54,6 @@ export default defineConfig({
       },
       "test:e2e:production": {
         command: ["vp run build", "vp exec node e2e/production-join.ts"],
-        cache: false,
-      },
-      "test:e2e:staging": {
-        command: [
-          'VITE_JELLY_WS_URL="$JELLY_PARTY_STAGING_WS_URL" VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test',
-          "vp exec playwright test",
-        ],
         cache: false,
       },
       "test:e2e:firefox": {
