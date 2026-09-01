@@ -22,6 +22,7 @@ Jelly Party is a deliberately small browser extension: create a temporary watch 
 
 ## Deployment
 
+- All work happens on `main`. Do not create feature branches or pull requests: commit to `main` and push it.
 - Deployments are done live from a developer machine with the `wrangler` CLI, through the Vite Tasks that wrap it (`vp run deploy:sites`, `vp run deploy:join`, `vp run deploy:website`). There is no CI pipeline: nothing builds, tests, or deploys on push.
 - Validation is therefore entirely local: run the checks, tests, and builds below yourself before deploying, and treat a successful deploy as the last step of that same local pass.
 

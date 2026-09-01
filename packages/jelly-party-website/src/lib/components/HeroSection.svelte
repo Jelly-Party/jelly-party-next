@@ -4,7 +4,7 @@ import PartyPreview from "./PartyPreview.svelte";
 import ServiceLogos from "./ServiceLogos.svelte";
 </script>
 
-<section class="relative bg-gradient-to-br from-jelly-coral via-[#f778b9] to-jelly-pink pb-16 pt-16 text-white sm:pb-20 sm:pt-20">
+<section class="relative overflow-hidden bg-gradient-to-br from-jelly-coral via-[#f778b9] to-jelly-pink pb-16 pt-16 text-white sm:pb-20 sm:pt-20">
 	<div class="pointer-events-none absolute -right-24 top-8 h-88 w-88 rounded-full bg-white/10 blur-3xl" aria-hidden="true"></div>
 	<div class="jp-container relative grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
 		<div class="text-center lg:text-left">
