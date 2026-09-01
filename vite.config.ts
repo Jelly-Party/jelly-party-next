@@ -36,9 +36,13 @@ export default defineConfig({
         dependsOn: ["jelly-party-website#build"],
         cache: false,
       },
+      predeploy: {
+        command: ["vp check", "vp run test:all", "vp run build:all"],
+        cache: false,
+      },
       deploy: {
         command: 'vp exec wrangler deploy --env=""',
-        dependsOn: ["jelly-party-website#build"],
+        dependsOn: ["predeploy"],
         cache: false,
       },
       "test:all": {
