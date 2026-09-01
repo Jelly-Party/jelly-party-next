@@ -6,11 +6,14 @@ import { loadBuildEnvironment } from "../../config/build-environment";
 import { createExtensionManifest } from "../../config/extension-manifest";
 import { joinUrl, resolveBuildUrls } from "../../config/urls";
 
+const DEVELOPMENT_START_URL = "https://video.blender.org/w/dmhvQNzwBnrWy1iYzVv5g7";
+
 export default defineConfig(({ mode }) => {
   const isTest = mode.endsWith("test");
   const isFirefox = mode.startsWith("firefox");
   const isDevelopment = mode.endsWith("development");
   const browser = isFirefox ? "firefox" : "chrome";
+  const developmentPort = isFirefox ? 5182 : 5181;
   const buildEnvironment = loadBuildEnvironment(mode);
   const developmentWebsite =
     buildEnvironment.VITE_JELLY_WEBSITE_URL ||
@@ -78,7 +81,7 @@ export default defineConfig(({ mode }) => {
         ...(isDevelopment && {
           webExtConfig: {
             target: isFirefox ? "firefox-desktop" : "chromium",
-            startUrl: urls.website,
+            startUrl: DEVELOPMENT_START_URL,
             ...(process.env.JELLY_DEV_HEADLESS === "1" && {
               args: [isFirefox ? "-headless" : "--headless=new"],
             }),
@@ -94,6 +97,14 @@ export default defineConfig(({ mode }) => {
           "src/content/video.ts",
         ],
       }),
+      {
+        name: "jelly-party:development-server-origin",
+        enforce: "post",
+        config: () =>
+          isDevelopment
+            ? { server: { origin: `http://localhost:${developmentPort}` } }
+            : undefined,
+      },
     ]),
   };
 });

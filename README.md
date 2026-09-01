@@ -44,11 +44,11 @@ vp run
 ```
 
 `vp run dev` installs the extension into disposable Chrome and Firefox profiles, opens both at the
-local website, and reloads the extension when source files change. Stopping and restarting the
-command creates clean profiles, which also resets optional site permissions. Development targets
-the local website and `/join` route on port 5180 and the local Worker on port 8080. The website
-listens on all interfaces, so a Lima guest can be reached from macOS through the VM's forwarded
-port.
+[Blender test video](https://video.blender.org/w/dmhvQNzwBnrWy1iYzVv5g7), and reloads the extension
+when source files change. Stopping and restarting the command creates clean profiles, which also
+resets optional site permissions. Development targets the local website and `/join` route on port
+5180 and the local Worker on port 8080. The website listens on all interfaces, so a Lima guest can
+be reached from macOS through the VM's forwarded port.
 
 Cross-package workflows belong in Vite Task and are listed by `vp run`.
 
