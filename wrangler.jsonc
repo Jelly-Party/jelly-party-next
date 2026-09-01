@@ -6,8 +6,8 @@
   "workers_dev": false,
   "preview_urls": false,
   "routes": [
-    { "pattern": "jelly-party.com", "custom_domain": true },
-    { "pattern": "www.jelly-party.com", "custom_domain": true },
+    { "pattern": "jelly-party.com/*", "zone_name": "jelly-party.com" },
+    { "pattern": "www.jelly-party.com/*", "zone_name": "jelly-party.com" },
   ],
   "assets": {
     "directory": "packages/jelly-party-website/build",
