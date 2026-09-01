@@ -1,5 +1,5 @@
 import type { BuildUrls } from "./urls";
-import { joinUrl, toWebExtensionMatchPattern, toWebExtensionPagePattern } from "./urls";
+import { toWebExtensionMatchPattern, toWebExtensionPagePattern } from "./urls";
 
 export interface ExtensionManifestOptions {
   firefox: boolean;
@@ -7,8 +7,8 @@ export interface ExtensionManifestOptions {
 }
 
 export function createExtensionManifest(urls: BuildUrls, options: ExtensionManifestOptions) {
-  const websiteMatch = toWebExtensionMatchPattern(urls.website);
-  const joinMatch = toWebExtensionPagePattern(joinUrl(urls.website));
+  const joinOriginMatch = toWebExtensionMatchPattern(urls.join);
+  const joinPageMatch = toWebExtensionPagePattern(urls.join);
   const socket = new URL(urls.websocket);
   const permissions = ["activeTab", "storage", "scripting"];
   if (!options.firefox) permissions.push("sidePanel");
@@ -20,8 +20,8 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     manifest_version: 3,
     permissions,
     host_permissions: options.test
-      ? [...new Set([websiteMatch, "https://*/*", "http://*/*"])]
-      : [websiteMatch],
+      ? [...new Set([joinOriginMatch, "https://*/*", "http://*/*"])]
+      : [joinOriginMatch],
     ...(!options.test && {
       optional_host_permissions: ["https://*/*", "http://*/*"],
     }),
@@ -36,7 +36,7 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
       : { service_worker: "src/background/index.ts", type: "module" },
     content_scripts: [
       {
-        matches: [joinMatch],
+        matches: [joinPageMatch],
         js: ["src/content/join.ts"],
         run_at: "document_start",
       },

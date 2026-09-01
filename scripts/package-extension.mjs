@@ -2,6 +2,12 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
+import { parse } from "jsonc-parser";
+import {
+  DEFAULT_BUILD_URLS,
+  toWebExtensionMatchPattern,
+  toWebExtensionPagePattern,
+} from "../config/urls.ts";
 
 const FIREFOX_ADDON_GUID = "{1bce6a35-61f2-4477-9899-842359eadcef}";
 
@@ -17,6 +23,7 @@ const archiveNames = [
 ];
 
 await mkdir(artifacts, { recursive: true });
+await validateProductionRoutes();
 
 const chromiumDirectory = path.join(artifacts, "chrome");
 const firefoxDirectory = path.join(artifacts, "firefox");
@@ -40,6 +47,7 @@ const sourceFiles = [
   "flake.nix",
   "flake.lock",
   "vite.config.ts",
+  "wrangler.jsonc",
   "config/build-environment.ts",
   "config/extension-manifest.test.ts",
   "config/extension-manifest.ts",
@@ -114,8 +122,13 @@ async function validateManifest(directory, browser) {
 
   const scripts = (await filesBelow(directory)).filter((file) => file.endsWith(".js"));
   const builtCode = (await Promise.all(scripts.map((file) => readFile(file, "utf8")))).join("\n");
-  if (!/wss:\/\/[^"'`\s]+/.test(builtCode) || /ws:\/\/localhost/.test(builtCode)) {
-    throw new Error(`${browser}: production build does not contain a secure WebSocket endpoint`);
+  if (!builtCode.includes(DEFAULT_BUILD_URLS.websocket)) {
+    throw new Error(
+      `${browser}: production build does not contain ${DEFAULT_BUILD_URLS.websocket}`,
+    );
+  }
+  if (/localhost|127\.0\.0\.1|v2-(?:join|ws)\.jelly-party\.com/.test(builtCode)) {
+    throw new Error(`${browser}: production build contains a retired or local endpoint`);
   }
 
   const manifestText = JSON.stringify(manifest);
@@ -132,11 +145,41 @@ async function validateManifest(directory, browser) {
   const joinMatches = (manifest.content_scripts ?? []).flatMap(
     (contentScript) => contentScript.matches ?? [],
   );
-  if (joinMatches.length !== 1 || !joinMatches[0].startsWith("https://")) {
-    throw new Error(`${browser}: join content script must match one secure configured origin`);
+  const expectedJoinPage = toWebExtensionPagePattern(DEFAULT_BUILD_URLS.join);
+  const expectedJoinOrigin = toWebExtensionMatchPattern(DEFAULT_BUILD_URLS.join);
+  if (
+    joinMatches.length !== 1 ||
+    joinMatches[0] !== expectedJoinPage ||
+    manifest.host_permissions?.length !== 1 ||
+    manifest.host_permissions[0] !== expectedJoinOrigin
+  ) {
+    throw new Error(`${browser}: join permissions do not match ${DEFAULT_BUILD_URLS.join}`);
+  }
+  const expectedConnectSource = `connect-src 'self' ${DEFAULT_BUILD_URLS.websocket}`;
+  if (!manifest.content_security_policy.extension_pages.includes(expectedConnectSource)) {
+    throw new Error(
+      `${browser}: extension connection policy does not match ${DEFAULT_BUILD_URLS.websocket}`,
+    );
   }
 
   await validateNoRemoteExecutableContent(directory, browser);
+}
+
+async function validateProductionRoutes() {
+  const wrangler = parse(await readFile(path.join(root, "wrangler.jsonc"), "utf8"));
+  const routes = new Set(
+    (wrangler.routes ?? []).map((route) => `${route.pattern}|${route.zone_name}`),
+  );
+  for (const endpoint of [
+    DEFAULT_BUILD_URLS.website,
+    DEFAULT_BUILD_URLS.join,
+    DEFAULT_BUILD_URLS.websocket,
+  ]) {
+    const route = `${new URL(endpoint).hostname}/*|jelly-party.com`;
+    if (!routes.has(route)) {
+      throw new Error(`${endpoint}: no matching production route in wrangler.jsonc`);
+    }
+  }
 }
 
 async function validateNoRemoteExecutableContent(directory, browser) {

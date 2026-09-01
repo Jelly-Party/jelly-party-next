@@ -8,6 +8,8 @@
   "routes": [
     { "pattern": "jelly-party.com/*", "zone_name": "jelly-party.com" },
     { "pattern": "www.jelly-party.com/*", "zone_name": "jelly-party.com" },
+    { "pattern": "join.jelly-party.com/*", "zone_name": "jelly-party.com" },
+    { "pattern": "meet.jelly-party.com/*", "zone_name": "jelly-party.com" },
   ],
   "assets": {
     "directory": "packages/jelly-party-website/build",

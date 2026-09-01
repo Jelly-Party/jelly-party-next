@@ -12,13 +12,20 @@ export default defineConfig(({ mode }) => {
   const isDevelopment = mode.endsWith("development");
   const browser = isFirefox ? "firefox" : "chrome";
   const buildEnvironment = loadBuildEnvironment(mode);
-  const environment = isDevelopment
-    ? {
-        ...buildEnvironment,
-        VITE_JELLY_WEBSITE_URL: buildEnvironment.VITE_JELLY_WEBSITE_URL || "http://localhost:5180",
-        VITE_JELLY_WS_URL: buildEnvironment.VITE_JELLY_WS_URL || "ws://localhost:8080",
-      }
-    : buildEnvironment;
+  const developmentWebsite =
+    buildEnvironment.VITE_JELLY_WEBSITE_URL ||
+    (isDevelopment ? "http://127.0.0.1:5180" : undefined);
+  const environment = {
+    ...buildEnvironment,
+    ...(developmentWebsite && { VITE_JELLY_WEBSITE_URL: developmentWebsite }),
+    ...((isDevelopment || isTest) &&
+      developmentWebsite && {
+        VITE_JELLY_JOIN_URL: buildEnvironment.VITE_JELLY_JOIN_URL || joinUrl(developmentWebsite),
+      }),
+    ...(isDevelopment && {
+      VITE_JELLY_WS_URL: buildEnvironment.VITE_JELLY_WS_URL || "ws://localhost:8080",
+    }),
+  };
   const urls = resolveBuildUrls(environment, {
     allowInsecureLocalhost: isTest || isDevelopment,
   });
@@ -29,7 +36,7 @@ export default defineConfig(({ mode }) => {
       tasks: {
         dev: {
           command:
-            'vp exec concurrently --kill-others "vp build --watch --mode development" "vp build --watch --mode firefox-development" --names "chrome,firefox" --prefix-colors "magenta,cyan"',
+            'vp exec concurrently --kill-others "vp dev --mode development --port 5181 --strictPort" "vp dev --mode firefox-development --port 5182 --strictPort" --names "chrome,firefox" --prefix-colors "magenta,cyan"',
           cache: false,
         },
         build: {
@@ -58,7 +65,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __JELLY_WS_URL__: JSON.stringify(urls.websocket),
-      __JELLY_JOIN_URL__: JSON.stringify(joinUrl(urls.website)),
+      __JELLY_JOIN_URL__: JSON.stringify(urls.join),
       __JELLY_WEBSITE_URL__: JSON.stringify(urls.website),
     },
     plugins: lazyPlugins(() => [
@@ -66,7 +73,20 @@ export default defineConfig(({ mode }) => {
       UnoCSS(),
       webExtension({
         manifest: () => createExtensionManifest(urls, { firefox: isFirefox, test: isTest }),
-        disableAutoLaunch: true,
+        browser,
+        disableAutoLaunch: !isDevelopment,
+        ...(isDevelopment && {
+          webExtConfig: {
+            target: isFirefox ? "firefox-desktop" : "chromium",
+            startUrl: urls.website,
+            ...(process.env.JELLY_DEV_HEADLESS === "1" && {
+              args: [isFirefox ? "-headless" : "--headless=new"],
+            }),
+            ...(isFirefox
+              ? { firefoxBinary: process.env.FIREFOX_BIN }
+              : { chromiumBinary: process.env.CHROME_PATH }),
+          },
+        }),
         watchFilePaths: ["../../config/extension-manifest.ts", "../../config/urls.ts"],
         additionalInputs: [
           "src/sidebar/sidebar.html",

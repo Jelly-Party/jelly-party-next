@@ -14,7 +14,7 @@ import { chromium } from "@playwright/test";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const extensionPath = path.join(directory, "..", "artifacts", "chrome");
-const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://www.jelly-party.com/join";
+const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://join.jelly-party.com/join";
 const destination = "https://example.com/watch";
 // Matches PARTY_ID_LENGTH in the protocol; a shorter id makes the invite unparseable.
 const partyId = "ProductionSmokeTest".padEnd(22, "0");

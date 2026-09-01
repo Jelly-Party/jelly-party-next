@@ -1,5 +1,6 @@
 export interface BuildUrls {
   website: string;
+  join: string;
   websocket: string;
   repository: string;
   chromeStore: string;
@@ -8,8 +9,9 @@ export interface BuildUrls {
 }
 
 export const DEFAULT_BUILD_URLS: BuildUrls = {
-  website: "https://www.jelly-party.com",
-  websocket: "wss://www.jelly-party.com",
+  website: "https://jelly-party.com",
+  join: "https://join.jelly-party.com/join",
+  websocket: "wss://meet.jelly-party.com",
   repository: "https://github.com/Jelly-Party/jelly-party-next",
   chromeStore:
     "https://chromewebstore.google.com/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd",
@@ -20,6 +22,7 @@ export const DEFAULT_BUILD_URLS: BuildUrls = {
 
 const BUILD_VARIABLES: Record<keyof BuildUrls, string> = {
   website: "VITE_JELLY_WEBSITE_URL",
+  join: "VITE_JELLY_JOIN_URL",
   websocket: "VITE_JELLY_WS_URL",
   repository: "VITE_JELLY_REPOSITORY_URL",
   chromeStore: "VITE_JELLY_CHROME_STORE_URL",

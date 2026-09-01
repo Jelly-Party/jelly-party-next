@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { parse } from "jsonc-parser";
 import { describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_BUILD_URLS,
@@ -16,6 +18,7 @@ describe("build URL configuration", () => {
     expect(
       resolveBuildUrls({
         VITE_JELLY_WEBSITE_URL: "https://site.example",
+        VITE_JELLY_JOIN_URL: "https://join.example/invite",
         VITE_JELLY_WS_URL: "wss://socket.example/ws",
         VITE_JELLY_REPOSITORY_URL: "https://code.example/jelly-party",
         VITE_JELLY_CHROME_STORE_URL: "https://store.example/chrome",
@@ -24,6 +27,7 @@ describe("build URL configuration", () => {
       }),
     ).toEqual({
       website: "https://site.example",
+      join: "https://join.example/invite",
       websocket: "wss://socket.example/ws",
       repository: "https://code.example/jelly-party",
       chromeStore: "https://store.example/chrome",
@@ -49,12 +53,14 @@ describe("build URL configuration", () => {
       resolveBuildUrls(
         {
           VITE_JELLY_WEBSITE_URL: "http://localhost:16180",
+          VITE_JELLY_JOIN_URL: "http://localhost:16180/join",
           VITE_JELLY_WS_URL: "ws://localhost:16080",
         },
         { allowInsecureLocalhost: true },
       ),
     ).toMatchObject({
       website: "http://localhost:16180",
+      join: "http://localhost:16180/join",
       websocket: "ws://localhost:16080",
     });
   });
@@ -69,5 +75,27 @@ describe("build URL configuration", () => {
     expect(toWebExtensionPagePattern("https://www.example.com/join")).toBe(
       "https://www.example.com/join*",
     );
+  });
+
+  it("keeps every production service endpoint on a route deployed by Wrangler", () => {
+    const wrangler = parse(readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8")) as {
+      routes?: Array<{ pattern?: string; zone_name?: string }>;
+    };
+    const routes = new Set(
+      (wrangler.routes ?? []).map((route) => `${route.pattern}|${route.zone_name}`),
+    );
+
+    expect(DEFAULT_BUILD_URLS).toMatchObject({
+      website: "https://jelly-party.com",
+      join: "https://join.jelly-party.com/join",
+      websocket: "wss://meet.jelly-party.com",
+    });
+    for (const endpoint of [
+      DEFAULT_BUILD_URLS.website,
+      DEFAULT_BUILD_URLS.join,
+      DEFAULT_BUILD_URLS.websocket,
+    ]) {
+      expect(routes).toContain(`${new URL(endpoint).hostname}/*|jelly-party.com`);
+    }
   });
 });

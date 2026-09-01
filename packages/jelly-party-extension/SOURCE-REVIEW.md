@@ -16,5 +16,6 @@ Public service, website, repository, and store URLs are resolved from the valida
 The packaging step rejects localhost origins, insecure production WebSocket endpoints, external
 scripts/stylesheets/resources, dynamic remote imports, `eval`, and `new Function` in the built
 extension. All executable extension assets are bundled in the submitted archive; network access is
-limited to application data sent over the configured Jelly Party WebSocket relay and navigation to
-the configured invitation/video pages.
+limited to application data sent to `wss://meet.jelly-party.com`, required access to
+`https://join.jelly-party.com`, and optional access to a user-selected video page. Packaging also
+checks these endpoints against the production routes in `wrangler.jsonc`.

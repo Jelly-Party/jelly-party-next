@@ -2,7 +2,6 @@ import { describe, expect, it } from "vite-plus/test";
 import { createExtensionManifest } from "./extension-manifest";
 import {
   DEFAULT_BUILD_URLS,
-  joinUrl,
   resolveBuildUrls,
   toWebExtensionMatchPattern,
   toWebExtensionPagePattern,
@@ -11,13 +10,13 @@ import {
 describe("extension manifest configuration", () => {
   it("propagates the configured production endpoints into Chromium", () => {
     const urls = resolveBuildUrls({
-      VITE_JELLY_WEBSITE_URL: "https://invites.example",
+      VITE_JELLY_JOIN_URL: "https://invites.example/accept",
       VITE_JELLY_WS_URL: "wss://relay.example/socket",
     });
     const manifest = createExtensionManifest(urls, { firefox: false, test: false });
 
     expect(manifest.host_permissions).toEqual(["https://invites.example/*"]);
-    expect(manifest.content_scripts[0]?.matches).toEqual(["https://invites.example/join*"]);
+    expect(manifest.content_scripts[0]?.matches).toEqual(["https://invites.example/accept*"]);
     expect(manifest.content_security_policy.extension_pages).toContain(
       "connect-src 'self' wss://relay.example",
     );
@@ -30,12 +29,12 @@ describe("extension manifest configuration", () => {
       firefox: true,
       test: false,
     });
-    const websiteMatch = toWebExtensionMatchPattern(DEFAULT_BUILD_URLS.website);
-    const joinMatch = toWebExtensionPagePattern(joinUrl(DEFAULT_BUILD_URLS.website));
+    const joinOriginMatch = toWebExtensionMatchPattern(DEFAULT_BUILD_URLS.join);
+    const joinPageMatch = toWebExtensionPagePattern(DEFAULT_BUILD_URLS.join);
     const socket = new URL(DEFAULT_BUILD_URLS.websocket);
 
-    expect(manifest.host_permissions).toEqual([websiteMatch]);
-    expect(manifest.content_scripts[0]?.matches).toEqual([joinMatch]);
+    expect(manifest.host_permissions).toEqual([joinOriginMatch]);
+    expect(manifest.content_scripts[0]?.matches).toEqual([joinPageMatch]);
     expect(manifest.content_security_policy.extension_pages).toContain(
       `connect-src 'self' ${socket.protocol}//${socket.host}`,
     );
@@ -48,6 +47,7 @@ describe("extension manifest configuration", () => {
       resolveBuildUrls(
         {
           VITE_JELLY_WEBSITE_URL: "http://localhost:16180",
+          VITE_JELLY_JOIN_URL: "http://localhost:16180/join",
           VITE_JELLY_WS_URL: "ws://localhost:16080",
         },
         { allowInsecureLocalhost: true },
