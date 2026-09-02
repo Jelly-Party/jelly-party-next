@@ -51,6 +51,7 @@ describe("extension manifest configuration", () => {
     expect(manifest.permissions).not.toContain("sidePanel");
     expect(manifest).not.toHaveProperty("minimum_chrome_version");
     expect(manifest).toHaveProperty("sidebar_action.default_panel", "src/sidebar/sidebar.html");
+    expect(manifest).toHaveProperty("sidebar_action.open_at_install", false);
   });
 
   it("pre-grants video origins in disposable test manifests", () => {

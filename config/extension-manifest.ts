@@ -52,7 +52,10 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     },
     ...(!options.firefox && { minimum_chrome_version: "116" }),
     ...(options.firefox && {
-      sidebar_action: { default_panel: "src/sidebar/sidebar.html" },
+      sidebar_action: {
+        default_panel: "src/sidebar/sidebar.html",
+        open_at_install: false,
+      },
       commands: {
         _execute_sidebar_action: {
           suggested_key: { default: "Alt+Shift+J" },

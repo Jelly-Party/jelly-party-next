@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Builder, By, Key, until } from "selenium-webdriver";
+import { Builder, By, until } from "selenium-webdriver";
 import firefox from "selenium-webdriver/firefox.js";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -10,6 +10,7 @@ const fixtureOrigin = process.env.JELLY_FIREFOX_FIXTURE_ORIGIN ?? "http://localh
 const videoUrl = `${fixtureOrigin}/video-swap-test.html`;
 type FirefoxDriver = firefox.Driver;
 const extensionPages = new WeakMap<FirefoxDriver, string>();
+const addonIds = new WeakMap<FirefoxDriver, string>();
 const videoHandles = new WeakMap<FirefoxDriver, string>();
 const sidebarHandles = new WeakMap<FirefoxDriver, string>();
 
@@ -25,6 +26,7 @@ try {
   await waitForVideo(peerA);
   console.log("Firefox peer A video ready");
   videoHandles.set(peerA, await peerA.getWindowHandle());
+  assert.equal(await nativeSidebarOpen(peerA), false, "Firefox sidebar opened on install");
   await openSidebar(peerA);
   await openSidebarPage(peerA);
   console.log("Firefox peer A sidebar ready");
@@ -219,12 +221,32 @@ async function launchFirefoxPeer(): Promise<FirefoxDriver> {
     addonId,
   );
   await driver.setContext(firefox.Context.CONTENT);
+  addonIds.set(driver, addonId);
   extensionPages.set(driver, extensionPage);
   return driver;
 }
 
 async function openSidebar(driver: FirefoxDriver): Promise<void> {
-  await toggleSidebar(driver);
+  const addonId = addonIds.get(driver);
+  assert.ok(addonId);
+  await driver.setContext(firefox.Context.CHROME);
+  try {
+    await driver.executeAsyncScript(
+      `
+        const done = arguments[arguments.length - 1];
+        gUnifiedExtensions.togglePanel().then(done, (error) => done(String(error)));
+      `,
+    );
+    const action = await driver.wait(
+      until.elementLocated(
+        By.css(`.unified-extensions-item-action-button[data-extensionid="${addonId}"]`),
+      ),
+      5_000,
+    );
+    await action.click();
+  } finally {
+    await driver.setContext(firefox.Context.CONTENT);
+  }
   try {
     await waitForNativeSidebar(driver);
   } catch (error) {
@@ -300,17 +322,6 @@ async function closeSidebarPage(driver: FirefoxDriver): Promise<void> {
   await driver.close();
   sidebarHandles.delete(driver);
   await driver.switchTo().window(videoHandle);
-}
-
-async function toggleSidebar(driver: FirefoxDriver): Promise<void> {
-  await driver
-    .actions()
-    .keyDown(Key.ALT)
-    .keyDown(Key.SHIFT)
-    .sendKeys("j")
-    .keyUp(Key.SHIFT)
-    .keyUp(Key.ALT)
-    .perform();
 }
 
 async function closeNativeSidebar(driver: FirefoxDriver): Promise<void> {
