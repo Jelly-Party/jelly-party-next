@@ -12,7 +12,7 @@ Edge Add-ons, and addons.mozilla.org. Keep this file aligned with the shipping e
 - **Category:** Entertainment (Chrome and Edge) / Social & Communication (Firefox)
 - **Tags:** watch party, watch together, sync video, video chat, remote movie night
 - **Website:** https://jelly-party.com
-- **Support:** https://github.com/Jelly-Party/jelly-party-next/issues
+- **Support:** https://github.com/Jelly-Party/jelly-party-extension/issues
 - **Privacy policy:** https://jelly-party.com/privacy-policy
 - **Supported services:** https://jelly-party.com/supported-services
 

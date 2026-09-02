@@ -12,7 +12,7 @@ export const DEFAULT_BUILD_URLS: BuildUrls = {
   website: "https://jelly-party.com",
   join: "https://join.jelly-party.com/join",
   websocket: "wss://meet.jelly-party.com",
-  repository: "https://github.com/Jelly-Party/jelly-party-next",
+  repository: "https://github.com/Jelly-Party/jelly-party-extension",
   chromeStore:
     "https://chromewebstore.google.com/detail/jelly-party/aiecbkandfgpphpdilbaaagnampmdgpd",
   edgeStore:
