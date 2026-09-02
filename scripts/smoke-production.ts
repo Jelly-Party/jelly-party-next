@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { connect } from "node:tls";
 import { RELEASE_VERSION } from "../config/release.ts";
-import { DEFAULT_BUILD_URLS } from "../config/urls.ts";
+import { DEFAULT_BUILD_URLS, partyCreationUrl } from "../config/urls.ts";
+import { parsePartyId } from "../packages/jelly-party-lib/src/protocol.ts";
 
 await verifyPage(DEFAULT_BUILD_URLS.website, "Jelly Party");
 await verifyPage(DEFAULT_BUILD_URLS.join, "You’re invited to watch together");
@@ -24,8 +25,19 @@ async function verifyPage(url: string, expectedText: string): Promise<void> {
 }
 
 async function verifyWebSocket(baseUrl: string): Promise<void> {
+  const creationUrl = partyCreationUrl(baseUrl);
+  const creationResponse = await fetch(creationUrl, { method: "POST" });
+  if (creationResponse.status !== 201) {
+    throw new Error(
+      `${creationUrl} returned ${creationResponse.status}: ${await creationResponse.text()}`,
+    );
+  }
+  const creation = (await creationResponse.json()) as { partyId?: unknown };
+  const partyId = parsePartyId(creation.partyId);
+  assert.ok(partyId, `${creationUrl} returned an invalid party ID`);
+
   const url = new URL(baseUrl);
-  url.pathname = "/party/ProductionSmokeCheck00";
+  url.pathname = `/party/${partyId}`;
   assert.equal(url.protocol, "wss:", `${url} must use a secure WebSocket connection`);
 
   await new Promise<void>((resolve, reject) => {

@@ -16,9 +16,22 @@ import {
 } from "jelly-party-lib";
 import { DurableObject } from "cloudflare:workers";
 import { RELEASE_VERSION } from "../../../config/release";
+import {
+  CHAT_BURST_LIMIT,
+  CHAT_COOLDOWN_MS,
+  maxPartiesPerMonth,
+  MAX_PARTY_CONNECTIONS,
+  monthKey,
+  PARTY_RETENTION_MS,
+  SOCKET_MESSAGE_LIMIT,
+  SOCKET_MESSAGE_WINDOW_MS,
+} from "./limits";
 
-const HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 const SCHEMA_VERSION = 4;
+const API_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Cache-Control": "no-store",
+};
 
 interface ChatRow extends Record<string, string | number | null> {
   id: number;
@@ -48,11 +61,30 @@ interface DestinationRow extends Record<string, string | number> {
   revision: number;
 }
 
+interface MessageWindow {
+  startedAt: number;
+  messages: number;
+  chatTokens: number;
+  chatRefilledAt: number;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       return Response.json({ status: "ok", version: RELEASE_VERSION });
+    }
+    if (url.pathname === "/party" && request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          ...API_HEADERS,
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+        },
+      });
+    }
+    if (url.pathname === "/party" && request.method === "POST") {
+      return createParty(request, env);
     }
 
     const partyId = /^\/party\/([^/]+)$/.exec(url.pathname)?.[1];
@@ -60,28 +92,96 @@ export default {
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("WebSocket upgrade required", { status: 426 });
     }
-    return env.PARTY.getByName(partyId).fetch(request);
+    const { success } = await env.PARTY_CONNECTION_RATE_LIMITER.limit({
+      key: clientKey(request),
+    });
+    if (!success) return new Response("Too many party connections", { status: 429 });
+
+    try {
+      return env.PARTY.get(env.PARTY.idFromString(partyId)).fetch(request);
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
   },
 } satisfies ExportedHandler<Env>;
 
-export class Party extends DurableObject<Env> {
-  private schemaReady = false;
+async function createParty(request: Request, env: Env): Promise<Response> {
+  const { success } = await env.PARTY_CREATION_RATE_LIMITER.limit({ key: clientKey(request) });
+  if (!success) {
+    return Response.json(
+      { error: "Too many parties were started from this network. Try again in a minute." },
+      { status: 429, headers: { ...API_HEADERS, "Retry-After": "60" } },
+    );
+  }
 
-  constructor(ctx: DurableObjectState, env: Env) {
-    super(ctx, env);
-    void this.ctx.blockConcurrencyWhile(async () => {
-      this.migrate();
-      this.schemaReady = true;
+  const limit = maxPartiesPerMonth(env.MAX_PARTIES_PER_MONTH);
+  const reservation = await env.PARTY_QUOTA.getByName("global").reserveParty(limit);
+  if (!reservation.allowed) {
+    console.warn("Monthly party creation safety limit reached", { limit });
+    return Response.json(
+      { error: "Jelly Party reached its monthly safety limit. Please try again later." },
+      { status: 429, headers: API_HEADERS },
+    );
+  }
+  if (reservation.count === Math.ceil(limit / 2) || reservation.count === Math.ceil(limit * 0.8)) {
+    console.warn("Party creation safety limit threshold reached", {
+      count: reservation.count,
+      limit,
     });
   }
 
+  return Response.json(
+    { partyId: env.PARTY.newUniqueId().toString() },
+    { status: 201, headers: API_HEADERS },
+  );
+}
+
+function clientKey(request: Request): string {
+  return request.headers.get("CF-Connecting-IP") ?? "unknown";
+}
+
+export class PartyQuota extends DurableObject<Env> {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    void ctx.blockConcurrencyWhile(async () => {
+      this.ctx.storage.sql.exec(`
+        CREATE TABLE IF NOT EXISTS monthly_party_creations (
+          month TEXT PRIMARY KEY,
+          count INTEGER NOT NULL CHECK (count > 0)
+        )
+      `);
+    });
+  }
+
+  async reserveParty(limit: number): Promise<{ allowed: boolean; count: number }> {
+    const month = monthKey();
+    const row = this.ctx.storage.sql
+      .exec<{ count: number }>(
+        `INSERT INTO monthly_party_creations (month, count) VALUES (?, 1)
+         ON CONFLICT(month) DO UPDATE SET count = count + 1 WHERE count < ?
+         RETURNING count`,
+        month,
+        limit,
+      )
+      .toArray()[0];
+    this.ctx.storage.sql.exec("DELETE FROM monthly_party_creations WHERE month < ?", month);
+    return row ? { allowed: true, count: row.count } : { allowed: false, count: limit };
+  }
+}
+
+export class Party extends DurableObject<Env> {
+  private schemaReady = false;
+  private readonly messageWindows = new WeakMap<WebSocket, MessageWindow>();
+
   async fetch(request: Request): Promise<Response> {
-    if (!this.schemaReady) {
-      this.migrate();
-      this.schemaReady = true;
-    }
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return new Response("WebSocket upgrade required", { status: 426 });
+    }
+    const connections = this.ctx
+      .getWebSockets()
+      .filter((socket) => socket.readyState === WebSocket.OPEN).length;
+    if (connections >= MAX_PARTY_CONNECTIONS) {
+      return new Response("This party is full", { status: 429 });
     }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -90,6 +190,7 @@ export class Party extends DurableObject<Env> {
   }
 
   async webSocketMessage(socket: WebSocket, raw: string | ArrayBuffer): Promise<void> {
+    if (!this.allowMessage(socket)) return;
     const parsed = parseClientMessage(
       typeof raw === "string" ? raw : new TextDecoder().decode(raw),
     );
@@ -105,6 +206,7 @@ export class Party extends DurableObject<Env> {
           code: "invalid-message",
           message: "Already joined",
         });
+      this.ensureSchema();
       const initializePlayback = this.peers().length === 0;
       let destination = this.destination();
       if (!destination) {
@@ -139,9 +241,11 @@ export class Party extends DurableObject<Env> {
         message: "Join a party before sending messages",
       });
     }
+    this.ensureSchema();
     if (message.type === "history")
       return this.send(socket, { type: "history", history: this.history(message.beforeId) });
     if (message.type === "chat") {
+      if (!this.allowChat(socket)) return;
       const entry = this.saveChat(peer, message.text);
       this.broadcast({ type: "chat", entry });
       return;
@@ -222,8 +326,7 @@ export class Party extends DurableObject<Env> {
   async webSocketClose(socket: WebSocket): Promise<void> {
     if (!this.peer(socket)) return;
     this.broadcastPresence();
-    if (this.peers().length === 0)
-      await this.ctx.storage.setAlarm(Date.now() + HISTORY_RETENTION_MS);
+    if (this.peers().length === 0) await this.ctx.storage.setAlarm(Date.now() + PARTY_RETENTION_MS);
   }
 
   async alarm(): Promise<void> {
@@ -403,6 +506,54 @@ export class Party extends DurableObject<Env> {
         INSERT INTO schema_migrations (version) VALUES (4);
       `);
     }
+  }
+
+  private ensureSchema(): void {
+    if (this.schemaReady) return;
+    this.migrate();
+    this.schemaReady = true;
+  }
+
+  private allowMessage(socket: WebSocket): boolean {
+    const now = Date.now();
+    const previous = this.messageWindows.get(socket);
+    const window =
+      !previous || now - previous.startedAt >= SOCKET_MESSAGE_WINDOW_MS
+        ? {
+            startedAt: now,
+            messages: 0,
+            chatTokens: previous?.chatTokens ?? CHAT_BURST_LIMIT,
+            chatRefilledAt: previous?.chatRefilledAt ?? now,
+          }
+        : previous;
+    window.messages += 1;
+    this.messageWindows.set(socket, window);
+    if (window.messages <= SOCKET_MESSAGE_LIMIT) return true;
+
+    socket.close(1008, "Message rate limit exceeded");
+    return false;
+  }
+
+  private allowChat(socket: WebSocket): boolean {
+    const now = Date.now();
+    const window = this.messageWindows.get(socket);
+    if (!window) return false;
+
+    const refill = Math.floor((now - window.chatRefilledAt) / CHAT_COOLDOWN_MS);
+    if (refill > 0) {
+      window.chatTokens = Math.min(CHAT_BURST_LIMIT, window.chatTokens + refill);
+      window.chatRefilledAt += refill * CHAT_COOLDOWN_MS;
+    }
+    if (window.chatTokens >= 1) {
+      window.chatTokens -= 1;
+      return true;
+    }
+    this.send(socket, {
+      type: "error",
+      code: "rate-limited",
+      message: "Messages can be sent once per second.",
+    });
+    return false;
   }
 
   private peers(): PeerIdentity[] {

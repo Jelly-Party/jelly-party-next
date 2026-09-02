@@ -1,6 +1,6 @@
 import { FIREFOX_ADDON_GUID, FIREFOX_MIN_VERSION, RELEASE_VERSION } from "./release";
 import type { BuildUrls } from "./urls";
-import { toWebExtensionMatchPattern, toWebExtensionPagePattern } from "./urls";
+import { partyCreationUrl, toWebExtensionMatchPattern, toWebExtensionPagePattern } from "./urls";
 
 export interface ExtensionManifestOptions {
   firefox: boolean;
@@ -10,6 +10,8 @@ export interface ExtensionManifestOptions {
 
 export function createExtensionManifest(urls: BuildUrls, options: ExtensionManifestOptions) {
   const joinOriginMatch = toWebExtensionMatchPattern(urls.join);
+  const creationUrl = partyCreationUrl(urls.websocket);
+  const creationOriginMatch = toWebExtensionMatchPattern(creationUrl);
   const joinPageMatch = toWebExtensionPagePattern(urls.join);
   const socket = new URL(urls.websocket);
   const permissions = ["activeTab", "tabs", "storage", "scripting"];
@@ -23,8 +25,8 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     manifest_version: 3,
     permissions,
     host_permissions: broadHostAccess
-      ? [...new Set([joinOriginMatch, "https://*/*", "http://*/*"])]
-      : [joinOriginMatch],
+      ? [...new Set([joinOriginMatch, creationOriginMatch, "https://*/*", "http://*/*"])]
+      : [...new Set([joinOriginMatch, creationOriginMatch])],
     ...(!broadHostAccess && {
       optional_host_permissions: ["https://*/*", "http://*/*"],
     }),
@@ -46,7 +48,7 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     ],
     icons: ICONS,
     content_security_policy: {
-      extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' ${socket.protocol}//${socket.host}`,
+      extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' ${socket.protocol}//${socket.host} ${new URL(creationUrl).origin}`,
     },
     ...(options.firefox && {
       sidebar_action: { default_panel: "src/sidebar/sidebar.html" },

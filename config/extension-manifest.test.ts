@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { createExtensionManifest } from "./extension-manifest";
 import {
   DEFAULT_BUILD_URLS,
+  partyCreationUrl,
   resolveBuildUrls,
   toWebExtensionMatchPattern,
   toWebExtensionPagePattern,
@@ -15,12 +16,16 @@ describe("extension manifest configuration", () => {
     });
     const manifest = createExtensionManifest(urls, { firefox: false, test: false });
 
-    expect(manifest.host_permissions).toEqual(["https://invites.example/*"]);
+    expect(manifest.host_permissions).toEqual([
+      "https://invites.example/*",
+      "https://relay.example/*",
+    ]);
     expect(manifest.optional_host_permissions).toEqual(["https://*/*", "http://*/*"]);
     expect(manifest.content_scripts[0]?.matches).toEqual(["https://invites.example/accept*"]);
     expect(manifest.content_security_policy.extension_pages).toContain(
       "connect-src 'self' wss://relay.example",
     );
+    expect(manifest.content_security_policy.extension_pages).toContain("https://relay.example");
     expect(manifest.permissions).toContain("sidePanel");
     expect(manifest).toHaveProperty("side_panel.default_path", "src/sidebar/sidebar.html");
   });
@@ -31,10 +36,13 @@ describe("extension manifest configuration", () => {
       test: false,
     });
     const joinOriginMatch = toWebExtensionMatchPattern(DEFAULT_BUILD_URLS.join);
+    const creationOriginMatch = toWebExtensionMatchPattern(
+      partyCreationUrl(DEFAULT_BUILD_URLS.websocket),
+    );
     const joinPageMatch = toWebExtensionPagePattern(DEFAULT_BUILD_URLS.join);
     const socket = new URL(DEFAULT_BUILD_URLS.websocket);
 
-    expect(manifest.host_permissions).toEqual([joinOriginMatch]);
+    expect(manifest.host_permissions).toEqual([joinOriginMatch, creationOriginMatch]);
     expect(manifest.content_scripts[0]?.matches).toEqual([joinPageMatch]);
     expect(manifest.content_security_policy.extension_pages).toContain(
       `connect-src 'self' ${socket.protocol}//${socket.host}`,

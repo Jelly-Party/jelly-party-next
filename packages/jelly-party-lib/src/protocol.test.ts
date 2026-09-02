@@ -6,14 +6,14 @@ import {
   type ClientMessage,
 } from "./protocol.js";
 
-const partyId = "Abcdefghijklmnopqrstuv";
+const partyId = "a".repeat(64);
 
 describe("party capability IDs", () => {
-  it("accepts a 22-character base64url capability", () => {
+  it("accepts a 64-character Durable Object capability", () => {
     expect(parsePartyId(partyId)).toBe(partyId);
   });
 
-  it.each(["", "short", `${partyId}=`, "spaces are not allowed!!", "a".repeat(23)])(
+  it.each(["", "short", `${partyId}=`, "A".repeat(64), "a".repeat(63), "a".repeat(65)])(
     "rejects %j",
     (value) => {
       expect(parsePartyId(value)).toBeNull();

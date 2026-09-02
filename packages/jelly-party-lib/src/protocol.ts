@@ -1,8 +1,8 @@
-export const MAX_CHAT_LENGTH = 500;
-export const MAX_CHAT_MESSAGES = 10_000;
+export const MAX_CHAT_LENGTH = 2_000;
+export const MAX_CHAT_MESSAGES = 1_000;
 export const MAX_NAME_LENGTH = 40;
 export const MAX_EMOJI_LENGTH = 16;
-export const PARTY_ID_LENGTH = 22;
+export const PARTY_ID_LENGTH = 64;
 export const HISTORY_PAGE_SIZE = 100;
 export const MAX_DESTINATION_URL_LENGTH = 2048;
 export const MAX_DESTINATION_TITLE_LENGTH = 200;
@@ -105,13 +105,13 @@ export type ServerMessage =
     }
   | {
       type: "error";
-      code: "invalid-message" | "join-required" | "leader-required";
+      code: "invalid-message" | "join-required" | "leader-required" | "rate-limited";
       message: string;
     };
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
-const partyIdPattern = /^[A-Za-z0-9_-]{22}$/;
+const partyIdPattern = /^[0-9a-f]{64}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function parsePartyId(value: unknown): string | null {
@@ -129,7 +129,7 @@ export function isPeerIdentity(value: unknown): value is PeerIdentity {
 }
 
 export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
-  if (typeof raw !== "string" || raw.length > 4096) return invalid("Message must be bounded text");
+  if (typeof raw !== "string" || raw.length > 8192) return invalid("Message must be bounded text");
 
   let value: unknown;
   try {

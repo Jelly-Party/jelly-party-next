@@ -4,6 +4,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_BUILD_URLS,
   joinUrl,
+  partyCreationUrl,
   resolveBuildUrls,
   toWebExtensionMatchPattern,
   toWebExtensionPagePattern,
@@ -68,6 +69,13 @@ describe("build URL configuration", () => {
   it("converts configured origins to portable extension match patterns without ports", () => {
     expect(toWebExtensionMatchPattern("http://localhost:16180")).toBe("http://localhost/*");
     expect(toWebExtensionMatchPattern("https://join.example/path")).toBe("https://join.example/*");
+  });
+
+  it("derives the party creation endpoint from the WebSocket relay", () => {
+    expect(partyCreationUrl("wss://meet.example/socket?old=1#fragment")).toBe(
+      "https://meet.example/party",
+    );
+    expect(partyCreationUrl("ws://localhost:16080")).toBe("http://localhost:16080/party");
   });
 
   it("derives the invite route and its exact extension page pattern from the website", () => {

@@ -5,7 +5,7 @@ import UnoCSS from "unocss/vite";
 import webExtension from "vite-plugin-web-extension";
 import { loadBuildEnvironment } from "../../config/build-environment";
 import { createExtensionManifest } from "../../config/extension-manifest";
-import { joinUrl, resolveBuildUrls } from "../../config/urls";
+import { joinUrl, partyCreationUrl, resolveBuildUrls } from "../../config/urls";
 
 const DEVELOPMENT_START_URL = "https://video.blender.org/w/dmhvQNzwBnrWy1iYzVv5g7";
 // vite-plugin-web-extension 4.5 emits extension-page and HMR URLs on port 5173.
@@ -84,6 +84,7 @@ export default defineConfig(({ mode }) => {
     define: {
       __JELLY_WS_URL__: JSON.stringify(urls.websocket),
       __JELLY_JOIN_URL__: JSON.stringify(urls.join),
+      __JELLY_PARTY_CREATION_URL__: JSON.stringify(partyCreationUrl(urls.websocket)),
     },
     plugins: lazyPlugins(() => [
       svelte(),

@@ -15,6 +15,7 @@ import {
   type ServerMessage,
 } from "jelly-party-lib";
 import { PartySocket } from "./party-socket";
+import { requestPartyId } from "./party-api";
 import {
   initialPartyState,
   reducePartyState,
@@ -153,8 +154,15 @@ async function handleMessage(
       return { ok: false, error: "Open a page with a video before starting a party." };
     }
     const identity = await ensureIdentity();
-    startParty(createPartyId(), tab, identity);
-    return { ok: true, state: partyState };
+    try {
+      startParty(await requestPartyId(__JELLY_PARTY_CREATION_URL__), tab, identity);
+      return { ok: true, state: partyState };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Could not create a party. Try again.",
+      };
+    }
   }
 
   if (message.type === "party:leave") {
@@ -1177,14 +1185,6 @@ function samePartyDestination(current: string, expected: string): boolean {
   } catch {
     return false;
   }
-}
-
-function createPartyId(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return btoa(String.fromCharCode(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
 }
 
 function bounded(value: unknown, maximum: number): string | null {

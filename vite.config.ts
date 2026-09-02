@@ -114,6 +114,7 @@ export default defineConfig({
       "config/**/*.{test,spec}.ts",
       "packages/jelly-party-lib/src/**/*.{test,spec}.ts",
       "packages/jelly-party-extension/src/**/*.{test,spec}.ts",
+      "packages/jelly-party-server/src/**/*.{test,spec}.ts",
     ],
   },
 });

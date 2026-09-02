@@ -3,7 +3,7 @@ import { MAX_CHAT_MESSAGES } from "jelly-party-lib";
 import { initialPartyState, partyViewForTab, reducePartyState } from "./party-state";
 
 const party = {
-  partyId: "abcdefghijklmnopqrstuv",
+  partyId: "a".repeat(64),
   tabId: 7,
   tabUrl: "https://example.com/watch",
   tabTitle: "Friday night movie",

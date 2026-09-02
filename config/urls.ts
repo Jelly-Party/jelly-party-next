@@ -50,6 +50,15 @@ export function toWebExtensionMatchPattern(value: string): string {
   return `${parsed.protocol}//${parsed.hostname}/*`;
 }
 
+export function partyCreationUrl(websocket: string): string {
+  const parsed = new URL(websocket);
+  parsed.protocol = parsed.protocol === "wss:" ? "https:" : "http:";
+  parsed.pathname = "/party";
+  parsed.search = "";
+  parsed.hash = "";
+  return parsed.toString();
+}
+
 export function joinUrl(website: string): string {
   return new URL("/join", `${website}/`).toString().replace(/\/$/, "");
 }

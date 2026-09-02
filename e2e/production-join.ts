@@ -16,8 +16,8 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 const extensionPath = path.join(directory, "..", "artifacts", "chrome");
 const joinUrl = process.env.JELLY_PARTY_JOIN_URL ?? "https://join.jelly-party.com/join";
 const destination = "https://example.com/watch";
-// Matches PARTY_ID_LENGTH in the protocol; a shorter id makes the invite unparseable.
-const partyId = "ProductionSmokeTest".padEnd(22, "0");
+// Syntactically valid; this test stops at the permission hand-off and never joins the party.
+const partyId = "0".repeat(64);
 const invite = new URL(joinUrl);
 invite.hash = `${partyId}@${destination.slice("https://".length)}`;
 

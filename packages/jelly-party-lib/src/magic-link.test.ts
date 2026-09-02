@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { buildMagicLink, parseMagicLink } from "./magic-link.js";
 
-const partyId = "Abcdefghijklmnopqrstuv";
+const partyId = "a".repeat(64);
 
 describe("magic links", () => {
   it("round-trips a party and destination video URL", () => {

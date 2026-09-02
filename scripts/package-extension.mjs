@@ -6,6 +6,7 @@ import { parse } from "jsonc-parser";
 import { FIREFOX_ADDON_GUID, FIREFOX_MIN_VERSION, RELEASE_VERSION } from "../config/release.ts";
 import {
   DEFAULT_BUILD_URLS,
+  partyCreationUrl,
   toWebExtensionMatchPattern,
   toWebExtensionPagePattern,
 } from "../config/urls.ts";
@@ -143,11 +144,15 @@ async function validateManifest(directory, browser) {
   );
   const expectedJoinPage = toWebExtensionPagePattern(DEFAULT_BUILD_URLS.join);
   const expectedJoinOrigin = toWebExtensionMatchPattern(DEFAULT_BUILD_URLS.join);
+  const expectedCreationOrigin = toWebExtensionMatchPattern(
+    partyCreationUrl(DEFAULT_BUILD_URLS.websocket),
+  );
+  const expectedHostPermissions = [expectedJoinOrigin, expectedCreationOrigin];
   if (
     joinMatches.length !== 1 ||
     joinMatches[0] !== expectedJoinPage ||
-    manifest.host_permissions?.length !== 1 ||
-    manifest.host_permissions[0] !== expectedJoinOrigin
+    manifest.host_permissions?.length !== expectedHostPermissions.length ||
+    !expectedHostPermissions.every((origin) => manifest.host_permissions.includes(origin))
   ) {
     throw new Error(`${browser}: join permissions do not match ${DEFAULT_BUILD_URLS.join}`);
   }
@@ -155,6 +160,12 @@ async function validateManifest(directory, browser) {
   if (!manifest.content_security_policy.extension_pages.includes(expectedConnectSource)) {
     throw new Error(
       `${browser}: extension connection policy does not match ${DEFAULT_BUILD_URLS.websocket}`,
+    );
+  }
+  const creationOrigin = new URL(partyCreationUrl(DEFAULT_BUILD_URLS.websocket)).origin;
+  if (!manifest.content_security_policy.extension_pages.includes(creationOrigin)) {
+    throw new Error(
+      `${browser}: extension cannot call the party creation API at ${creationOrigin}`,
     );
   }
 
