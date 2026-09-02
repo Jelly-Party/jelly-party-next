@@ -5,6 +5,8 @@ import { partyCreationUrl, toWebExtensionMatchPattern, toWebExtensionPagePattern
 export interface ExtensionManifestOptions {
   firefox: boolean;
   test: boolean;
+  /** Vite's web-extension plugin adds its localhost host permission after rendering. */
+  development?: boolean;
 }
 
 export function createExtensionManifest(urls: BuildUrls, options: ExtensionManifestOptions) {
@@ -25,7 +27,9 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     permissions,
     host_permissions: broadHostAccess
       ? ["https://*/*", "http://*/*"]
-      : [...new Set([joinOriginMatch, creationOriginMatch])],
+      : [...new Set([joinOriginMatch, creationOriginMatch])].filter(
+          (permission) => !options.development || permission !== "http://localhost/*",
+        ),
     ...(!broadHostAccess && {
       optional_host_permissions: ["https://*/*", "http://*/*"],
     }),

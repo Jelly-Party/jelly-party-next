@@ -13,10 +13,28 @@ healthUrl.protocol = "https:";
 healthUrl.pathname = "/health";
 const healthResponse = await fetch(healthUrl, { cache: "no-store" });
 assert.equal(healthResponse.status, 200, `${healthUrl} returned ${healthResponse.status}`);
-assert.deepEqual(await healthResponse.json(), { status: "ok", version: RELEASE_VERSION });
+const health = (await healthResponse.json()) as { status?: unknown; version?: unknown };
+assert.equal(health.status, "ok", `${healthUrl} returned an unhealthy response`);
+if (typeof health.version !== "string") throw new Error(`${healthUrl} did not return a version`);
+const productionVersion = health.version;
+if (process.env.JELLY_REQUIRE_RELEASE_VERSION === "1") {
+  assert.equal(
+    productionVersion,
+    RELEASE_VERSION,
+    `${healthUrl} is not running the release just deployed`,
+  );
+} else {
+  assert.equal(
+    productionVersion.split(".", 1)[0],
+    RELEASE_VERSION.split(".", 1)[0],
+    `${healthUrl} is not compatible with Jelly Party ${RELEASE_VERSION}`,
+  );
+}
 
 await verifyWebSocket(DEFAULT_BUILD_URLS.websocket);
-console.log("production website, join route, health endpoint, and WebSocket verified");
+console.log(
+  `production website, join route, ${productionVersion} health endpoint, and WebSocket verified`,
+);
 
 async function verifyPage(url: string, expectedText: string): Promise<void> {
   const response = await fetch(url, { cache: "no-store" });

@@ -83,9 +83,11 @@ describe("extension manifest configuration", () => {
     const manifest = createExtensionManifest(urls, {
       firefox: false,
       test: false,
+      development: true,
     });
 
-    expect(manifest.host_permissions).toEqual(["http://127.0.0.1/*", "http://localhost/*"]);
+    // vite-plugin-web-extension adds http://localhost/* to development manifests itself.
+    expect(manifest.host_permissions).toEqual(["http://127.0.0.1/*"]);
     expect(manifest.optional_host_permissions).toEqual(["https://*/*", "http://*/*"]);
   });
 });

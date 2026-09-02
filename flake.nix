@@ -1,8 +1,9 @@
 {
   description = "Jelly Party development environment";
 
-  # Keep the browser revisions aligned with Playwright 1.57 in pnpm-lock.yaml.
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/145b67bd0bd4e075f981c1c2b81155d9e2982de2";
+  # Keep the browser revisions aligned with Playwright in pnpm-lock.yaml. flake.lock pins the
+  # exact nixpkgs revision so host and VM use the same browser binaries.
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
   outputs = { nixpkgs, ... }:
     let
@@ -25,7 +26,7 @@
               pkgs.geckodriver
               pkgs.playwright-driver.browsers
               pkgs.noto-fonts-color-emoji
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
               pkgs.firefox
             ];
 
@@ -38,14 +39,14 @@
             PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
             PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = true;
             CHROME_PATH =
-              if pkgs.stdenv.isDarwin then
+              if pkgs.stdenv.hostPlatform.isDarwin then
                 # Development should open the user's real Chrome on macOS. The internal
                 # Playwright directory differs between Intel and Apple Silicon releases.
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
               else
-                "${pkgs.playwright-driver.browsers}/chromium-1200/chrome-linux/chrome";
+                "${pkgs.playwright-driver.browsers}/chromium-1228/chrome-linux/chrome";
             FIREFOX_BIN =
-              if pkgs.stdenv.isDarwin then
+              if pkgs.stdenv.hostPlatform.isDarwin then
                 "/Applications/Firefox.app/Contents/MacOS/firefox"
               else
                 "${pkgs.firefox}/bin/firefox";

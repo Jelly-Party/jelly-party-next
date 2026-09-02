@@ -46,7 +46,10 @@ export default defineConfig({
         cache: false,
       },
       deploy: {
-        command: ['vp exec wrangler deploy --env=""', "vp run smoke:production"],
+        command: [
+          'vp exec wrangler deploy --env=""',
+          "JELLY_REQUIRE_RELEASE_VERSION=1 vp run smoke:production",
+        ],
         dependsOn: ["predeploy"],
         cache: false,
       },
