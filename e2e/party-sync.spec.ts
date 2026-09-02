@@ -11,6 +11,7 @@ import {
 const videoUrl = "http://localhost:16333/video-swap-test.html";
 
 test("two peers create, join, chat, and synchronize playback in both directions", async () => {
+  test.setTimeout(90_000);
   const peerA = await launchExtensionPeer();
   const peerB = await launchExtensionPeer();
 
@@ -255,6 +256,20 @@ test("two peers create, join, chat, and synchronize playback in both directions"
     await expect(videoA.locator("video")).toHaveJSProperty("readyState", 4);
     await expect(sidebarA.getByTestId("system-message").last()).toContainText(
       "changed the video to “Jelly Party local video fixture”",
+    );
+
+    // Keep the party quiet beyond Chrome's service-worker idle window, then
+    // change destinations again. The follower must remain connected and follow.
+    await joinPage.waitForTimeout(31_000);
+    await expect(sidebarA.getByTestId("peer")).toHaveCount(2);
+    await expect(sidebarB.getByTestId("peer")).toHaveCount(2);
+    const secondHandedOverVideoUrl = "http://localhost:16333/frame-video.html?second-switch";
+    await joinPage.goto(secondHandedOverVideoUrl);
+    await expect(joinPage.locator("video")).toHaveJSProperty("readyState", 4);
+    await videoA.waitForURL(secondHandedOverVideoUrl);
+    await expect(videoA.locator("video")).toHaveJSProperty("readyState", 4);
+    await expect(sidebarA.getByTestId("system-message").last()).toContainText(
+      "changed the video to “Secondary framed video”",
     );
 
     const unrelatedPeerBTab = await peerB.context.newPage();

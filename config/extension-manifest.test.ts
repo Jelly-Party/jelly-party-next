@@ -27,6 +27,7 @@ describe("extension manifest configuration", () => {
     );
     expect(manifest.content_security_policy.extension_pages).toContain("https://relay.example");
     expect(manifest.permissions).toContain("sidePanel");
+    expect(manifest).toHaveProperty("minimum_chrome_version", "116");
     expect(manifest).toHaveProperty("side_panel.default_path", "src/sidebar/sidebar.html");
   });
 
@@ -48,6 +49,7 @@ describe("extension manifest configuration", () => {
       `connect-src 'self' ${socket.protocol}//${socket.host}`,
     );
     expect(manifest.permissions).not.toContain("sidePanel");
+    expect(manifest).not.toHaveProperty("minimum_chrome_version");
     expect(manifest).toHaveProperty("sidebar_action.default_panel", "src/sidebar/sidebar.html");
   });
 

@@ -50,6 +50,7 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     content_security_policy: {
       extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' ${socket.protocol}//${socket.host} ${new URL(creationUrl).origin}`,
     },
+    ...(!options.firefox && { minimum_chrome_version: "116" }),
     ...(options.firefox && {
       sidebar_action: { default_panel: "src/sidebar/sidebar.html" },
       commands: {

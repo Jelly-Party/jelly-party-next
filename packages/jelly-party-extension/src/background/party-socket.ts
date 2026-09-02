@@ -13,8 +13,11 @@ interface PartySocketHandlers {
   onError(message: string): void;
 }
 
+export const PARTY_HEARTBEAT_MS = 20_000;
+
 export class PartySocket {
   #socket: WebSocket | null = null;
+  #heartbeat: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly url: string,
@@ -28,6 +31,7 @@ export class PartySocket {
     socket.addEventListener("open", () => {
       if (this.#socket !== socket) return;
       this.send({ type: "join", peer, destination });
+      this.#startHeartbeat();
       this.handlers.onOpen();
     });
     socket.addEventListener("message", (event) => {
@@ -43,6 +47,7 @@ export class PartySocket {
     });
     socket.addEventListener("close", () => {
       if (this.#socket !== socket) return;
+      this.#stopHeartbeat();
       this.#socket = null;
       this.handlers.onClose();
     });
@@ -70,8 +75,21 @@ export class PartySocket {
 
   close(): void {
     const socket = this.#socket;
+    this.#stopHeartbeat();
     this.#socket = null;
     socket?.close();
+  }
+
+  #startHeartbeat(): void {
+    this.#stopHeartbeat();
+    this.#heartbeat = setInterval(() => {
+      this.send({ type: "heartbeat" });
+    }, PARTY_HEARTBEAT_MS);
+  }
+
+  #stopHeartbeat(): void {
+    if (this.#heartbeat) clearInterval(this.#heartbeat);
+    this.#heartbeat = null;
   }
 
   private send(message: ClientMessage): boolean {

@@ -67,6 +67,7 @@ export interface ChatHistoryPage {
 
 export type ClientMessage =
   | { type: "join"; peer: PeerIdentity; destination: PartyDestinationInput }
+  | { type: "heartbeat" }
   | { type: "chat"; text: string }
   | {
       type: "playback";
@@ -153,6 +154,8 @@ export function parseClientMessage(raw: unknown): ParseResult<ClientMessage> {
     if (!isBoundedText(value.text, MAX_CHAT_LENGTH)) return invalid("Invalid chat message");
     return { ok: true, value: { type: "chat", text: value.text } };
   }
+
+  if (value.type === "heartbeat") return { ok: true, value: { type: "heartbeat" } };
 
   if (value.type === "playback") {
     if (

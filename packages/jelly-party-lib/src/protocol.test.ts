@@ -33,6 +33,10 @@ describe("client protocol validation", () => {
   });
 
   it("accepts bounded chat and finite playback messages", () => {
+    expect(parseClientMessage(JSON.stringify({ type: "heartbeat" }))).toEqual({
+      ok: true,
+      value: { type: "heartbeat" },
+    });
     expect(parseClientMessage(JSON.stringify({ type: "chat", text: "Hello!" }))).toEqual({
       ok: true,
       value: { type: "chat", text: "Hello!" },

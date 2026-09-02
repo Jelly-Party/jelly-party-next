@@ -241,6 +241,7 @@ export class Party extends DurableObject<Env> {
         message: "Join a party before sending messages",
       });
     }
+    if (message.type === "heartbeat") return;
     this.ensureSchema();
     if (message.type === "history")
       return this.send(socket, { type: "history", history: this.history(message.beforeId) });
