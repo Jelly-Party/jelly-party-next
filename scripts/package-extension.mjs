@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 import { parse } from "jsonc-parser";
@@ -18,6 +18,7 @@ const archiveName = (target) => `jelly-party-${RELEASE_VERSION}-${target}.zip`;
 const archiveNames = ["chrome", "edge", "firefox", "firefox-source"].map(archiveName);
 
 await mkdir(artifacts, { recursive: true });
+await removeStaleArchives();
 await validateProductionRoutes();
 
 const chromiumDirectory = path.join(artifacts, "chrome");
@@ -251,4 +252,15 @@ async function filesBelow(directory) {
     }),
   );
   return files.flat().sort();
+}
+
+async function removeStaleArchives() {
+  const versionedArchive =
+    /^jelly-party-\d+\.\d+\.\d+-(?:chrome|edge|firefox|firefox-source)\.zip$/;
+  const filenames = await readdir(artifacts);
+  await Promise.all(
+    filenames
+      .filter((filename) => versionedArchive.test(filename) && !archiveNames.includes(filename))
+      .map((filename) => unlink(path.join(artifacts, filename))),
+  );
 }

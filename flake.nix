@@ -22,10 +22,11 @@
         {
           default = pkgs.mkShell {
             packages = [
-              pkgs.firefox
               pkgs.geckodriver
               pkgs.playwright-driver.browsers
               pkgs.noto-fonts-color-emoji
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+              pkgs.firefox
             ];
 
             # The store assets are screenshots of the real UI, which shows peer emoji, so the
@@ -43,7 +44,11 @@
                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
               else
                 "${pkgs.playwright-driver.browsers}/chromium-1200/chrome-linux/chrome";
-            FIREFOX_BIN = "${pkgs.firefox}/bin/firefox";
+            FIREFOX_BIN =
+              if pkgs.stdenv.isDarwin then
+                "/Applications/Firefox.app/Contents/MacOS/firefox"
+              else
+                "${pkgs.firefox}/bin/firefox";
             GECKODRIVER_BIN = "${pkgs.geckodriver}/bin/geckodriver";
           };
         });

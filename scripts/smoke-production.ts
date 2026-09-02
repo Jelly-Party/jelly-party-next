@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
+import { connect } from "node:tls";
 import { RELEASE_VERSION } from "../config/release.ts";
 import { DEFAULT_BUILD_URLS } from "../config/urls.ts";
 
@@ -24,39 +26,56 @@ async function verifyPage(url: string, expectedText: string): Promise<void> {
 async function verifyWebSocket(baseUrl: string): Promise<void> {
   const url = new URL(baseUrl);
   url.pathname = "/party/ProductionSmokeCheck00";
+  assert.equal(url.protocol, "wss:", `${url} must use a secure WebSocket connection`);
 
   await new Promise<void>((resolve, reject) => {
-    const socket = new WebSocket(url);
-    let opened = false;
-    const timeout = setTimeout(() => {
-      socket.close();
-      reject(new Error(`${url} did not complete a WebSocket handshake within 10 seconds`));
-    }, 10_000);
+    const key = randomBytes(16).toString("base64");
+    let response = "";
+    let settled = false;
+    const socket = connect(
+      {
+        host: url.hostname,
+        port: Number(url.port) || 443,
+        servername: url.hostname,
+      },
+      () => {
+        socket.write(
+          `GET ${url.pathname}${url.search} HTTP/1.1\r\n` +
+            `Host: ${url.host}\r\n` +
+            "Connection: Upgrade\r\n" +
+            "Upgrade: websocket\r\n" +
+            `Sec-WebSocket-Key: ${key}\r\n` +
+            "Sec-WebSocket-Version: 13\r\n\r\n",
+        );
+      },
+    );
 
-    socket.addEventListener(
-      "open",
-      () => {
-        opened = true;
-        socket.close(1000);
-      },
-      { once: true },
-    );
-    socket.addEventListener(
-      "close",
-      () => {
-        clearTimeout(timeout);
-        if (opened) resolve();
-        else reject(new Error(`${url} closed before completing its WebSocket handshake`));
-      },
-      { once: true },
-    );
-    socket.addEventListener(
-      "error",
-      () => {
-        clearTimeout(timeout);
-        reject(new Error(`${url} failed its WebSocket handshake`));
-      },
-      { once: true },
-    );
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      if (error) reject(error);
+      else resolve();
+    };
+
+    socket.setTimeout(10_000, () => {
+      finish(new Error(`${url} did not complete a WebSocket handshake within 10 seconds`));
+    });
+    socket.on("data", (chunk) => {
+      response += chunk.toString("utf8");
+      if (!response.includes("\r\n\r\n")) return;
+
+      try {
+        assert.match(response, /^HTTP\/1\.1 101 /);
+        assert.match(response, /\r\nupgrade:\s*websocket\r\n/i);
+        finish();
+      } catch (error) {
+        finish(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+    socket.once("error", finish);
+    socket.once("close", () => {
+      if (!settled) finish(new Error(`${url} closed before completing its WebSocket handshake`));
+    });
   });
 }
