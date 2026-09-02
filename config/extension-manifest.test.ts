@@ -64,7 +64,7 @@ describe("extension manifest configuration", () => {
       { firefox: false, test: true },
     );
 
-    expect(manifest.host_permissions).toEqual(["http://localhost/*", "https://*/*", "http://*/*"]);
+    expect(manifest.host_permissions).toEqual(["https://*/*", "http://*/*"]);
     expect(manifest).not.toHaveProperty("optional_host_permissions");
   });
 
@@ -75,8 +75,7 @@ describe("extension manifest configuration", () => {
       development: true,
     });
 
-    expect(manifest.host_permissions).toContain("https://*/*");
-    expect(manifest.host_permissions).toContain("http://*/*");
+    expect(manifest.host_permissions).toEqual(["https://*/*", "http://*/*"]);
     expect(manifest).not.toHaveProperty("optional_host_permissions");
   });
 });

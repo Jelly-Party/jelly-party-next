@@ -25,7 +25,7 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
     manifest_version: 3,
     permissions,
     host_permissions: broadHostAccess
-      ? [...new Set([joinOriginMatch, creationOriginMatch, "https://*/*", "http://*/*"])]
+      ? ["https://*/*", "http://*/*"]
       : [...new Set([joinOriginMatch, creationOriginMatch])],
     ...(!broadHostAccess && {
       optional_host_permissions: ["https://*/*", "http://*/*"],
