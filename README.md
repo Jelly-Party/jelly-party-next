@@ -2,7 +2,7 @@
 
 Watch videos with friends, in sync.
 
-Jelly Party is a browser extension and small Cloudflare Durable Object relay. Open the sidebar on a video, create a party, share the magic link, and chat while play, pause, and seek stay synchronized. There are no accounts; the latest 10,000 chat messages are retained for one year after the party becomes inactive.
+Jelly Party is a browser extension and small Cloudflare Durable Object relay. Open the sidebar on a video, create a party, share the magic link, and chat while play, pause, and seek stay synchronized. There are no accounts; parties are private through their long, unguessable invite links.
 
 ## Product
 
@@ -10,7 +10,7 @@ Jelly Party is a browser extension and small Cloudflare Durable Object relay. Op
 - Native browser sidebar/side-panel UI
 - Display name plus emoji—no avatars
 - Magic-link joining with optional per-site permissions
-- Ephemeral peer list and up to 10,000 messages of one-year party chat history
+- Ephemeral peer list and up to 1,000 party-history entries, cleared after 30 inactive days
 - Bidirectional HTML video play, pause, and seek synchronization
 - New protocol and backend at `wss://meet.jelly-party.com`; no old-client compatibility
 
@@ -25,7 +25,7 @@ The implementation contract is the [Jelly Party 2.0 specification](.scratch/jell
 | `jelly-party-lib`       | Shared validated protocol and small cross-package utilities      |
 | `jelly-party-website`   | Website, `/join` handoff, support, and privacy pages             |
 
-The extension background process owns the party connection and presence so closing or navigating away from the sidebar does not leave the party. A small content script runs in relevant frames to discover and control an HTML video. The components communicate through extension runtime messages. A party-scoped Durable Object validates and relays messages, keeps its latest 10,000 chat messages, and clears all party data one year after its final peer disconnects. Rejoining before then restarts that one-year countdown.
+The extension background process owns the party connection and presence so closing or navigating away from the sidebar does not leave the party. A small content script runs in relevant frames to discover and control an HTML video. The components communicate through extension runtime messages. A party-scoped Durable Object validates and relays messages, keeps its latest 1,000 history entries, and clears all party data 30 days after its final peer disconnects. Rejoining before then restarts that countdown.
 
 ## Development
 
@@ -45,12 +45,25 @@ vp run
 
 `vp run dev` installs the extension into disposable Chrome and Firefox profiles, opens both at the
 [Blender test video](https://video.blender.org/w/dmhvQNzwBnrWy1iYzVv5g7), and reloads the extension
-when source files change. Stopping and restarting the command creates clean profiles, which also
-resets optional site permissions. Development targets the local website and `/join` route on port
-5180 and the local Worker on port 8080. The website listens on all interfaces, so a Lima guest can
-be reached from macOS through the VM's forwarded port.
+when source files change. Development uses the same optional per-site permissions as store builds.
+Stopping and restarting the command creates clean profiles, which resets those permissions and lets
+the grant flow be tested repeatedly. Development targets the local website and `/join` route on port
+5180 and the local Worker on port 8080. The website listens on all interfaces, so a Lima guest can be
+reached from macOS through the VM's forwarded port.
 
 Cross-package workflows belong in Vite Task and are listed by `vp run`.
+
+Before submitting a release to the extension stores, run:
+
+```bash
+vp run stage
+```
+
+This is the final release rehearsal: it runs the complete local validation suite, builds and
+validates the exact production archives, verifies the deployed website, join route, release version,
+party creation, and secure WebSocket handshake, then loads those immutable production builds into
+fresh temporary Chrome and Firefox profiles. It neither deploys nor hot-reloads. Close both browsers
+to finish the task.
 
 ## Build configuration
 
@@ -98,7 +111,7 @@ captured at twice the size each store advertises; run the task with `JELLY_PRESS
 exact-size files where a dashboard insists on them. The screenshots use the repository's own
 `static/sync-demo.webm` clip; never put a streaming
 service's player or footage in a listing image. The accompanying listing text lives in
-[store-listing.md](store-listing.md).
+[docs/store-listing.md](docs/store-listing.md).
 
 ## Quality loop
 
@@ -110,6 +123,7 @@ vp run test:e2e   # Playwright two-peer flow
 vp run test:e2e:firefox # Firefox loaded-extension acceptance flow
 vp run test:e2e:production # store build against the deployed /join route
 vp run smoke:production # live website, join, health, and WSS handshake
+vp run stage      # full release gate, then production builds in fresh browsers
 vp run build      # loadable production folders plus validated store ZIPs
 vp run build:all  # every deployable build plus store archives
 ```

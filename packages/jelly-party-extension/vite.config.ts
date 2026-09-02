@@ -94,7 +94,6 @@ export default defineConfig(({ mode }) => {
           createExtensionManifest(urls, {
             firefox: isFirefox,
             test: isTest,
-            development: isDevelopment,
           }),
         browser,
         disableAutoLaunch: !isDevelopment,

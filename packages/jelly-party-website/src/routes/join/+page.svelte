@@ -58,7 +58,7 @@ onMount(() => {
 	<div class="jp-panel w-full max-w-108 p-7 text-center sm:p-10">
 		<img
 			class="jp-logo mx-auto h-22 w-22"
-			src="/favicon.ico"
+			src="/jelly-party.svg"
 			alt="Jelly Party"
 			width="128"
 			height="128"

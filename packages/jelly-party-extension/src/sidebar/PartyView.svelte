@@ -89,11 +89,11 @@
   </header>
 
   <div class="party-meta">
-    <span class="connection-label" data-testid="connection-status">
-      {connectionLabel(party.status)}
-    </span>
     <details class="people-disclosure" data-testid="people-disclosure">
       <summary class="people-summary" data-testid="people-summary">
+        <span class="connection-label" data-testid="connection-status">
+          {connectionLabel(party.status)}
+        </span>
         <span class="leader-summary" title={leaderSummary}>
           <span aria-hidden="true">👑</span>
           <span>{leaderSummary}</span>

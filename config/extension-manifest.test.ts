@@ -71,14 +71,21 @@ describe("extension manifest configuration", () => {
     expect(manifest).not.toHaveProperty("optional_host_permissions");
   });
 
-  it("pre-grants video origins in disposable development profiles", () => {
-    const manifest = createExtensionManifest(DEFAULT_BUILD_URLS, {
+  it("keeps site access optional in development builds", () => {
+    const urls = resolveBuildUrls(
+      {
+        VITE_JELLY_WEBSITE_URL: "http://127.0.0.1:5180",
+        VITE_JELLY_JOIN_URL: "http://127.0.0.1:5180/join",
+        VITE_JELLY_WS_URL: "ws://localhost:8080",
+      },
+      { allowInsecureLocalhost: true },
+    );
+    const manifest = createExtensionManifest(urls, {
       firefox: false,
       test: false,
-      development: true,
     });
 
-    expect(manifest.host_permissions).toEqual(["https://*/*", "http://*/*"]);
-    expect(manifest).not.toHaveProperty("optional_host_permissions");
+    expect(manifest.host_permissions).toEqual(["http://127.0.0.1/*", "http://localhost/*"]);
+    expect(manifest.optional_host_permissions).toEqual(["https://*/*", "http://*/*"]);
   });
 });

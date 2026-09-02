@@ -53,7 +53,7 @@ const party: ActiveParty = {
 		<div class="grid h-100 grid-cols-[minmax(0,20.5rem)] justify-center overflow-hidden rounded-[1.35rem] bg-[#070914] sm:grid-cols-[minmax(0,1fr)_20.5rem]">
 			<div class="relative hidden overflow-hidden bg-gradient-to-br from-[#232944] to-[#0e1020] sm:block" aria-hidden="true">
 				<div class="absolute inset-0 grid place-items-center">
-					<img class="jp-logo h-32 w-32 opacity-90" src="/favicon.ico" alt="" width="128" height="128" />
+					<img class="jp-logo h-32 w-32 opacity-90" src="/jelly-party.svg" alt="" width="128" height="128" />
 				</div>
 				<div class="absolute inset-x-5 bottom-5">
 					<div class="h-1 rounded-full bg-white/15"><div class="h-full w-3/5 rounded-full bg-jelly-pink"></div></div>

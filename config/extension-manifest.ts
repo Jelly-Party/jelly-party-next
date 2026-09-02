@@ -5,7 +5,6 @@ import { partyCreationUrl, toWebExtensionMatchPattern, toWebExtensionPagePattern
 export interface ExtensionManifestOptions {
   firefox: boolean;
   test: boolean;
-  development?: boolean;
 }
 
 export function createExtensionManifest(urls: BuildUrls, options: ExtensionManifestOptions) {
@@ -17,7 +16,7 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
   const permissions = ["activeTab", "tabs", "storage", "scripting"];
   if (!options.firefox) permissions.push("sidePanel");
 
-  const broadHostAccess = options.test || options.development === true;
+  const broadHostAccess = options.test;
   const manifest = {
     name: "Jelly Party",
     version: RELEASE_VERSION,

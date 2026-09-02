@@ -46,7 +46,7 @@ let {
 				<span class="h-2.5 w-2.5 rounded-full bg-jelly-mint"></span>
 			</div>
 			<div class="flex min-w-0 max-w-72 items-center gap-2 rounded-t-lg bg-[#0b0e1c] px-3 py-2">
-				<img class="jp-logo h-4 w-4" src="/jelly-party-128.png" alt="" width="128" height="128" />
+				<img class="jp-logo h-4 w-4" src="/jelly-party.svg" alt="" width="128" height="128" />
 				<span class="truncate text-xs font-650 text-slate-300">{title}</span>
 			</div>
 		</div>
@@ -57,7 +57,7 @@ let {
 			</div>
 			<!-- The toolbar button people click to open the sidebar. -->
 			<span class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-jelly-purple/25 ring-1 ring-jelly-purple/60" aria-hidden="true">
-				<img class="jp-logo h-4.5 w-4.5" src="/jelly-party-128.png" alt="" width="128" height="128" />
+				<img class="jp-logo h-4.5 w-4.5" src="/jelly-party.svg" alt="" width="128" height="128" />
 			</span>
 		</div>
 	</div>

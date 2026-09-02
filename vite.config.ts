@@ -50,6 +50,11 @@ export default defineConfig({
         dependsOn: ["predeploy"],
         cache: false,
       },
+      stage: {
+        command: "vp exec node scripts/stage-extension.mjs",
+        dependsOn: ["predeploy", "smoke:production"],
+        cache: false,
+      },
       "smoke:production": {
         command: "vp exec node scripts/smoke-production.ts",
         cache: false,
@@ -57,6 +62,10 @@ export default defineConfig({
       "assets:store": {
         command:
           'vp exec concurrently --kill-others --success first "vp run test:web" "vp exec node scripts/capture-store-assets.ts" --names "web,capture" --prefix-colors "green,magenta"',
+        cache: false,
+      },
+      "assets:icons": {
+        command: "vp exec node scripts/generate-icons.ts",
         cache: false,
       },
       "test:all": {

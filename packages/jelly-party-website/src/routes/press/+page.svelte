@@ -81,7 +81,7 @@ const setupIdentity = { ...mira };
 				<div class="relative mt-5 min-h-0 flex-1">
 					<PartyWindow title={partyVideo.title} url={partyVideo.url} {...video} sidebarActive={false}>
 						{#snippet sidebar()}
-							<BrandHeader logoSrc="/jelly-party-128.png" />
+							<BrandHeader logoSrc="/jelly-party.svg" />
 							<SetupView identity={setupIdentity} tabTitle={partyVideo.title} hasVideo />
 						{/snippet}
 					</PartyWindow>
@@ -195,7 +195,7 @@ const setupIdentity = { ...mira };
 				<div class="pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full bg-jelly-pink/35 blur-3xl" aria-hidden="true"></div>
 				<div class="pointer-events-none absolute -right-16 -bottom-24 h-64 w-64 rounded-full bg-jelly-purple/35 blur-3xl" aria-hidden="true"></div>
 				<div class="relative">
-					<img class="jp-logo mx-auto h-16 w-16" src="/jelly-party-128.png" alt="" width="128" height="128" />
+					<img class="jp-logo mx-auto h-16 w-16" src="/jelly-party.svg" alt="" width="128" height="128" />
 					<p class="m-0 mt-4 text-[2rem] leading-none font-850 tracking-[-0.03em]">Jelly Party</p>
 					<p class="m-0 mt-3 text-sm font-700 text-slate-300">Watch videos with your friends — in sync</p>
 				</div>
@@ -227,7 +227,7 @@ const setupIdentity = { ...mira };
 			<div class="grid h-full place-items-center bg-jelly-ink">
 				<div class="pointer-events-none absolute -left-10 -top-12 h-52 w-52 rounded-full bg-jelly-pink/35 blur-3xl" aria-hidden="true"></div>
 				<div class="pointer-events-none absolute -right-10 -bottom-12 h-52 w-52 rounded-full bg-jelly-purple/35 blur-3xl" aria-hidden="true"></div>
-				<img class="jp-logo relative h-44 w-44" src="/jelly-party-128.png" alt="Jelly Party" width="128" height="128" />
+				<img class="jp-logo relative h-44 w-44" src="/jelly-party.svg" alt="Jelly Party" width="128" height="128" />
 			</div>
 		</PressFrame>
 	</div>

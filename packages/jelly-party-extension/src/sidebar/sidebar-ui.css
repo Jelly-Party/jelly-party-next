@@ -220,16 +220,13 @@
 }
 
 .party-meta {
-  display: grid;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 0.65rem;
   border-bottom: 1px solid #ffffff0c;
   padding: 0.4rem 0.75rem;
 }
 
 .connection-label {
+  margin-right: auto;
   color: #94a3b8;
   font-size: 0.7rem;
   line-height: 1.8rem;
@@ -647,11 +644,6 @@
 }
 
 @container (max-width: 319px) {
-  .party-meta {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
-  }
-
   .connection-label {
     line-height: 1.2rem;
   }

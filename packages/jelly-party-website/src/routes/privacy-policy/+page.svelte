@@ -13,7 +13,7 @@
 			<section>
 				<h2 class="m-0 text-xl font-750 text-white">Data used during a party</h2>
 				<p class="mb-0 mt-3 leading-7">While connected, the relay processes the party identifier, your display name and emoji, chat messages, the shared video URL, and play, pause, and seek timing. This is necessary to connect peers and synchronize their browsers.</p>
-				<p class="mb-0 mt-3 leading-7">Party membership is temporary. Up to the latest 10,000 conversation entries are stored in the party's Cloudflare Durable Object so anyone with the party link can read them. These entries include chat messages with their display name and emoji, plus system entries recording who selected a video and that video's title and URL. We delete all stored party data one year after its final peer disconnects; rejoining before then restarts that countdown. Infrastructure providers may process ordinary connection metadata and short-lived operational logs needed to run and secure the service.</p>
+				<p class="mb-0 mt-3 leading-7">Party membership is temporary. Up to the latest 1,000 conversation entries are stored in the party's Cloudflare Durable Object so anyone with the party link can read them. These entries include chat messages with their display name and emoji, plus system entries recording who selected a video and that video's title and URL. We delete all stored party data 30 days after its final peer disconnects; rejoining before then restarts that countdown. Infrastructure providers may process ordinary connection metadata and short-lived operational logs needed to run and secure the service.</p>
 			</section>
 
 			<section>
@@ -28,7 +28,7 @@
 
 			<section class="border-t border-white/10 pt-8">
 				<p class="m-0 leading-7">Questions: <a href="mailto:hi@jelly-party.com" class="jp-link">hi@jelly-party.com</a></p>
-				<p class="mb-0 mt-3 text-sm text-slate-500">Effective 30 August 2026.</p>
+				<p class="mb-0 mt-3 text-sm text-slate-500">Effective 2 September 2026.</p>
 			</section>
 		</div>
 	</div>

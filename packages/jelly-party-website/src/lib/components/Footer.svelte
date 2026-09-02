@@ -9,7 +9,7 @@ const currentYear = new Date().getFullYear();
 		<div class="flex flex-col justify-between gap-8 md:flex-row md:items-start">
 			<div class="max-w-sm">
 				<a href="/" class="jp-brand">
-					<img class="jp-logo h-11 w-11" src="/favicon.ico" alt="" width="128" height="128" />
+					<img class="jp-logo h-11 w-11" src="/jelly-party.svg" alt="" width="128" height="128" />
 					<span class="text-xl font-800">Jelly Party</span>
 				</a>
 				<p class="mb-0 mt-4 text-sm leading-6 text-slate-400">Temporary watch parties with chat, keeping everyone's video at the same moment. No accounts, ads, or tracking.</p>
