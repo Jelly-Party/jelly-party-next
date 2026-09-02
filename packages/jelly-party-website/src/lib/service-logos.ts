@@ -1,5 +1,5 @@
 // Brand marks for the services people watch on, drawn as single-color SVG paths.
-// Netflix, Prime Video, YouTube, Vimeo, Twitch, Plex, Crunchyroll, and Jellyfin come from
+// Netflix, Prime Video, YouTube, Vimeo, Plex, Crunchyroll, and Jellyfin come from
 // Simple Icons (https://simpleicons.org, CC0-1.0). Disney+ comes from theSVG
 // (https://github.com/glincker/thesvg, MIT). Each viewBox is cropped to the artwork so every
 // logo can be sized by height alone. Logos remain trademarks of their respective owners.
@@ -52,13 +52,6 @@ export const serviceLogos: ServiceLogo[] = [
     viewBox: "0 1.6 24 20.79",
     ratio: 1.15,
     body: '<path d="M23.9765 6.4168c-.105 2.338-1.739 5.5429-4.894 9.6088-3.2679 4.247-6.0258 6.3699-8.2898 6.3699-1.409 0-2.578-1.294-3.553-3.881l-1.9179-7.1138c-.719-2.584-1.488-3.878-2.312-3.878-.179 0-.806.378-1.8809 1.132l-1.129-1.457a315.06 315.06 0 003.501-3.1279c1.579-1.368 2.765-2.085 3.5539-2.159 1.867-.18 3.016 1.1 3.447 3.838.465 2.953.789 4.789.971 5.5069.5389 2.45 1.1309 3.674 1.7759 3.674.502 0 1.256-.796 2.265-2.385 1.004-1.589 1.54-2.797 1.612-3.628.144-1.371-.395-2.061-1.614-2.061-.574 0-1.167.121-1.777.391 1.186-3.8679 3.434-5.7568 6.7619-5.6368 2.4729.06 3.6279 1.664 3.4929 4.7969z"/>',
-  },
-  {
-    id: "twitch",
-    name: "Twitch",
-    viewBox: "1.71 0 20.57 24",
-    ratio: 0.86,
-    body: '<path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>',
   },
   {
     id: "plex",

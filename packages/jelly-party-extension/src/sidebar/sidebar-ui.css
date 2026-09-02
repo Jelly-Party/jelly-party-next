@@ -220,53 +220,156 @@
 }
 
 .party-meta {
-  display: flex;
+  display: grid;
   min-width: 0;
-  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.65rem;
   border-bottom: 1px solid #ffffff0c;
   padding: 0.4rem 0.75rem;
 }
 
 .connection-label {
-  flex: 0 0 auto;
   color: #94a3b8;
   font-size: 0.7rem;
+  line-height: 1.8rem;
   white-space: nowrap;
 }
 
-.peer-list {
-  display: flex;
+.people-disclosure {
   min-width: 0;
-  gap: 0.35rem;
-  overflow-x: auto;
-  margin: 0;
-  padding: 0.15rem 0;
-  list-style: none;
-  scrollbar-width: none;
 }
 
-.peer-list::-webkit-scrollbar {
+.people-summary {
+  display: flex;
+  min-width: 0;
+  min-height: 1.8rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  border-radius: 0.45rem;
+  color: #cbd5e1;
+  padding: 0 0.15rem 0 0.35rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.people-summary::-webkit-details-marker {
   display: none;
 }
 
-.peer-list li {
-  display: flex;
-  max-width: 9rem;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.25rem;
-  border-radius: 2rem;
-  background: #ffffff0c;
-  color: #cbd5e1;
-  padding: 0.24rem 0.48rem;
-  font-size: 0.7rem;
+.people-summary::marker {
+  content: "";
 }
 
-.peer-list li span:last-child {
+.people-summary:hover {
+  background: #ffffff0a;
+  color: #f8fafc;
+}
+
+.leader-summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.leader-summary span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.people-count {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.people-chevron {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transition: transform 120ms ease;
+}
+
+.people-disclosure[open] .people-chevron {
+  transform: rotate(180deg);
+}
+
+.peer-list {
+  display: grid;
+  max-height: 10rem;
+  gap: 0.15rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem 0 0.1rem;
+  list-style: none;
+}
+
+.peer-list li {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.45rem;
+  background: #ffffff0c;
+  color: #cbd5e1;
+  padding: 0.32rem 0.45rem;
+  font-size: 0.7rem;
+}
+
+.peer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.peer-emoji {
+  font-size: 0.85rem;
+}
+
+.peer-roles {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.peer-role {
+  border-radius: 999px;
+  background: #ffffff10;
+  color: #94a3b8;
+  padding: 0.08rem 0.32rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.leader-role {
+  background: #f59e0b17;
+  color: #fcd34d;
+}
+
+.make-leader {
+  border: 0;
+  border-radius: 999px;
+  background: #8b5cf62e;
+  color: #c4b5fd;
+  padding: 0.16rem 0.38rem;
+  font-size: 0.6rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.make-leader:hover {
+  background: #8b5cf650;
+  color: #ede9fe;
 }
 
 .chat-workspace {
@@ -364,6 +467,45 @@
   white-space: pre-wrap;
 }
 
+.system-message {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.38rem;
+  margin: 0.1rem 0 0.65rem;
+  border: 1px solid #a78bfa1f;
+  border-radius: 0.6rem;
+  background: #8b5cf60c;
+  color: #94a3b8;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.system-message p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.system-message strong {
+  color: #c4b5fd;
+}
+
+.system-title {
+  color: #e2e8f0;
+}
+
+.system-message time {
+  color: #64748b;
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.system-icon {
+  line-height: 1.2;
+}
+
 .new-messages-button {
   position: absolute;
   z-index: 1;
@@ -395,6 +537,12 @@
   padding: 0.55rem 0.65rem;
   font-size: 0.75rem;
   line-height: 1.35;
+}
+
+.party-alert-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.35rem;
 }
 
 .composer {
@@ -460,7 +608,7 @@
 .toast {
   position: absolute;
   z-index: 2;
-  top: 3.8rem;
+  top: 0.6rem;
   left: 50%;
   transform: translateX(-50%);
   border: 1px solid #34d39944;
@@ -500,12 +648,15 @@
 
 @container (max-width: 319px) {
   .party-meta {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 0.25rem;
   }
 
-  .peer-list {
-    width: 100%;
+  .connection-label {
+    line-height: 1.2rem;
+  }
+
+  .people-summary {
+    justify-content: flex-start;
   }
 }

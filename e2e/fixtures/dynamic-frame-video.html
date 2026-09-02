@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic framed video</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: #111827;
+        color: white;
+        font-family: system-ui;
+      }
+      iframe {
+        display: block;
+        width: min(90vw, 720px);
+        height: min(50vw, 405px);
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Dynamic iframe fixture</h1>
+    <button id="add-player" type="button">Add framed video</button>
+    <script>
+      document.querySelector("#add-player").addEventListener("click", () => {
+        const frame = document.createElement("iframe");
+        frame.src = "frame-video.html";
+        frame.title = "Dynamically added video frame";
+        document.body.append(frame);
+      });
+    </script>
+  </body>
+</html>

@@ -8,6 +8,9 @@ This directory contains loaded-extension end-to-end acceptance tests.
   sidebar loads the packaged panel and survives close/reopen, then drives that same panel document
   in a normal extension tab for stable DOM assertions. Firefox keeps the panel in a remote nested
   browser context that WebDriver cannot target reliably.
+- `production-join.ts` loads the production Chromium build against the deployed join page and
+  verifies that the extension-owned Allow button reaches the browser permission prompt with its
+  user gesture intact.
 
 Run them with `vp run test:e2e` and `vp run test:e2e:firefox`. The Nix flake supplies all browser
 and driver binaries.
@@ -51,6 +54,8 @@ vp run test:e2e        # Runs headless
 - **Browser-owned Panel DOM**: The native Chromium panel container and Firefox's remote nested panel
   DOM are not directly driven. Chromium and Firefox assert the packaged panel document directly;
   Firefox additionally asserts the real native container's loaded URL and close/reopen lifecycle.
-- **Permission Dialogs**: The actual "Allow" permission dialog flow is bypassed by pre-granting permissions in the test build. We explicitly assume the permission request logic works (unit tested/verified manually).
+- **Permission Dialog Confirmation**: The main suites pre-grant permissions, while
+  `vp run test:e2e:production` verifies that the production flow reaches the browser-owned prompt.
+  Confirming that native prompt still requires a manual click.
 - **Store Installation**: Draft uploads, permission prompts, and branded Chrome/Edge/Firefox toolbar
   smoke tests remain release-checklist items because they require store accounts or browser-owned UI.

@@ -6,7 +6,9 @@ import Footer from "$lib/components/Footer.svelte";
 import Navbar from "$lib/components/Navbar.svelte";
 
 let { children } = $props();
-let standalone = $derived(page.url.pathname === "/join");
+// /join is a landing page for invites and /press is a capture surface for store assets: neither
+// wants the site chrome around it.
+let standalone = $derived(page.url.pathname === "/join" || page.url.pathname === "/press");
 </script>
 
 <svelte:head>

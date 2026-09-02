@@ -1,35 +1,6 @@
 <script lang="ts">
+import { features } from "$lib/features";
 import LucideIcon from "./LucideIcon.svelte";
-
-const LinkIcon = [
-	["path", { d: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" }],
-	["path", { d: "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" }],
-];
-const SyncIcon = [
-	["path", { d: "M20 7h-5V2" }],
-	["path", { d: "M4 17h5v5" }],
-	["path", { d: "M5.1 9A8 8 0 0 1 18.4 5.6L20 7" }],
-	["path", { d: "M18.9 15A8 8 0 0 1 5.6 18.4L4 17" }],
-];
-const MessageIcon = [["path", { d: "M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" }]];
-
-const features = [
-	{
-		title: "One link. No accounts.",
-		icon: LinkIcon,
-		description: "Create a temporary party and send the invite. Friends arrive at the same video without profiles or room codes.",
-	},
-	{
-		title: "Everyone stays at the same moment",
-		icon: SyncIcon,
-		description: "Anyone can press play, pause for snacks, or skip back to a favourite scene. Everyone else's video follows, so nobody has to count down from three.",
-	},
-	{
-		title: "Chat stays out of the way",
-		icon: MessageIcon,
-		description: "See who joined and talk in the browser sidebar. The video page itself is left alone, and the party disappears when everyone leaves.",
-	},
-];
 </script>
 
 <section id="features" class="bg-jelly-ink py-18 sm:py-24">

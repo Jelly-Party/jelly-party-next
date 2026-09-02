@@ -37,12 +37,26 @@ export default defineConfig({
         cache: false,
       },
       predeploy: {
-        command: ["vp check", "vp run test:all", "vp run build:all"],
+        command: ["vp check", "vp run check:wrangler", "vp run test:all", "vp run build:all"],
+        cache: false,
+      },
+      "check:wrangler": {
+        command:
+          "vp exec wrangler types packages/jelly-party-server/src/worker-configuration.d.ts --include-runtime=false --check",
         cache: false,
       },
       deploy: {
-        command: 'vp exec wrangler deploy --env=""',
+        command: ['vp exec wrangler deploy --env=""', "vp run smoke:production"],
         dependsOn: ["predeploy"],
+        cache: false,
+      },
+      "smoke:production": {
+        command: "vp exec node scripts/smoke-production.ts",
+        cache: false,
+      },
+      "assets:store": {
+        command:
+          'vp exec concurrently --kill-others --success first "vp run test:web" "vp exec node scripts/capture-store-assets.ts" --names "web,capture" --prefix-colors "green,magenta"',
         cache: false,
       },
       "test:all": {
@@ -52,6 +66,7 @@ export default defineConfig({
       "test:e2e": {
         command: [
           "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test",
+          "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test:firefox",
           "vp exec playwright test",
         ],
         cache: false,
@@ -63,7 +78,7 @@ export default defineConfig({
       "test:e2e:firefox": {
         command: [
           "VITE_JELLY_WS_URL=ws://localhost:16080 VITE_JELLY_WEBSITE_URL=http://localhost:16180 vp run jelly-party-extension#build:test:firefox",
-          'vp exec concurrently --kill-others --success first "vp run test:services" "vp dev e2e/fixtures --port 16334 --strictPort" "vp exec node e2e/firefox-extension.ts"',
+          'vp exec concurrently --kill-others --success first "vp run test:services" "vp dev e2e/fixtures --host 0.0.0.0 --port 16334 --strictPort" "vp exec node e2e/firefox-extension.ts"',
         ],
         cache: false,
       },

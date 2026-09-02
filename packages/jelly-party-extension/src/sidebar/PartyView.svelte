@@ -2,8 +2,8 @@
   import { MAX_CHAT_LENGTH, type PeerIdentity } from "jelly-party-lib";
   import type { ActiveParty, PartyConnectionStatus } from "../background/party-state";
 
-  export let party: ActiveParty;
-  export let identity: PeerIdentity;
+  export let party = {} as ActiveParty;
+  export let identity = {} as PeerIdentity;
   export let inviteLink = "";
   export let notice = "";
   export let message = "";
@@ -15,6 +15,8 @@
   export let onLeave: () => void = () => {};
   export let onRetry: () => void = () => {};
   export let onReturnToVideo: () => void = () => {};
+  export let onAllowSite: () => void = () => {};
+  export let onMakeLeader: (peerId: string) => void = () => {};
   export let onSend: () => void = () => {};
   export let onLoadOlder: () => void = () => {};
   export let onChatScroll: () => void = () => {};
@@ -33,6 +35,17 @@
       sentAt,
     );
   }
+
+  $: leader = party.peers.find((peer) => peer.id === party.leaderId);
+  $: leaderName = leader?.id === identity.id ? "You" : (leader?.name ?? "The leader");
+  $: leaderSummary = leader
+    ? leader.id === identity.id
+      ? "You lead"
+      : `${leader.name} leads`
+    : "Choosing a leader";
+  $: orderedPeers = [...party.peers].sort(
+    (left, right) => Number(right.id === party.leaderId) - Number(left.id === party.leaderId),
+  );
 </script>
 
 <div class="party-workspace">
@@ -77,22 +90,53 @@
 
   <div class="party-meta">
     <span class="connection-label" data-testid="connection-status">
-      {connectionLabel(party.status)} · {party.peers.length} {party.peers.length === 1 ? "person" : "people"}
+      {connectionLabel(party.status)}
     </span>
-    <ul class="peer-list" aria-label="People in this party" data-testid="peer-list">
-      {#each party.peers as peer (peer.id)}
-        <li data-testid="peer" title={`${peer.name}${peer.id === identity.id ? " (you)" : ""}`}>
-          <span aria-hidden="true">{peer.emoji}</span>
-          <span>{peer.name}{peer.id === identity.id ? " (you)" : ""}</span>
-        </li>
-      {/each}
-    </ul>
+    <details class="people-disclosure" data-testid="people-disclosure">
+      <summary class="people-summary" data-testid="people-summary">
+        <span class="leader-summary" title={leaderSummary}>
+          <span aria-hidden="true">👑</span>
+          <span>{leaderSummary}</span>
+        </span>
+        <span class="people-count">
+          · {party.peers.length} watching
+        </span>
+        <svg class="people-chevron" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="m6.5 8 3.5 3.5L13.5 8" />
+        </svg>
+      </summary>
+      <ul class="peer-list" aria-label="People in this party" data-testid="peer-list">
+        {#each orderedPeers as peer (peer.id)}
+          <li data-testid="peer">
+            <span class="peer-emoji" aria-hidden="true">{peer.emoji}</span>
+            <span class="peer-name" title={peer.name}>{peer.name}</span>
+            <span class="peer-roles">
+              {#if peer.id === party.leaderId}<span class="peer-role leader-role">Leader</span>{/if}
+              {#if peer.id === identity.id}<span class="peer-role">You</span>{/if}
+              {#if party.selfId === party.leaderId && peer.id !== party.selfId}
+                <button
+                  class="make-leader"
+                  on:click={() => onMakeLeader(peer.id)}
+                  title={`Make ${peer.name} the leader`}
+                  data-testid="make-leader"
+                >Make leader</button>
+              {/if}
+            </span>
+          </li>
+        {/each}
+      </ul>
+    </details>
   </div>
 
   <span class="sr-only" data-testid="invite-link">{inviteLink}</span>
 
   <section class="chat-workspace">
     <h2 class="sr-only">Party chat</h2>
+    {#if copied}
+      <div class="toast" role="status">Invite link copied</div>
+    {:else if party.activity}
+      <div class="toast" role="status" data-testid="party-activity">{party.activity.text}</div>
+    {/if}
     <div
       class="messages overscroll-contain [scrollbar-gutter:stable]"
       bind:this={messagesElement}
@@ -115,13 +159,29 @@
         </div>
       {/if}
       {#each party.messages as entry}
-        <article class:own={entry.peer.id === identity.id} class="message" data-testid="chat-message">
-          <header>
-            <strong>{entry.peer.emoji} {entry.peer.name}</strong>
+        {#if entry.kind === "system"}
+          <article class="system-message" data-testid="system-message">
+            <span class="system-icon" aria-hidden="true">{entry.action === "leader-changed" ? "👑" : "🎬"}</span>
+            <p>
+              <strong>{entry.peer.emoji} {entry.peer.name}</strong>
+              {#if entry.action === "leader-changed"}
+                made <strong>{entry.leader.emoji} {entry.leader.name}</strong> the leader
+              {:else}
+                {entry.action === "party-started" ? "started the party with" : "changed the video to"}
+                <span class="system-title" title={entry.destination.url}>“{entry.destination.title}”</span>
+              {/if}
+            </p>
             <time datetime={new Date(entry.sentAt).toISOString()}>{formatMessageTime(entry.sentAt)}</time>
-          </header>
-          <p>{entry.text}</p>
-        </article>
+          </article>
+        {:else}
+          <article class:own={entry.peer.id === identity.id} class="message" data-testid="chat-message">
+            <header>
+              <strong>{entry.peer.emoji} {entry.peer.name}</strong>
+              <time datetime={new Date(entry.sentAt).toISOString()}>{formatMessageTime(entry.sentAt)}</time>
+            </header>
+            <p>{entry.text}</p>
+          </article>
+        {/if}
       {/each}
     </div>
     {#if unseenMessages > 0}
@@ -130,7 +190,7 @@
         on:click={() => onScrollToBottom("smooth")}
         data-testid="new-messages"
       >
-        ↓ {unseenMessages} new {unseenMessages === 1 ? "message" : "messages"}
+        ↓ {unseenMessages} new {unseenMessages === 1 ? "update" : "updates"}
       </button>
     {/if}
 
@@ -141,19 +201,53 @@
       </div>
     {:else if !party.atDestination}
       <div class="party-alert" role="alert" data-testid="return-to-video-notice">
-        <span><strong>Playback sync paused.</strong> Return to the party video to resume.</span>
-        <button
-          class="jp-button-secondary min-h-9 px-3 py-1.5"
-          on:click={onReturnToVideo}
-          data-testid="return-to-video"
-        >Return</button>
+        <span>
+          {#if party.selfId === party.leaderId}
+            {#if party.accessRequired}
+              <strong>Site access needed.</strong>
+              {notice || "Allow Jelly Party to find and synchronize this video."}
+            {:else}
+              <strong>Looking for the new video.</strong> The party will follow when it is ready.
+            {/if}
+          {:else}
+            <strong>You left {leaderName === "The leader" ? "the party" : `${leaderName}’s`} video.</strong>
+            Return to resume synchronization.
+          {/if}
+        </span>
+        <div class="party-alert-actions">
+          {#if party.selfId === party.leaderId && party.accessRequired}
+            <button
+              class="jp-button-secondary min-h-9 px-3 py-1.5"
+              on:click={onAllowSite}
+              data-testid="allow-party-site"
+            >Allow</button>
+          {/if}
+          <button
+            class="jp-button-secondary min-h-9 px-3 py-1.5"
+            on:click={onReturnToVideo}
+            data-testid="return-to-video"
+          >Return</button>
+        </div>
       </div>
     {:else if party.playbackBlocked}
       <div class="party-alert" role="alert" data-testid="playback-blocked-notice">
         <span><strong>Playback needs one click.</strong> Press Play on the video to resume synchronization.</span>
       </div>
     {:else if !party.hasVideo}
-      <div class="party-alert" role="alert">The video is unavailable. Return to the page or reload it.</div>
+      <div class="party-alert" role="alert">
+        <span>
+          {party.accessRequired
+            ? "Allow Jelly Party to access this site before synchronization can continue."
+            : "The video is unavailable. Return to the page or reload it."}
+        </span>
+        {#if party.accessRequired}
+          <button
+            class="jp-button-secondary min-h-9 px-3 py-1.5"
+            on:click={onAllowSite}
+            data-testid="allow-party-site"
+          >Allow this site</button>
+        {/if}
+      </div>
     {:else if notice || party.notice}
       <div class="party-alert" role="alert">{notice || party.notice}</div>
     {/if}
@@ -185,5 +279,4 @@
     </form>
   </section>
 
-  {#if copied}<div class="toast" role="status">Invite link copied</div>{/if}
 </div>

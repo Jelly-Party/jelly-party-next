@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import UnoCSS from "unocss/vite";
@@ -11,12 +12,24 @@ const DEVELOPMENT_START_URL = "https://video.blender.org/w/dmhvQNzwBnrWy1iYzVv5g
 // Chrome owns that shared UI server; Firefox keeps a separate manifest/background reload server.
 const DEVELOPMENT_UI_PORT = 5173;
 const FIREFOX_DEVELOPMENT_PORT = 5182;
+const MACOS_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+
+function chromeBinary(): string | undefined {
+  const candidates = [
+    process.env.CHROME_PATH,
+    ...(process.platform === "darwin" ? [MACOS_CHROME] : []),
+  ];
+  return candidates.find((candidate): candidate is string =>
+    Boolean(candidate && existsSync(candidate)),
+  );
+}
 
 export default defineConfig(({ mode }) => {
   const isTest = mode.endsWith("test");
   const isFirefox = mode.startsWith("firefox");
   const isDevelopment = mode.endsWith("development");
   const browser = isFirefox ? "firefox" : "chrome";
+  const chromiumBinary = chromeBinary();
   const buildEnvironment = loadBuildEnvironment(mode);
   const developmentWebsite =
     buildEnvironment.VITE_JELLY_WEBSITE_URL ||
@@ -41,8 +54,7 @@ export default defineConfig(({ mode }) => {
     run: {
       tasks: {
         dev: {
-          command:
-            `vp exec concurrently --kill-others "vp dev --mode development --port ${DEVELOPMENT_UI_PORT} --strictPort" "vp dev --mode firefox-development --port ${FIREFOX_DEVELOPMENT_PORT} --strictPort" --names "chrome,firefox" --prefix-colors "magenta,cyan"`,
+          command: `vp exec concurrently --kill-others "vp dev --mode development --port ${DEVELOPMENT_UI_PORT} --strictPort" "vp dev --mode firefox-development --port ${FIREFOX_DEVELOPMENT_PORT} --strictPort" --names "chrome,firefox" --prefix-colors "magenta,cyan"`,
           cache: false,
         },
         build: {
@@ -72,13 +84,17 @@ export default defineConfig(({ mode }) => {
     define: {
       __JELLY_WS_URL__: JSON.stringify(urls.websocket),
       __JELLY_JOIN_URL__: JSON.stringify(urls.join),
-      __JELLY_WEBSITE_URL__: JSON.stringify(urls.website),
     },
     plugins: lazyPlugins(() => [
       svelte(),
       UnoCSS(),
       webExtension({
-        manifest: () => createExtensionManifest(urls, { firefox: isFirefox, test: isTest }),
+        manifest: () =>
+          createExtensionManifest(urls, {
+            firefox: isFirefox,
+            test: isTest,
+            development: isDevelopment,
+          }),
         browser,
         disableAutoLaunch: !isDevelopment,
         ...(isDevelopment && {
@@ -90,7 +106,7 @@ export default defineConfig(({ mode }) => {
             }),
             ...(isFirefox
               ? { firefoxBinary: process.env.FIREFOX_BIN }
-              : { chromiumBinary: process.env.CHROME_PATH }),
+              : { ...(chromiumBinary && { chromiumBinary }) }),
           },
         }),
         watchFilePaths: ["../../config/extension-manifest.ts", "../../config/urls.ts"],

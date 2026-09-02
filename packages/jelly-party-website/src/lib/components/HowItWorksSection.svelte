@@ -14,8 +14,8 @@ const steps = [
 	},
 	{
 		number: "03",
-		title: "Share the invite",
-		description: "Send one link. Your friend opens the same video and joins you in the sidebar.",
+		title: "Lead the way",
+		description: "Share the private link. Friends follow when you change videos, or you can hand over the lead.",
 	},
 ];
 </script>

@@ -11,10 +11,10 @@ import ServiceLogos from "./ServiceLogos.svelte";
 			<p class="m-0 text-sm font-800 tracking-[0.2em] text-white/75 uppercase">Watch parties made simple</p>
 			<h1 class="mb-0 mt-4 text-5xl leading-[0.98] font-850 tracking-[-0.035em] sm:text-7xl lg:text-8xl">Watch anything.<br />Together.</h1>
 			<p class="mx-auto mb-0 mt-6 max-w-2xl text-xl leading-8 font-650 text-white lg:mx-0 sm:text-2xl">
-				Jelly Party keeps videos in sync while you watch and chat with friends.
+				One person leads. Everyone follows to the next video and stays in sync.
 			</p>
 			<p class="mx-auto mb-0 mt-3 max-w-xl text-base leading-7 text-white/82 lg:mx-0 sm:text-lg">
-				Open the sidebar next to a video you can already watch, start a party, and send your friends one link. No sign-up, no room codes.
+				Open the sidebar beside any video and share one private, unguessable link. No sign-up, no room codes.
 			</p>
 
 			<div class="mt-8 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row lg:justify-start">

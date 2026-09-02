@@ -25,13 +25,22 @@
               pkgs.firefox
               pkgs.geckodriver
               pkgs.playwright-driver.browsers
+              pkgs.noto-fonts-color-emoji
             ];
+
+            # The store assets are screenshots of the real UI, which shows peer emoji, so the
+            # capture browser needs an emoji font wherever `vp run assets:store` is run.
+            FONTCONFIG_FILE = pkgs.makeFontsConf {
+              fontDirectories = [ pkgs.noto-fonts-color-emoji pkgs.dejavu_fonts ];
+            };
 
             PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
             PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS = true;
             CHROME_PATH =
               if pkgs.stdenv.isDarwin then
-                "${pkgs.playwright-driver.browsers}/chromium-1200/chrome-mac/Chromium.app/Contents/MacOS/Chromium"
+                # Development should open the user's real Chrome on macOS. The internal
+                # Playwright directory differs between Intel and Apple Silicon releases.
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
               else
                 "${pkgs.playwright-driver.browsers}/chromium-1200/chrome-linux/chrome";
             FIREFOX_BIN = "${pkgs.firefox}/bin/firefox";

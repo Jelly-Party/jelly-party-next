@@ -7,10 +7,13 @@
     type PartyState,
   } from "../background/party-state";
   import { isChatAttached } from "./chat-scroll";
+  import BrandHeader from "./BrandHeader.svelte";
   import PartyView from "./PartyView.svelte";
+  import SetupView from "./SetupView.svelte";
   let identity: PeerIdentity = { id: "", name: "", emoji: "🍿" };
   let viewTabId: number | null = null;
   let viewWindowId: number | null = null;
+  let currentTabUrl = "";
   let tabTitle = "";
   let hasVideo = false;
   let cannotAccessTab = false;
@@ -23,18 +26,6 @@
   let chatAttached = true;
   let unseenMessages = 0;
   let partyState: PartyState = initialPartyState;
-  const emojiOptions = [
-    { id: "jellyfish", value: "🪼" },
-    { id: "popcorn", value: "🍿" },
-    { id: "party", value: "🥳" },
-    { id: "cinema", value: "🎬" },
-    { id: "sparkles", value: "✨" },
-    { id: "unicorn", value: "🦄" },
-    { id: "whale", value: "🐳" },
-    { id: "fox", value: "🦊" },
-    { id: "panda", value: "🐼" },
-    { id: "celebrate", value: "🎉" },
-  ];
   const requestedTabId = Number.parseInt(
     new URLSearchParams(location.search).get("tab") ?? "",
     10,
@@ -82,6 +73,7 @@
         }
       }
       if (incoming.type === "tab:navigated" && incoming.tabId === viewTabId) {
+        currentTabUrl = typeof incoming.url === "string" ? incoming.url : "";
         tabTitle = typeof incoming.title === "string" ? incoming.title : "Current video";
         applyVideoScan(incoming.video);
       }
@@ -102,6 +94,7 @@
     if (tab?.tabId) {
       viewTabId = tab.tabId;
       viewWindowId = tab.windowId;
+      currentTabUrl = tab.url ?? "";
       tabTitle = tab.title ?? "Current video";
       applyVideoScan(tab.video);
       await chrome.runtime.sendMessage({ type: "pending:consume", tabId: tab.tabId });
@@ -138,13 +131,7 @@
 
     const previousLast = previous.party.messages.at(-1);
     const nextLast = next.party.messages.at(-1);
-    if (
-      !nextLast ||
-      (previousLast &&
-        previousLast.sentAt === nextLast.sentAt &&
-        previousLast.peer.id === nextLast.peer.id &&
-        previousLast.text === nextLast.text)
-    ) {
+    if (!nextLast || previousLast?.id === nextLast.id) {
       return 0;
     }
     return Math.max(1, next.party.messages.length - previous.party.messages.length);
@@ -167,6 +154,7 @@
     if (tabId === null) return;
     const tab = await chrome.runtime.sendMessage({ type: "tab:snapshot", tabId });
     if (tab?.tabId) {
+      currentTabUrl = tab.url ?? "";
       tabTitle = tab.title ?? "Current video";
       applyVideoScan(tab.video);
       notice = "";
@@ -189,6 +177,16 @@
 
   async function createParty(): Promise<void> {
     if (viewTabId === null) return;
+    try {
+      const granted = await requestSiteAccess(currentTabUrl);
+      if (!granted) {
+        notice = "Allow Jelly Party to access this video site before starting the party.";
+        return;
+      }
+    } catch {
+      notice = "The browser did not grant access to this video site.";
+      return;
+    }
     await saveIdentity();
     notice = "";
     const result = await chrome.runtime.sendMessage({ type: "party:create", tabId: viewTabId });
@@ -216,6 +214,43 @@
     if (!result?.ok) notice = result?.error ?? "Could not return to the party video.";
   }
 
+  async function allowPartySite(): Promise<void> {
+    if (view.mode !== "party") return;
+    const permissionRequest = requestSiteAccess(currentTabUrl);
+    try {
+      if (!permissionRequest) {
+        notice = "The current site URL is unavailable. Reload the page and try again.";
+        return;
+      }
+      const granted = await permissionRequest;
+      if (!granted) {
+        notice = "Jelly Party needs access to this site to synchronize its video.";
+        return;
+      }
+      notice = "";
+      await chrome.runtime.sendMessage({ type: "tab:snapshot", tabId: view.party.tabId });
+    } catch {
+      notice = "The browser did not grant access to this video site.";
+    }
+  }
+
+  function requestSiteAccess(url: string): Promise<boolean> | null {
+    let origin: string;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+      origin = parsed.origin;
+    } catch {
+      return null;
+    }
+    // E2E builds pre-grant test hosts and intentionally have no optional hosts.
+    // Production reaches request() synchronously from the button gesture.
+    if (!chrome.runtime.getManifest().optional_host_permissions?.length) {
+      return Promise.resolve(true);
+    }
+    return chrome.permissions.request({ origins: [`${origin}/*`] });
+  }
+
   async function sendChat(): Promise<void> {
     const text = message.trim();
     if (!text || text.length > MAX_CHAT_LENGTH) return;
@@ -228,6 +263,12 @@
     } else {
       notice = result?.error ?? "Message not sent. Reconnect and try again.";
     }
+  }
+
+  async function makeLeader(peerId: string): Promise<void> {
+    const result = await chrome.runtime.sendMessage({ type: "party:leader", peerId });
+    if (!result?.ok) notice = result?.error ?? "Could not change the party leader.";
+    else notice = "";
   }
 
   function handleComposerKeydown(event: KeyboardEvent): void {
@@ -273,57 +314,21 @@
 
 <main class:party-active={!loading && view.mode === "party"} class="sidebar-root" data-testid="sidebar">
   {#if loading || view.mode !== "party"}
-    <header class="brand-header">
-      <img class="jp-logo h-11 w-11" src="/128x128.png" alt="" width="128" height="128" />
-      <div class="min-w-0">
-        <h1 class="m-0 text-xl font-700">Jelly Party</h1>
-        <p class="m-0 truncate text-sm text-slate-400">Watch together, right beside the video.</p>
-      </div>
-    </header>
+    <BrandHeader />
   {/if}
 
   {#if loading}
     <section class="jp-panel p-4" aria-live="polite">Finding your video…</section>
   {:else if view.mode === "setup"}
-    <section class="jp-panel flex flex-col gap-3 p-4" data-testid="setup-view">
-      <div>
-        <h2 class="section-title">Start watching together</h2>
-        <p class="m-0 mt-1 text-sm leading-5 text-slate-400">Choose how friends will see you in the party.</p>
-      </div>
-      <label>Display name <input class="jp-field mt-1" bind:value={identity.name} maxlength="40" data-testid="name-input" /></label>
-      <fieldset class="emoji-picker">
-        <legend>Choose your emoji</legend>
-        <div class="emoji-grid">
-          {#each emojiOptions as option}
-            <button
-              type="button"
-              class:selected={identity.emoji === option.value}
-              aria-label={`Use ${option.value}`}
-              aria-pressed={identity.emoji === option.value}
-              on:click={() => (identity.emoji = option.value)}
-              data-testid={`emoji-option-${option.id}`}
-            >{option.value}</button>
-          {/each}
-        </div>
-      </fieldset>
-      <div class:ok={hasVideo} class="video-state" data-testid="video-state">
-        {hasVideo
-          ? "Video ready"
-          : cannotAccessTab
-            ? "Click the Jelly Party toolbar button to activate this tab"
-            : "No video found in this tab"}
-      </div>
-      <p class="m-0 truncate text-sm text-slate-400" title={tabTitle}>{tabTitle || "No supported tab"}</p>
-      <button
-        class="jp-button-primary"
-        on:click={createParty}
-        disabled={!viewTabId || !hasVideo || !identity.name.trim()}
-        data-testid="create-party"
-      >
-        Start party
-      </button>
-      {#if notice}<p class="jp-notice m-0" role="alert">{notice}</p>{/if}
-    </section>
+    <SetupView
+      bind:identity
+      {tabTitle}
+      {hasVideo}
+      {cannotAccessTab}
+      {notice}
+      canCreate={viewTabId !== null}
+      onCreate={createParty}
+    />
   {:else if view.mode === "away"}
     <section class="jp-panel mt-2 flex flex-col gap-4 p-4 text-center" data-testid="away-view">
       <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-500/20 text-violet-300" aria-hidden="true">▶</div>
@@ -351,6 +356,8 @@
       onLeave={leaveParty}
       onRetry={retry}
       onReturnToVideo={returnToPartyVideo}
+      onAllowSite={allowPartySite}
+      onMakeLeader={makeLeader}
       onSend={sendChat}
       onLoadOlder={loadOlderChat}
       onChatScroll={handleChatScroll}

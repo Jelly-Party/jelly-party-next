@@ -16,6 +16,7 @@ describe("extension manifest configuration", () => {
     const manifest = createExtensionManifest(urls, { firefox: false, test: false });
 
     expect(manifest.host_permissions).toEqual(["https://invites.example/*"]);
+    expect(manifest.optional_host_permissions).toEqual(["https://*/*", "http://*/*"]);
     expect(manifest.content_scripts[0]?.matches).toEqual(["https://invites.example/accept*"]);
     expect(manifest.content_security_policy.extension_pages).toContain(
       "connect-src 'self' wss://relay.example",
@@ -42,7 +43,7 @@ describe("extension manifest configuration", () => {
     expect(manifest).toHaveProperty("sidebar_action.default_panel", "src/sidebar/sidebar.html");
   });
 
-  it("pre-grants video origins only in test manifests", () => {
+  it("pre-grants video origins in disposable test manifests", () => {
     const manifest = createExtensionManifest(
       resolveBuildUrls(
         {
@@ -56,6 +57,18 @@ describe("extension manifest configuration", () => {
     );
 
     expect(manifest.host_permissions).toEqual(["http://localhost/*", "https://*/*", "http://*/*"]);
+    expect(manifest).not.toHaveProperty("optional_host_permissions");
+  });
+
+  it("pre-grants video origins in disposable development profiles", () => {
+    const manifest = createExtensionManifest(DEFAULT_BUILD_URLS, {
+      firefox: false,
+      test: false,
+      development: true,
+    });
+
+    expect(manifest.host_permissions).toContain("https://*/*");
+    expect(manifest.host_permissions).toContain("http://*/*");
     expect(manifest).not.toHaveProperty("optional_host_permissions");
   });
 });

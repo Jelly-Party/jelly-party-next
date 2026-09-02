@@ -66,7 +66,9 @@ export default defineConfig({
     },
     {
       // Serve e2e/fixtures for local video swap tests
-      command: "vp dev e2e/fixtures --port 16333 --strictPort",
+      // Bind both loopback hostnames so the party flow can exercise a real
+      // cross-origin navigation without depending on an external website.
+      command: "vp dev e2e/fixtures --host 0.0.0.0 --port 16333 --strictPort",
       url: "http://localhost:16333/video-swap-test.html",
       reuseExistingServer: !process.env.CI,
       stdout: "pipe",

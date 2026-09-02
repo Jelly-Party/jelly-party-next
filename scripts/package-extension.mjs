@@ -3,24 +3,19 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 import { parse } from "jsonc-parser";
+import { FIREFOX_ADDON_GUID, FIREFOX_MIN_VERSION, RELEASE_VERSION } from "../config/release.ts";
 import {
   DEFAULT_BUILD_URLS,
   toWebExtensionMatchPattern,
   toWebExtensionPagePattern,
 } from "../config/urls.ts";
 
-const FIREFOX_ADDON_GUID = "{1bce6a35-61f2-4477-9899-842359eadcef}";
-
 const root = process.cwd();
 const extensionRoot = path.join(root, "packages/jelly-party-extension");
 const artifacts = path.join(root, "artifacts");
 const fixedDate = new Date("2000-01-01T00:00:00.000Z");
-const archiveNames = [
-  "jelly-party-2.0.0-chrome.zip",
-  "jelly-party-2.0.0-edge.zip",
-  "jelly-party-2.0.0-firefox.zip",
-  "jelly-party-2.0.0-firefox-source.zip",
-];
+const archiveName = (target) => `jelly-party-${RELEASE_VERSION}-${target}.zip`;
+const archiveNames = ["chrome", "edge", "firefox", "firefox-source"].map(archiveName);
 
 await mkdir(artifacts, { recursive: true });
 await validateProductionRoutes();
@@ -32,9 +27,9 @@ await validateManifest(firefoxDirectory, "firefox");
 
 const chromiumArchive = await zipDirectory(chromiumDirectory);
 const firefoxArchive = await zipDirectory(firefoxDirectory);
-await writeFile(path.join(artifacts, "jelly-party-2.0.0-chrome.zip"), chromiumArchive);
-await writeFile(path.join(artifacts, "jelly-party-2.0.0-edge.zip"), chromiumArchive);
-await writeFile(path.join(artifacts, "jelly-party-2.0.0-firefox.zip"), firefoxArchive);
+await writeFile(path.join(artifacts, archiveName("chrome")), chromiumArchive);
+await writeFile(path.join(artifacts, archiveName("edge")), chromiumArchive);
+await writeFile(path.join(artifacts, archiveName("firefox")), firefoxArchive);
 
 const sourceFiles = [
   ".env.example",
@@ -43,6 +38,7 @@ const sourceFiles = [
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
+  "tsconfig.json",
   ".envrc",
   "flake.nix",
   "flake.lock",
@@ -51,6 +47,8 @@ const sourceFiles = [
   "config/build-environment.ts",
   "config/extension-manifest.test.ts",
   "config/extension-manifest.ts",
+  "config/release.ts",
+  "config/unocss.ts",
   "config/urls.ts",
   "config/urls.test.ts",
   "scripts/package-extension.mjs",
@@ -67,10 +65,7 @@ const sourceFiles = [
     path.relative(root, file),
   ),
 ];
-await writeFile(
-  path.join(artifacts, "jelly-party-2.0.0-firefox-source.zip"),
-  await zipFiles(sourceFiles),
-);
+await writeFile(path.join(artifacts, archiveName("firefox-source")), await zipFiles(sourceFiles));
 
 for (const filename of archiveNames.sort()) {
   const contents = await readFile(path.join(artifacts, filename));
@@ -81,7 +76,7 @@ async function validateManifest(directory, browser) {
   const manifest = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
   if (
     manifest.name !== "Jelly Party" ||
-    manifest.version !== "2.0.0" ||
+    manifest.version !== RELEASE_VERSION ||
     manifest.manifest_version !== 3
   ) {
     throw new Error(`${browser}: store identity/version changed unexpectedly`);
@@ -98,7 +93,7 @@ async function validateManifest(directory, browser) {
     manifest.side_panel ||
     manifest.permissions?.includes("sidePanel") ||
     manifest.browser_specific_settings?.gecko?.id !== FIREFOX_ADDON_GUID ||
-    manifest.browser_specific_settings.gecko.strict_min_version !== "140.0" ||
+    manifest.browser_specific_settings.gecko.strict_min_version !== FIREFOX_MIN_VERSION ||
     manifest.browser_specific_settings.gecko.data_collection_permissions?.required?.length !== 4
   ) {
     throw new Error("firefox: invalid sidebar manifest");

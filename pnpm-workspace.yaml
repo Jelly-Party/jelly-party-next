@@ -1,6 +1,20 @@
 packages:
   - "packages/*"
 
+# The workspace is shared by an ARM Mac host and an ARM Linux VM. Keep both
+# native optional packages so `vp install` on either side does not break the other.
+supportedArchitectures:
+  os:
+    - current
+    - darwin
+    - linux
+  cpu:
+    - current
+    - arm64
+  libc:
+    - current
+    - glibc
+
 allowBuilds:
   esbuild: true
   spawn-sync: false

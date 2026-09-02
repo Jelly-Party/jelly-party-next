@@ -8,66 +8,121 @@ import {
 
 declare global {
   interface Window {
-    __jellyPartyVideoScript?: boolean;
+    __jellyPartyVideoController?: {
+      isAlive(): boolean;
+      refresh(): void;
+      stop(): void;
+    };
+    __jellyPartyVideoScanId?: number;
   }
 }
 
-if (!window.__jellyPartyVideoScript) {
-  window.__jellyPartyVideoScript = true;
-  start();
+// Normal rescans reuse the controller so they cannot interrupt a media event.
+// A development extension reload leaves its page global behind, but invalidates
+// the old runtime context; replace the controller only in that case.
+const previousController = window.__jellyPartyVideoController;
+if (previousController?.isAlive()) {
+  previousController.refresh();
+} else {
+  try {
+    previousController?.stop();
+  } catch {
+    // The previous controller belongs to an invalidated extension context.
+  }
+  window.__jellyPartyVideoController = start();
 }
 
-function start(): void {
+function start(): NonNullable<Window["__jellyPartyVideoController"]> {
   let video: HTMLVideoElement | null = null;
-  const echo = new RemoteEchoGuard();
+  let echo = new RemoteEchoGuard();
+  let remoteSeekTarget: number | null = null;
+  let frameScanTimer: ReturnType<typeof setTimeout> | null = null;
+  const events = new AbortController();
 
   const report = () => {
-    const next = findBestVideo();
+    const next = findBestVideo(video);
     if (next !== video) {
-      detach(video);
-      video = next;
-      attach(video);
+      echo = new RemoteEchoGuard();
+      remoteSeekTarget = null;
     }
+    video = next;
+    const metrics = video ? videoMetrics(video) : null;
     void chrome.runtime.sendMessage({
       type: "video:frame-status",
       hasVideo: Boolean(video),
-      area: video ? video.getBoundingClientRect().width * video.getBoundingClientRect().height : 0,
+      area: metrics?.area ?? 0,
+      score: metrics?.score ?? 0,
+      canSync: Boolean(video && mediaEnd(video) !== null),
+      scanId: window.__jellyPartyVideoScanId,
     });
   };
 
   const local = (action: PlaybackAction) => {
-    if (!video || echo.consume(action)) return;
-    const position = timeFromEnd(video.duration, video.currentTime);
+    if (!video) return;
+    if (action === "seek" && remoteSeekTarget !== null) {
+      const matchesRemoteTarget = Math.abs(video.currentTime - remoteSeekTarget) <= 0.5;
+      remoteSeekTarget = null;
+      if (matchesRemoteTarget) return;
+    }
+    if (echo.consume(action)) return;
+    const end = mediaEnd(video);
+    const position = end === null ? null : timeFromEnd(end, video.currentTime);
     if (position === null) return;
-    void chrome.runtime.sendMessage({ type: "video:local", action, timeFromEnd: position });
+    void chrome.runtime.sendMessage({
+      type: "video:local",
+      action,
+      timeFromEnd: position,
+      scanId: window.__jellyPartyVideoScanId,
+    });
   };
 
-  const onPlay = () => local("play");
-  const onPause = () => local("pause");
-  const onSeek = () => local("seek");
+  const requestFrameScan = () => {
+    if (window !== window.top || frameScanTimer) return;
+    frameScanTimer = setTimeout(() => {
+      frameScanTimer = null;
+      void chrome.runtime.sendMessage({
+        type: "video:frames-changed",
+        scanId: window.__jellyPartyVideoScanId,
+      });
+    }, 100);
+  };
 
-  function attach(element: HTMLVideoElement | null): void {
-    element?.addEventListener("play", onPlay);
-    element?.addEventListener("pause", onPause);
-    element?.addEventListener("seeked", onSeek);
-    element?.addEventListener("loadedmetadata", report);
+  const mediaEvent = (action: PlaybackAction) => (event: Event) => {
+    report();
+    if (event.target === video) local(action);
+  };
+
+  document.addEventListener("play", mediaEvent("play"), { capture: true, signal: events.signal });
+  document.addEventListener("pause", mediaEvent("pause"), {
+    capture: true,
+    signal: events.signal,
+  });
+  document.addEventListener("seeked", mediaEvent("seek"), {
+    capture: true,
+    signal: events.signal,
+  });
+  for (const event of ["loadedmetadata", "durationchange", "progress"]) {
+    document.addEventListener(event, report, { capture: true, signal: events.signal });
   }
 
-  function detach(element: HTMLVideoElement | null): void {
-    element?.removeEventListener("play", onPlay);
-    element?.removeEventListener("pause", onPause);
-    element?.removeEventListener("seeked", onSeek);
-    element?.removeEventListener("loadedmetadata", report);
-  }
-
-  chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
+  const runtimeListener = (
+    message: unknown,
+    _sender: chrome.runtime.MessageSender,
+    sendResponse: (response?: unknown) => void,
+  ) => {
+    if (isRefreshMessage(message)) {
+      report();
+      sendResponse({ ok: true });
+      return undefined;
+    }
     if (isSnapshotMessage(message)) {
       report();
       if (!video) {
         sendResponse({ ok: false, error: "No video found" });
         return undefined;
       }
-      const position = timeFromEnd(video.duration, video.currentTime);
+      const end = mediaEnd(video);
+      const position = end === null ? null : timeFromEnd(end, video.currentTime);
       sendResponse(
         position === null
           ? { ok: false, error: "Video duration is unavailable" }
@@ -82,16 +137,24 @@ function start(): void {
     if (!isApplyMessage(message)) return undefined;
     void apply(message.action, message.timeFromEnd).then(sendResponse);
     return true;
-  });
+  };
+  chrome.runtime.onMessage.addListener(runtimeListener);
 
   async function apply(action: PlaybackAction, positionFromEnd: number): Promise<object> {
     report();
     if (!video) return { ok: false, error: "No video found" };
-    const desired = targetTime(video.duration, positionFromEnd);
-    if (desired === null) return { ok: false, error: "Video duration is unavailable" };
+    const end = mediaEnd(video);
+    const desired = end === null ? null : targetTime(end, positionFromEnd);
+    if (desired === null) {
+      return {
+        ok: false,
+        reason: "video-unavailable",
+        error: "Video duration is unavailable",
+      };
+    }
 
     if (Math.abs(video.currentTime - desired) > 0.5) {
-      echo.mark("seek");
+      remoteSeekTarget = desired;
       video.currentTime = desired;
     }
     try {
@@ -117,12 +180,54 @@ function start(): void {
     }
   }
 
-  new MutationObserver(report).observe(document.documentElement, {
+  const observer = new MutationObserver((mutations) => {
+    report();
+    if (
+      mutations.some((mutation) =>
+        [...mutation.addedNodes].some(
+          (node) =>
+            node instanceof HTMLIFrameElement ||
+            (node instanceof Element && Boolean(node.querySelector("iframe"))),
+        ),
+      )
+    ) {
+      requestFrameScan();
+    }
+  });
+  observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
   });
-  window.addEventListener("resize", report);
+  document.addEventListener(
+    "load",
+    (event) => {
+      if (event.target instanceof HTMLIFrameElement) requestFrameScan();
+    },
+    { capture: true, signal: events.signal },
+  );
+  window.addEventListener("resize", report, { signal: events.signal });
+  window.addEventListener("scroll", report, { capture: true, signal: events.signal });
   report();
+  return {
+    isAlive() {
+      try {
+        return Boolean(chrome.runtime.id);
+      } catch {
+        return false;
+      }
+    },
+    refresh: report,
+    stop() {
+      events.abort();
+      observer.disconnect();
+      try {
+        chrome.runtime.onMessage.removeListener(runtimeListener);
+      } catch {
+        // The extension may have reloaded before this controller was replaced.
+      }
+      if (frameScanTimer) clearTimeout(frameScanTimer);
+    },
+  };
 }
 
 function isAutoplayBlock(error: unknown): boolean {
@@ -143,14 +248,53 @@ function isSnapshotMessage(value: unknown): value is { type: "video:snapshot" } 
   );
 }
 
-function findBestVideo(): HTMLVideoElement | null {
+function isRefreshMessage(value: unknown): value is { type: "video:refresh" } {
   return (
-    [...document.querySelectorAll("video")]
-      .map((video) => ({ video, rect: video.getBoundingClientRect() }))
-      .sort(
-        (left, right) => right.rect.width * right.rect.height - left.rect.width * left.rect.height,
-      )[0]?.video ?? null
+    typeof value === "object" && value !== null && "type" in value && value.type === "video:refresh"
   );
+}
+
+function findBestVideo(current: HTMLVideoElement | null): HTMLVideoElement | null {
+  const candidates = [...document.querySelectorAll("video")]
+    .map((video) => ({ video, ...videoMetrics(video) }))
+    .filter((candidate) => candidate.area > 0 && candidate.playable)
+    .sort((left, right) => right.score - left.score || right.area - left.area);
+  const best = candidates[0];
+  if (!best) return null;
+  const selected = candidates.find((candidate) => candidate.video === current);
+  return selected && selected.score >= best.score * 0.8 ? selected.video : best.video;
+}
+
+function videoMetrics(video: HTMLVideoElement): {
+  area: number;
+  score: number;
+  playable: boolean;
+} {
+  const style = getComputedStyle(video);
+  if (
+    style.display === "none" ||
+    style.visibility === "hidden" ||
+    Number.parseFloat(style.opacity) === 0
+  ) {
+    return { area: 0, score: 0, playable: false };
+  }
+  const rect = video.getBoundingClientRect();
+  const width = Math.max(0, Math.min(rect.right, innerWidth) - Math.max(rect.left, 0));
+  const height = Math.max(0, Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0));
+  const area = width * height;
+  const playable = video.readyState > HTMLMediaElement.HAVE_NOTHING || Boolean(video.currentSrc);
+  return {
+    area,
+    score: area * (video.paused ? 1 : 4),
+    playable,
+  };
+}
+
+function mediaEnd(video: HTMLVideoElement): number | null {
+  if (Number.isFinite(video.duration) && video.duration >= 0) return video.duration;
+  if (video.seekable.length === 0) return null;
+  const end = video.seekable.end(video.seekable.length - 1);
+  return Number.isFinite(end) && end >= 0 ? end : null;
 }
 
 function isApplyMessage(value: unknown): value is {

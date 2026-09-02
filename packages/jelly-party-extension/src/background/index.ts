@@ -9,7 +9,9 @@ import {
   MAX_NAME_LENGTH,
   parseMagicLink,
   parsePartyId,
+  type PartyDestination,
   type PeerIdentity,
+  type PlaybackAction,
   type ServerMessage,
 } from "jelly-party-lib";
 import { PartySocket } from "./party-socket";
@@ -24,7 +26,10 @@ import { injectVideoController } from "./video-injection";
 interface VideoCandidate {
   frameId: number;
   area: number;
+  score: number;
   hasVideo: boolean;
+  canSync: boolean;
+  scanId: number;
 }
 
 interface PendingJoin {
@@ -33,19 +38,23 @@ interface PendingJoin {
 }
 
 interface RemotePlaybackTarget {
-  action: "play" | "pause" | "seek";
+  action: PlaybackAction;
   timeFromEnd: number;
   updatedAt: number;
 }
 
-interface PlaybackResult {
-  ok: boolean;
-  error: string;
-  reason?: "interaction-required" | "video-unavailable";
-}
+type PlaybackResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: string;
+      reason?: "interaction-required" | "video-unavailable";
+    };
 
 const candidates = new Map<number, Map<number, VideoCandidate>>();
-const activatedTabs = new Set<number>();
+const activeVideoScans = new Map<number, number>();
+const frameScanTimers = new Map<number, ReturnType<typeof setTimeout>>();
+const navigationScanTimers = new Map<number, ReturnType<typeof setTimeout>>();
 const openSidePanelTabs = new Set<number>();
 const openSidePanelWindows = new Set<number>();
 const adjectives = ["Bright", "Calm", "Happy", "Kind", "Lucky", "Swift"];
@@ -54,6 +63,14 @@ const animals = ["Fox", "Jellyfish", "Otter", "Owl", "Panda", "Whale"];
 let partyState: PartyState = initialPartyState;
 let partySocket: PartySocket | null = null;
 let playbackTarget: RemotePlaybackTarget | null = null;
+let retriedPlaybackTarget: RemotePlaybackTarget | null = null;
+let pendingLeaderDestination = "";
+let leaderDestinationTimer: ReturnType<typeof setTimeout> | null = null;
+let scheduledLeaderDestination = "";
+let nextVideoScanId = 1;
+let activityTimer: ReturnType<typeof setTimeout> | null = null;
+let nextActivityId = 1;
+let suppressPlaybackActivityRevision: number | null = null;
 
 if (chrome.sidePanel) {
   // Own the toolbar click so Chrome grants activeTab before we scan the page.
@@ -91,8 +108,8 @@ chrome.tabs.onCreated.addListener((tab) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  candidates.delete(tabId);
-  activatedTabs.delete(tabId);
+  invalidateVideoScan(tabId);
+  clearScheduledTabScan(navigationScanTimers, tabId);
   openSidePanelTabs.delete(tabId);
   if (partyState.kind === "active" && partyState.party.tabId === tabId) {
     stopParty({ type: "tab-removed", tabId });
@@ -166,6 +183,19 @@ async function handleMessage(
     return { ok: true };
   }
 
+  if (message.type === "party:leader" && typeof message.peerId === "string") {
+    if (
+      partyState.kind === "idle" ||
+      partyState.party.selfId !== partyState.party.leaderId ||
+      !partyState.party.peers.some((peer) => peer.id === message.peerId)
+    ) {
+      return { ok: false, error: "Only the leader can hand the party to someone who is here." };
+    }
+    return partySocket?.leader(message.peerId)
+      ? { ok: true }
+      : { ok: false, error: "Reconnect before changing the leader." };
+  }
+
   if (message.type === "party:focus") {
     return focusParty();
   }
@@ -184,32 +214,48 @@ async function handleMessage(
     return {
       tabId: tab.id,
       windowId: tab.windowId,
+      url: tab.url,
       title: tab.title,
       video: videoScan(tab.id, accessGranted),
     };
   }
 
   if (message.type === "video:frame-status" && sender.tab?.id && sender.frameId !== undefined) {
+    const scanId = activeVideoScans.get(sender.tab.id);
+    if (typeof message.scanId !== "number" || message.scanId !== scanId) return undefined;
     const frames = candidates.get(sender.tab.id) ?? new Map<number, VideoCandidate>();
+    const wasSyncable = bestCandidate(sender.tab.id)?.canSync === true;
     frames.set(sender.frameId, {
       frameId: sender.frameId,
       area: typeof message.area === "number" ? message.area : 0,
+      score: typeof message.score === "number" ? message.score : 0,
       hasVideo: message.hasVideo === true,
+      canSync: message.canSync === true,
+      scanId,
     });
     candidates.set(sender.tab.id, frames);
     const hasVideo = Boolean(bestCandidate(sender.tab.id)?.hasVideo);
     if (partyState.kind === "active" && partyState.party.tabId === sender.tab.id) {
       const becameAvailable =
         partyState.party.atDestination && hasVideo && !partyState.party.hasVideo;
+      const becameSyncable = !wasSyncable && bestCandidate(sender.tab.id)?.canSync === true;
       const partyId = partyState.party.partyId;
-      transition({ type: "video", hasVideo: partyState.party.atDestination && hasVideo });
-      if (becameAvailable && playbackTarget) void applyLatestRemotePlayback(partyId);
+      transition({
+        type: "video",
+        hasVideo: partyState.party.atDestination && hasVideo,
+        accessRequired: false,
+      });
+      if ((becameAvailable || becameSyncable) && playbackTarget) {
+        void applyLatestRemotePlayback(partyId);
+      }
+      if (hasVideo) void maybePublishLeaderDestination(sender.tab.id);
     }
     await notifyViews({ type: "video:status", tabId: sender.tab.id, hasVideo });
     return undefined;
   }
 
   if (message.type === "video:local" && sender.tab?.id && sender.frameId !== undefined) {
+    if (message.scanId !== activeVideoScans.get(sender.tab.id)) return undefined;
     const best = bestCandidate(sender.tab.id);
     if (
       best?.frameId === sender.frameId &&
@@ -224,9 +270,23 @@ async function handleMessage(
         void applyLatestRemotePlayback(partyState.party.partyId);
       } else {
         rememberPlaybackTarget(message.action, message.timeFromEnd);
-        partySocket?.playback(message.action, message.timeFromEnd);
+        partySocket?.playback(
+          message.action,
+          message.timeFromEnd,
+          partyState.party.destinationRevision,
+        );
       }
     }
+    return undefined;
+  }
+
+  if (
+    message.type === "video:frames-changed" &&
+    sender.tab?.id &&
+    sender.frameId === 0 &&
+    message.scanId === activeVideoScans.get(sender.tab.id)
+  ) {
+    scheduleFrameScan(sender.tab.id);
     return undefined;
   }
 
@@ -331,7 +391,13 @@ async function completeGrantedJoin(
 
 async function handleActionClick(tab: chrome.tabs.Tab): Promise<void> {
   if (partyState.kind === "active") {
-    if (tab.id !== partyState.party.tabId) await focusParty(false);
+    if (tab.id !== partyState.party.tabId) {
+      await focusParty(false);
+    } else if (tab.id) {
+      // A toolbar click renews activeTab after a cross-origin navigation.
+      // Use that gesture to restore discovery on the existing party tab.
+      await scanTab(tab.id);
+    }
     return;
   }
   if (!tab.id) return;
@@ -348,16 +414,16 @@ function handleChromeActionClick(tab: chrome.tabs.Tab): void {
     return;
   }
 
+  // Scan before toggling. Even when this click closes an existing panel, it
+  // grants the fresh activeTab access needed after navigation.
+  void handleActionClick(tab);
   const panelOpen = openSidePanelTabs.has(tab.id) || openSidePanelWindows.has(tab.windowId);
-  if (panelOpen && activatedTabs.has(tab.id)) {
+  if (panelOpen) {
     void closeChromeSidePanel(tab);
     return;
   }
 
-  if (!panelOpen) void chrome.sidePanel.open({ tabId: tab.id }).catch(() => undefined);
-  // The action click has now granted activeTab. Inject immediately, exactly as
-  // the original extension did, and let the open sidebar receive video status.
-  void handleActionClick(tab);
+  void chrome.sidePanel.open({ tabId: tab.id }).catch(() => undefined);
 }
 
 async function closeChromeSidePanel(tab: chrome.tabs.Tab): Promise<void> {
@@ -376,12 +442,14 @@ function startParty(partyId: string, tab: chrome.tabs.Tab, identity: PeerIdentit
   if (!tab.id || !tab.url) return;
   partySocket?.close();
   playbackTarget = null;
+  retriedPlaybackTarget = null;
   transition({
     type: "started",
     partyId,
     tabId: tab.id,
     tabUrl: tab.url,
     tabTitle: tab.title ?? "Current video",
+    selfId: identity.id,
     hasVideo: Boolean(bestCandidate(tab.id)),
   });
   void openPartySidebar(tab.id);
@@ -400,18 +468,44 @@ function connectParty(partyId: string, identity: PeerIdentity): void {
     onError: (notice) => transitionIfCurrent(partyId, { type: "notice", notice }),
     onMessage: (message) => handlePartyMessage(partyId, message),
   });
-  partySocket.connect(partyId, identity);
+  partySocket.connect(partyId, identity, {
+    url: partyState.party.tabUrl,
+    title: partyState.party.tabTitle,
+  });
 }
 
 function handlePartyMessage(partyId: string, message: ServerMessage): void {
   if (partyState.kind === "idle" || partyState.party.partyId !== partyId) return;
   if (message.type === "welcome") {
+    const currentUrl = partyState.party.atDestination ? partyState.party.tabUrl : "";
+    transition({
+      type: "session",
+      selfId: message.peerId,
+      leaderId: message.leaderId,
+      destination: message.destination,
+      atDestination: samePartyDestination(currentUrl, message.destination.url),
+    });
     transition({
       type: "history",
       entries: message.history.entries,
       hasMore: message.history.hasMore,
     });
-    if (message.playback) {
+    void followDestination(partyId, message.destination).then(() => {
+      if (
+        partyState.kind === "idle" ||
+        partyState.party.partyId !== partyId ||
+        message.playback?.destinationRevision !== partyState.party.destinationRevision
+      ) {
+        if (
+          partyState.kind === "active" &&
+          partyState.party.partyId === partyId &&
+          partyState.party.selfId === partyState.party.leaderId &&
+          message.initializePlayback !== false
+        ) {
+          void publishPlaybackSnapshot(partyId);
+        }
+        return;
+      }
       const action = message.playback.playing ? "play" : "pause";
       playbackTarget = {
         action,
@@ -419,12 +513,16 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
         updatedAt: message.playback.updatedAt,
       };
       void applyLatestRemotePlayback(partyId);
-    } else if (message.initializePlayback !== false) {
-      void publishPlaybackSnapshot(partyId);
-    }
+    });
     return;
   }
-  if (message.type === "presence") transition({ type: "presence", peers: message.peers });
+  if (message.type === "presence") {
+    const previousLeader = partyState.party.leaderId;
+    transition({ type: "presence", peers: message.peers, leaderId: message.leaderId });
+    if (previousLeader && previousLeader !== message.leaderId) {
+      showActivity(message.leaderId, "is now leading the party");
+    }
+  }
   if (message.type === "chat") {
     transition({
       type: "chat",
@@ -438,7 +536,27 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
       hasMore: message.history.hasMore,
     });
   }
+  if (message.type === "destination") {
+    cancelLeaderDestinationSchedule();
+    pendingLeaderDestination = "";
+    playbackTarget = null;
+    retriedPlaybackTarget = null;
+    suppressPlaybackActivityRevision =
+      message.peerId === partyState.party.selfId ? null : message.destination.revision;
+    if (message.peerId !== partyState.party.selfId)
+      showActivity(message.peerId, "changed the video");
+    void followDestination(partyId, message.destination).then(() => {
+      if (
+        partyState.kind === "active" &&
+        partyState.party.partyId === partyId &&
+        partyState.party.selfId === partyState.party.leaderId
+      ) {
+        void publishPlaybackSnapshot(partyId);
+      }
+    });
+  }
   if (message.type === "playback") {
+    if (message.destinationRevision !== partyState.party.destinationRevision) return;
     const previousAction = playbackTarget?.action;
     playbackTarget = {
       action:
@@ -448,6 +566,18 @@ function handlePartyMessage(partyId: string, message: ServerMessage): void {
       timeFromEnd: message.timeFromEnd,
       updatedAt: Date.now(),
     };
+    if (suppressPlaybackActivityRevision === message.destinationRevision) {
+      suppressPlaybackActivityRevision = null;
+    } else {
+      showActivity(
+        message.peerId,
+        message.action === "play"
+          ? "resumed the video"
+          : message.action === "pause"
+            ? "paused the video"
+            : "seeked the video",
+      );
+    }
     void applyLatestRemotePlayback(partyId);
   }
   if (message.type === "error") transition({ type: "notice", notice: message.message });
@@ -473,7 +603,11 @@ async function publishPlaybackSnapshot(partyId: string): Promise<void> {
       Number.isFinite(result.timeFromEnd)
     ) {
       rememberPlaybackTarget(result.action, result.timeFromEnd);
-      partySocket?.playback(result.action, result.timeFromEnd);
+      partySocket?.playback(
+        result.action,
+        result.timeFromEnd,
+        partyState.party.destinationRevision,
+      );
     }
   } catch {
     // A later local playback event can still establish state if the page changes
@@ -481,9 +615,110 @@ async function publishPlaybackSnapshot(partyId: string): Promise<void> {
   }
 }
 
+async function followDestination(partyId: string, destination: PartyDestination): Promise<void> {
+  if (partyState.kind === "idle" || partyState.party.partyId !== partyId) return;
+  const tabId = partyState.party.tabId;
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const atDestination = Boolean(tab.url && samePartyDestination(tab.url, destination.url));
+    transition({ type: "destination", destination, atDestination });
+    if (atDestination) {
+      await scanTab(tabId);
+      return;
+    }
+    candidates.delete(tabId);
+    await chrome.tabs.update(tabId, { url: destination.url, active: true });
+  } catch {
+    leaveParty();
+  }
+}
+
+async function maybePublishLeaderDestination(
+  tabId: number,
+  knownTab?: chrome.tabs.Tab,
+): Promise<void> {
+  const candidate = bestCandidate(tabId);
+  if (
+    partyState.kind === "idle" ||
+    partyState.party.tabId !== tabId ||
+    partyState.party.selfId !== partyState.party.leaderId ||
+    partyState.party.status !== "connected" ||
+    !candidate?.canSync
+  ) {
+    return;
+  }
+  const tab = knownTab ?? (await chrome.tabs.get(tabId));
+  if (
+    !tab.url?.startsWith("http") ||
+    samePartyDestination(tab.url, partyState.party.tabUrl) ||
+    samePartyDestination(tab.url, pendingLeaderDestination)
+  ) {
+    return;
+  }
+  if (samePartyDestination(tab.url, scheduledLeaderDestination)) return;
+  cancelLeaderDestinationSchedule();
+  scheduledLeaderDestination = tab.url;
+  leaderDestinationTimer = setTimeout(() => {
+    const destination = scheduledLeaderDestination;
+    leaderDestinationTimer = null;
+    scheduledLeaderDestination = "";
+    void publishLeaderDestination(tabId, destination);
+  }, 600);
+}
+
+async function publishLeaderDestination(tabId: number, expectedUrl: string): Promise<void> {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const candidate = bestCandidate(tabId);
+    if (
+      partyState.kind === "idle" ||
+      partyState.party.tabId !== tabId ||
+      partyState.party.selfId !== partyState.party.leaderId ||
+      partyState.party.status !== "connected" ||
+      !candidate?.canSync ||
+      candidate.scanId !== activeVideoScans.get(tabId) ||
+      !tab.url ||
+      !samePartyDestination(tab.url, expectedUrl) ||
+      samePartyDestination(tab.url, partyState.party.tabUrl) ||
+      samePartyDestination(tab.url, pendingLeaderDestination)
+    ) {
+      return;
+    }
+    const destination = {
+      url: tab.url,
+      title: (tab.title?.trim() || "Current video").slice(0, 200),
+    };
+    if (partySocket?.destination(destination)) pendingLeaderDestination = destination.url;
+  } catch {
+    // The tab may have navigated or closed while its video metadata settled.
+  }
+}
+
+function cancelLeaderDestinationSchedule(): void {
+  if (leaderDestinationTimer) clearTimeout(leaderDestinationTimer);
+  leaderDestinationTimer = null;
+  scheduledLeaderDestination = "";
+}
+
+function showActivity(peerId: string, action: string): void {
+  if (partyState.kind === "idle") return;
+  const peer = partyState.party.peers.find((candidate) => candidate.id === peerId);
+  const activity = {
+    id: nextActivityId++,
+    text: `${peer?.emoji ?? "👤"} ${peer?.name ?? "Someone"} ${action}`,
+  };
+  transition({ type: "activity", activity });
+  if (activityTimer) clearTimeout(activityTimer);
+  activityTimer = setTimeout(() => {
+    if (partyState.kind === "active" && partyState.party.activity?.id === activity.id) {
+      transition({ type: "activity", activity: null });
+    }
+  }, 2500);
+}
+
 async function applyPlayback(
   tabId: number,
-  action: "play" | "pause" | "seek",
+  action: PlaybackAction,
   timeFromEnd: number,
 ): Promise<PlaybackResult> {
   if (
@@ -510,15 +745,18 @@ async function applyPlayback(
       { type: "video:apply", action, timeFromEnd },
       { frameId: best.frameId },
     );
-    return result?.ok === false
-      ? {
-          ok: false,
-          error: result.error ?? "Could not control the video.",
-          reason: result.reason,
-        }
-      : { ok: true, error: "" };
+    if (result?.ok === true) return { ok: true };
+    return {
+      ok: false,
+      error: result?.error ?? "The video controller is not ready yet.",
+      reason: result?.reason ?? "video-unavailable",
+    };
   } catch {
-    return { ok: false, error: "Could not control the video." };
+    return {
+      ok: false,
+      error: "The video controller is not ready yet.",
+      reason: "video-unavailable",
+    };
   }
 }
 
@@ -530,6 +768,12 @@ function stopParty(event: Extract<PartyStateEvent, { type: "left" | "tab-removed
   partySocket?.close();
   partySocket = null;
   playbackTarget = null;
+  retriedPlaybackTarget = null;
+  suppressPlaybackActivityRevision = null;
+  pendingLeaderDestination = "";
+  cancelLeaderDestinationSchedule();
+  if (activityTimer) clearTimeout(activityTimer);
+  activityTimer = null;
   transition(event);
   void chrome.action.setBadgeText({ text: "" });
   void chrome.action.setTitle({ title: "Open Jelly Party" });
@@ -540,6 +784,8 @@ async function returnToPartyVideo(): Promise<{ ok: boolean; error?: string }> {
   if (partyState.kind === "idle") return { ok: false, error: "There is no active party." };
   const { tabId, tabUrl } = partyState.party;
   try {
+    cancelLeaderDestinationSchedule();
+    pendingLeaderDestination = "";
     const tab = await chrome.tabs.update(tabId, { url: tabUrl, active: true });
     if (tab?.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
     return { ok: true };
@@ -587,22 +833,92 @@ function transitionIfCurrent(partyId: string, event: PartyStateEvent): void {
 }
 
 async function scanTab(tabId: number): Promise<boolean> {
+  const scanId = activeVideoScans.get(tabId) ?? nextVideoScanId++;
+  activeVideoScans.set(tabId, scanId);
   const accessGranted = await injectVideoController(async (allFrames) => {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames },
+      func: (currentScanId) => {
+        const page = window as Window & { __jellyPartyVideoScanId?: number };
+        page.__jellyPartyVideoScanId = Math.max(page.__jellyPartyVideoScanId ?? 0, currentScanId);
+      },
+      args: [scanId],
+    });
     await chrome.scripting.executeScript({
       target: { tabId, allFrames },
       files: ["src/content/video.js"],
     });
   });
-  if (accessGranted) activatedTabs.add(tabId);
+  if (activeVideoScans.get(tabId) !== scanId) return accessGranted;
+  if (accessGranted) {
+    await chrome.tabs.sendMessage(tabId, { type: "video:refresh" }).catch(() => undefined);
+  }
   if (!accessGranted) {
-    activatedTabs.delete(tabId);
+    activeVideoScans.delete(tabId);
     candidates.delete(tabId);
     if (partyState.kind === "active" && partyState.party.tabId === tabId) {
-      transition({ type: "video", hasVideo: false });
+      transition({ type: "video", hasVideo: false, accessRequired: true });
     }
     await notifyViews({ type: "video:status", tabId, hasVideo: false, accessRequired: true });
   }
   return accessGranted;
+}
+
+function invalidateVideoScan(tabId: number): void {
+  activeVideoScans.delete(tabId);
+  candidates.delete(tabId);
+  clearScheduledTabScan(frameScanTimers, tabId);
+}
+
+function clearScheduledTabScan(
+  timers: Map<number, ReturnType<typeof setTimeout>>,
+  tabId: number,
+): void {
+  const timer = timers.get(tabId);
+  if (timer) clearTimeout(timer);
+  timers.delete(tabId);
+}
+
+function scheduleFrameScan(tabId: number): void {
+  clearScheduledTabScan(frameScanTimers, tabId);
+  frameScanTimers.set(
+    tabId,
+    setTimeout(() => {
+      frameScanTimers.delete(tabId);
+      void scanCurrentTab(tabId);
+    }, 150),
+  );
+}
+
+function scheduleNavigationScan(tabId: number, url: string): void {
+  clearScheduledTabScan(navigationScanTimers, tabId);
+  navigationScanTimers.set(
+    tabId,
+    setTimeout(() => {
+      navigationScanTimers.delete(tabId);
+      void scanCurrentTab(tabId, url);
+    }, 400),
+  );
+}
+
+async function scanCurrentTab(tabId: number, expectedUrl?: string): Promise<void> {
+  try {
+    let tab = await chrome.tabs.get(tabId);
+    if (expectedUrl && (!tab.url || !samePartyDestination(tab.url, expectedUrl))) return;
+    const accessGranted = await scanTab(tabId);
+    tab = await chrome.tabs.get(tabId);
+    if (expectedUrl && (!tab.url || !samePartyDestination(tab.url, expectedUrl))) return;
+    await maybePublishLeaderDestination(tabId, tab);
+    await notifyViews({
+      type: "tab:navigated",
+      tabId,
+      url: tab.url,
+      title: tab.title,
+      video: videoScan(tabId, accessGranted),
+    });
+  } catch {
+    // Navigation can replace or close a tab while its delayed scan is running.
+  }
 }
 
 async function handleTabUpdate(
@@ -611,20 +927,27 @@ async function handleTabUpdate(
   tab: chrome.tabs.Tab,
 ): Promise<void> {
   if (change.url && partyState.kind === "active" && partyState.party.tabId === tabId) {
+    cancelLeaderDestinationSchedule();
+    invalidateVideoScan(tabId);
+    if (!samePartyDestination(change.url, pendingLeaderDestination)) pendingLeaderDestination = "";
     transition({
       type: "tab-destination",
       tabId,
       atDestination: samePartyDestination(change.url, partyState.party.tabUrl),
     });
+    transition({ type: "video", hasVideo: false });
+    scheduleNavigationScan(tabId, change.url);
   }
   if (change.status === "loading") {
-    candidates.delete(tabId);
-    activatedTabs.delete(tabId);
+    cancelLeaderDestinationSchedule();
+    clearScheduledTabScan(navigationScanTimers, tabId);
+    invalidateVideoScan(tabId);
     if (partyState.kind === "active" && partyState.party.tabId === tabId) {
       transition({ type: "video", hasVideo: false });
     }
   }
   if (change.status !== "complete") return;
+  clearScheduledTabScan(navigationScanTimers, tabId);
 
   if (partyState.kind === "active" && partyState.party.tabId === tabId) {
     const destination = partyState.party.tabUrl;
@@ -635,7 +958,12 @@ async function handleTabUpdate(
     });
   }
   const accessGranted = await scanTab(tabId);
+  const currentTab = await chrome.tabs.get(tabId);
+  if (!tab.url || !currentTab.url || !samePartyDestination(currentTab.url, tab.url)) {
+    return;
+  }
   await consumePendingJoin(tabId);
+  await maybePublishLeaderDestination(tabId, currentTab);
   if (
     partyState.kind === "active" &&
     partyState.party.tabId === tabId &&
@@ -648,7 +976,8 @@ async function handleTabUpdate(
   await notifyViews({
     type: "tab:navigated",
     tabId,
-    title: tab.title,
+    url: currentTab.url,
+    title: currentTab.title,
     video: videoScan(tabId, accessGranted),
   });
 }
@@ -673,6 +1002,7 @@ async function applyLatestRemotePlayback(partyId: string): Promise<void> {
       : target.timeFromEnd;
   const result = await applyPlayback(partyState.party.tabId, target.action, position);
   if (result.ok) {
+    if (playbackTarget === target) retriedPlaybackTarget = null;
     transitionIfCurrent(partyId, { type: "playback-blocked", blocked: false });
     return;
   }
@@ -680,12 +1010,19 @@ async function applyLatestRemotePlayback(partyId: string): Promise<void> {
     transitionIfCurrent(partyId, { type: "playback-blocked", blocked: true });
     return;
   }
+  if (result.reason === "video-unavailable" && retriedPlaybackTarget !== target) {
+    retriedPlaybackTarget = target;
+    const tabId = partyState.party.tabId;
+    invalidateVideoScan(tabId);
+    scheduleFrameScan(tabId);
+    return;
+  }
   if (result.reason !== "video-unavailable") {
     transitionIfCurrent(partyId, { type: "notice", notice: result.error });
   }
 }
 
-function rememberPlaybackTarget(action: "play" | "pause" | "seek", timeFromEnd: number): void {
+function rememberPlaybackTarget(action: PlaybackAction, timeFromEnd: number): void {
   const previousAction = playbackTarget?.action;
   playbackTarget = {
     action:
@@ -696,9 +1033,10 @@ function rememberPlaybackTarget(action: "play" | "pause" | "seek", timeFromEnd: 
 }
 
 function bestCandidate(tabId: number): VideoCandidate | undefined {
+  const scanId = activeVideoScans.get(tabId);
   return [...(candidates.get(tabId)?.values() ?? [])]
-    .filter((candidate) => candidate.hasVideo)
-    .sort((left, right) => right.area - left.area)[0];
+    .filter((candidate) => candidate.hasVideo && candidate.scanId === scanId)
+    .sort((left, right) => right.score - left.score || right.area - left.area)[0];
 }
 
 function videoScan(

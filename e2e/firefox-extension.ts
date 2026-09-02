@@ -81,6 +81,13 @@ try {
   await openSidebarPage(peerB);
   console.log("Firefox peer B sidebar opened automatically");
   await waitForSidebarText(peerB, "[data-testid='connection-status']", "Connected");
+  await waitForSidebarText(
+    peerB,
+    "[data-testid='system-message']",
+    "Mira started the party with “Jelly Party local video fixture”",
+  );
+  await waitForSidebarText(peerB, "[data-testid='people-summary']", "Mira leads · 2 watching");
+  await sidebarClick(peerB, "[data-testid='people-summary']");
   await waitForSidebarCount(peerA, "[data-testid='peer']", 2);
   await waitForSidebarCount(peerB, "[data-testid='peer']", 2);
   console.log("Firefox peers present");
@@ -104,7 +111,7 @@ try {
   const detachedTop = await sidebarScrollTop(peerA);
   await sidebarFill(peerB, "[data-testid='chat-input']", "Arriving while Firefox is detached.");
   await sidebarClick(peerB, "[data-testid='send-chat']");
-  await waitForSidebarText(peerA, "[data-testid='new-messages']", "1 new message");
+  await waitForSidebarText(peerA, "[data-testid='new-messages']", "1 new update");
   assert.equal(await sidebarScrollTop(peerA), detachedTop);
   await sidebarClick(peerA, "[data-testid='new-messages']");
   await waitFor(async () => (await sidebarDistanceFromBottom(peerA)) <= 1);
@@ -118,29 +125,68 @@ try {
   await waitFor(async () => await paused(peerA));
   console.log("Firefox playback synchronization verified");
 
+  // Exercise a true cross-origin follow while keeping the fixture deterministic.
+  const nextVideoUrl = "http://127.0.0.1:16334/frame-video.html";
+  await switchToVideo(peerA);
+  await peerA.get(nextVideoUrl);
+  await waitForVideo(peerA);
+  await waitFor(async () => {
+    await switchToVideo(peerB);
+    return (await peerB.getCurrentUrl()) === nextVideoUrl;
+  });
+  await waitForVideo(peerB);
+  await waitForSidebarCount(peerB, "[data-testid='system-message']", 2);
+  await waitForSidebarText(
+    peerB,
+    "[data-testid='system-message']:last-of-type",
+    "Mira changed the video to “Secondary framed video”",
+  );
+  await seek(peerA, 2);
+  await waitFor(async () => Math.abs((await currentTime(peerB)) - 2) < 0.6);
+  console.log("Firefox leader video change followed automatically");
+
+  const noVideoUrl = `${fixtureOrigin}/no-video.html`;
+  await switchToVideo(peerA);
+  await peerA.get(noVideoUrl);
+  await waitForSidebarText(
+    peerA,
+    "[data-testid='return-to-video-notice']",
+    "Looking for the new video",
+  );
+  await switchToVideo(peerB);
+  assert.equal(await peerB.getCurrentUrl(), nextVideoUrl);
+  await waitForSidebarCount(peerB, "[data-testid='system-message']", 2);
+  await sidebarClickAndWaitForActiveTab(peerA, "[data-testid='return-to-video']", nextVideoUrl);
+  await switchToVideo(peerA);
+  await peerA.wait(until.urlIs(nextVideoUrl), 10_000);
+  await waitForVideo(peerA);
+  await seek(peerA, 3);
+  await waitFor(async () => Math.abs((await currentTime(peerB)) - 3) < 0.6);
+  console.log("Firefox leader Return restored playback synchronization");
+
   await closeSidebarPage(peerA);
   await closeNativeSidebar(peerA);
   await waitForSidebarClosed(peerA);
   await waitForSidebarCount(peerB, "[data-testid='peer']", 2);
   await reopenNativeSidebar(peerA);
   await waitForNativeSidebar(peerA);
-  await openSidebarPage(peerA);
+  await openSidebarPage(peerA, nextVideoUrl);
   await waitForSidebarText(peerA, "[data-testid='connection-status']", "Connected");
   await waitForSidebarText(peerA, "[data-testid='messages']", "Firefox movie night is ready.");
   console.log("Firefox sidebar close and reopen preserved the party");
 
   await closeSidebarPage(peerA);
   await peerA.switchTo().newWindow("tab");
-  const unrelatedUrl = `${fixtureOrigin}/frame-video.html`;
+  const unrelatedUrl = videoUrl;
   await peerA.get(unrelatedUrl);
   await openSidebarPage(peerA, unrelatedUrl);
   await waitForSidebarText(peerA, "[data-testid='away-view']", "Your party is still active");
   assert.equal(await sidebarExists(peerA, "[data-testid='return-to-party']"), true);
   assert.equal(await sidebarExists(peerA, "[data-testid='leave-party']"), true);
-  await sidebarClickAndWaitForActiveTab(peerA, "[data-testid='return-to-party']", videoUrl);
+  await sidebarClickAndWaitForActiveTab(peerA, "[data-testid='return-to-party']", nextVideoUrl);
   console.log("Firefox unrelated-tab away view verified");
   await closeSidebarPage(peerA);
-  await openSidebarPage(peerA);
+  await openSidebarPage(peerA, nextVideoUrl);
   await waitForSidebarText(peerA, "[data-testid='connection-status']", "Connected");
 
   await sidebarClick(peerB, "[data-testid='leave-party']");

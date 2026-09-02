@@ -25,14 +25,19 @@ const party: ActiveParty = {
 	tabId: 1,
 	tabUrl: "https://example.com/watch",
 	tabTitle: "Friday movie night",
+	selfId: mira.id,
+	leaderId: mira.id,
+	destinationRevision: 1,
 	status: "connected",
 	peers: [mira, cal],
 	messages,
 	hasMoreHistory: false,
 	atDestination: true,
 	hasVideo: true,
+	accessRequired: false,
 	playbackBlocked: false,
 	notice: "",
+	activity: null,
 };
 </script>
 

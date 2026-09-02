@@ -10,7 +10,10 @@ export function targetTime(duration: number, positionFromEnd: number): number | 
   return Math.max(0, Math.min(duration, duration - Math.max(0, positionFromEnd)));
 }
 
-export function liveTimeFromEnd(snapshot: PlaybackSnapshot, now = Date.now()): number {
+export function liveTimeFromEnd(
+  snapshot: Pick<PlaybackSnapshot, "playing" | "timeFromEnd" | "updatedAt">,
+  now = Date.now(),
+): number {
   if (!snapshot.playing) return snapshot.timeFromEnd;
   const elapsedSeconds = Math.max(0, now - snapshot.updatedAt) / 1000;
   return Math.max(0, snapshot.timeFromEnd - elapsedSeconds);

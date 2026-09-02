@@ -7,6 +7,7 @@ const party = {
   tabId: 7,
   tabUrl: "https://example.com/watch",
   tabTitle: "Friday night movie",
+  selfId: "a",
 };
 
 describe("active party state", () => {
@@ -30,6 +31,7 @@ describe("active party state", () => {
     state = reducePartyState(state, {
       type: "presence",
       peers: [{ id: "a", name: "Mira", emoji: "🩼" }],
+      leaderId: "a",
     });
     state = reducePartyState(state, {
       type: "chat",
@@ -62,7 +64,7 @@ describe("active party state", () => {
     });
   });
 
-  it("keeps at most the latest chat message limit in memory", () => {
+  it("keeps at most the latest party history limit in memory", () => {
     let state = reducePartyState(initialPartyState, { type: "started", ...party });
     state = reducePartyState(state, {
       type: "history",
@@ -88,25 +90,132 @@ describe("active party state", () => {
     if (state.kind === "active") {
       expect(state.party.messages).toHaveLength(MAX_CHAT_MESSAGES);
       expect(state.party.messages[0]?.id).toBe(2);
-      expect(state.party.messages.at(-1)?.text).toBe("Newest");
+      expect(state.party.messages.at(-1)).toMatchObject({ text: "Newest" });
     }
   });
 
-  it("keeps the destination fixed and pauses sync when its tab navigates away", () => {
+  it("stores structured video milestones in the same ordered history", () => {
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, {
+      type: "history",
+      entries: [
+        {
+          id: 1,
+          kind: "system",
+          action: "party-started",
+          peer: { id: "a", name: "Mira", emoji: "🪼" },
+          destination: {
+            url: "https://example.com/watch",
+            title: "Friday night movie",
+            revision: 1,
+          },
+          sentAt: 1,
+        },
+      ],
+      hasMore: false,
+    });
+    state = reducePartyState(state, {
+      type: "chat",
+      entry: {
+        id: 2,
+        kind: "system",
+        action: "video-changed",
+        peer: { id: "a", name: "Mira", emoji: "🪼" },
+        destination: {
+          url: "https://example.com/watch/next",
+          title: "The next movie",
+          revision: 2,
+        },
+        sentAt: 2,
+      },
+    });
+
+    expect(partyViewForTab(state, 7)).toMatchObject({
+      mode: "party",
+      party: {
+        messages: [
+          { kind: "system", action: "party-started" },
+          { kind: "system", action: "video-changed" },
+        ],
+      },
+    });
+  });
+
+  it("updates the shared destination while keeping the same party tab", () => {
     const active = reducePartyState(initialPartyState, { type: "started", ...party });
     const navigated = reducePartyState(active, {
-      type: "tab-destination",
-      tabId: 7,
+      type: "destination",
+      destination: {
+        url: "https://example.com/watch/next",
+        title: "The next movie",
+        revision: 2,
+      },
       atDestination: false,
     });
 
     expect(partyViewForTab(navigated, 7)).toMatchObject({
       mode: "party",
       party: {
-        tabUrl: party.tabUrl,
-        tabTitle: party.tabTitle,
+        tabUrl: "https://example.com/watch/next",
+        tabTitle: "The next movie",
+        destinationRevision: 2,
         atDestination: false,
         hasVideo: false,
+      },
+    });
+  });
+
+  it("becomes sync-ready again after navigation and a later site grant", () => {
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, {
+      type: "destination",
+      destination: {
+        url: "https://videos.example/watch/next",
+        title: "The next movie",
+        revision: 2,
+      },
+      atDestination: false,
+    });
+    state = reducePartyState(state, {
+      type: "tab-destination",
+      tabId: party.tabId,
+      atDestination: true,
+    });
+    state = reducePartyState(state, { type: "video", hasVideo: false, accessRequired: true });
+    state = reducePartyState(state, { type: "video", hasVideo: true, accessRequired: false });
+
+    expect(state).toMatchObject({
+      kind: "active",
+      party: {
+        destinationRevision: 2,
+        atDestination: true,
+        hasVideo: true,
+        accessRequired: false,
+      },
+    });
+  });
+
+  it("tracks the authoritative leader and compact activity", () => {
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, {
+      type: "presence",
+      peers: [
+        { id: "a", name: "Mira", emoji: "🪼" },
+        { id: "b", name: "Noah", emoji: "🐳" },
+      ],
+      leaderId: "b",
+    });
+    state = reducePartyState(state, {
+      type: "activity",
+      activity: { id: 1, text: "🐳 Noah paused the video" },
+    });
+
+    expect(state).toMatchObject({
+      kind: "active",
+      party: {
+        selfId: "a",
+        leaderId: "b",
+        activity: { text: "🐳 Noah paused the video" },
       },
     });
   });
@@ -155,6 +264,23 @@ describe("active party state", () => {
     expect(partyViewForTab(state, 7)).toMatchObject({
       mode: "party",
       party: { hasMoreHistory: false, messages: [{ id: 1 }, { id: 2 }] },
+    });
+  });
+
+  it("does not duplicate persisted entries when a connection is welcomed again", () => {
+    const entry = {
+      id: 1,
+      peer: { id: "a", name: "Mira", emoji: "🪼" },
+      text: "Still here",
+      sentAt: 1,
+    };
+    let state = reducePartyState(initialPartyState, { type: "started", ...party });
+    state = reducePartyState(state, { type: "history", entries: [entry], hasMore: false });
+    state = reducePartyState(state, { type: "history", entries: [entry], hasMore: false });
+
+    expect(partyViewForTab(state, 7)).toMatchObject({
+      mode: "party",
+      party: { messages: [{ id: 1 }] },
     });
   });
 });

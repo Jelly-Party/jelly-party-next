@@ -78,17 +78,38 @@ vp run deploy
 
 Production uses `https://jelly-party.com` for the website,
 `https://join.jelly-party.com/join` for invite handoff, and `wss://meet.jelly-party.com` for party
-WebSockets. All three hostnames route to the same Worker deployment. The browser extension remains
-a separately packaged store artifact and is never published by these deploy tasks.
+WebSockets. After deployment, the task smoke-tests all three endpoints and a real secure WebSocket
+handshake. All three hostnames route to the same Worker deployment. The browser extension remains a
+separately packaged store artifact and is never published by these deploy tasks.
+
+## Store assets
+
+The Chrome, Edge and Firefox listing images are rendered from the components the extension ships,
+not drawn by hand. The website's `/press` route lays out every frame at the exact size each store
+expects, and the capture task screenshots them:
+
+```bash
+vp run assets:store
+```
+
+The images land in `artifacts/press/` beside the store archives, so they are build output rather
+than committed files: regenerate them whenever the UI changes and upload from there. Frames are
+captured at twice the size each store advertises; run the task with `JELLY_PRESS_SCALE=1` for
+exact-size files where a dashboard insists on them. The screenshots use the repository's own
+`static/sync-demo.webm` clip; never put a streaming
+service's player or footage in a listing image. The accompanying listing text lives in
+[store-listing.md](store-listing.md).
 
 ## Quality loop
 
 ```bash
 vp check          # format, lint, and type-check
+vp run check:wrangler # generated Cloudflare bindings match wrangler.jsonc
 vp test --run     # Vitest
 vp run test:e2e   # Playwright two-peer flow
 vp run test:e2e:firefox # Firefox loaded-extension acceptance flow
 vp run test:e2e:production # store build against the deployed /join route
+vp run smoke:production # live website, join, health, and WSS handshake
 vp run build      # loadable production folders plus validated store ZIPs
 vp run build:all  # every deployable build plus store archives
 ```

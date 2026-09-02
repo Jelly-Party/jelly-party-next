@@ -1,6 +1,12 @@
-import type { ClientMessage, PeerIdentity, PlaybackAction, ServerMessage } from "jelly-party-lib";
+import type {
+  ClientMessage,
+  PartyDestinationInput,
+  PeerIdentity,
+  PlaybackAction,
+  ServerMessage,
+} from "jelly-party-lib";
 
-export interface PartySocketHandlers {
+interface PartySocketHandlers {
   onMessage(message: ServerMessage): void;
   onOpen(): void;
   onClose(): void;
@@ -15,13 +21,13 @@ export class PartySocket {
     private readonly handlers: PartySocketHandlers,
   ) {}
 
-  connect(partyId: string, peer: PeerIdentity): void {
+  connect(partyId: string, peer: PeerIdentity, destination: PartyDestinationInput): void {
     this.close();
     const socket = new WebSocket(`${this.url}/party/${encodeURIComponent(partyId)}`);
     this.#socket = socket;
     socket.addEventListener("open", () => {
       if (this.#socket !== socket) return;
-      this.send({ type: "join", peer });
+      this.send({ type: "join", peer, destination });
       this.handlers.onOpen();
     });
     socket.addEventListener("message", (event) => {
@@ -46,8 +52,16 @@ export class PartySocket {
     return this.send({ type: "chat", text });
   }
 
-  playback(action: PlaybackAction, timeFromEnd: number): void {
-    this.send({ type: "playback", action, timeFromEnd });
+  playback(action: PlaybackAction, timeFromEnd: number, destinationRevision: number): void {
+    this.send({ type: "playback", action, timeFromEnd, destinationRevision });
+  }
+
+  destination(destination: PartyDestinationInput): boolean {
+    return this.send({ type: "destination", destination });
+  }
+
+  leader(peerId: string): boolean {
+    return this.send({ type: "leader", peerId });
   }
 
   history(beforeId: number): void {

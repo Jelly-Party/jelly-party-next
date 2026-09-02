@@ -1,28 +1,31 @@
+import { FIREFOX_ADDON_GUID, FIREFOX_MIN_VERSION, RELEASE_VERSION } from "./release";
 import type { BuildUrls } from "./urls";
 import { toWebExtensionMatchPattern, toWebExtensionPagePattern } from "./urls";
 
 export interface ExtensionManifestOptions {
   firefox: boolean;
   test: boolean;
+  development?: boolean;
 }
 
 export function createExtensionManifest(urls: BuildUrls, options: ExtensionManifestOptions) {
   const joinOriginMatch = toWebExtensionMatchPattern(urls.join);
   const joinPageMatch = toWebExtensionPagePattern(urls.join);
   const socket = new URL(urls.websocket);
-  const permissions = ["activeTab", "storage", "scripting"];
+  const permissions = ["activeTab", "tabs", "storage", "scripting"];
   if (!options.firefox) permissions.push("sidePanel");
 
+  const broadHostAccess = options.test || options.development === true;
   const manifest = {
     name: "Jelly Party",
-    version: "2.0.0",
+    version: RELEASE_VERSION,
     description: "Watch videos with your friends — in sync!",
     manifest_version: 3,
     permissions,
-    host_permissions: options.test
+    host_permissions: broadHostAccess
       ? [...new Set([joinOriginMatch, "https://*/*", "http://*/*"])]
       : [joinOriginMatch],
-    ...(!options.test && {
+    ...(!broadHostAccess && {
       optional_host_permissions: ["https://*/*", "http://*/*"],
     }),
     action: {
@@ -56,8 +59,8 @@ export function createExtensionManifest(urls: BuildUrls, options: ExtensionManif
         gecko: {
           // Must match the published AMO add-on GUID or the upload becomes a new
           // listing instead of an update for existing users.
-          id: "{1bce6a35-61f2-4477-9899-842359eadcef}",
-          strict_min_version: "140.0",
+          id: FIREFOX_ADDON_GUID,
+          strict_min_version: FIREFOX_MIN_VERSION,
           data_collection_permissions: {
             required: [
               "browsingActivity",
